@@ -42,7 +42,7 @@ function audioStatus(state: AudioInputState): string {
     case 'unavailable':
       return 'UNAVAILABLE';
     default:
-      return 'DEMO';
+      return 'IDLE';
   }
 }
 
@@ -115,7 +115,7 @@ export function NodeMediaControls({
           <div
             className="node-level-meter"
             role="meter"
-            aria-label={`${live ? 'Microphone' : 'Demo'} control output level`}
+            aria-label={`${live ? 'Microphone' : 'Idle'} control output level`}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={percentage}
@@ -147,7 +147,7 @@ export function NodeMediaControls({
         <p className="node-input-hint">
           {live
             ? 'Level → control, Audio → analyzers · Stop → demo'
-            : 'Demo beat drives Level and Audio until the mic starts'}
+            : 'Start the mic to drive Level and Audio'}
         </p>
       </section>
     );

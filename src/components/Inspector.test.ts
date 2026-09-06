@@ -52,7 +52,7 @@ function renderInspector(
       : createGraphNode('videoInput', { x: 0, y: 0 }, {}, 'camera-1');
   const props: Parameters<typeof Inspector>[0] = {
     node,
-    audioInputState: 'demo',
+    audioInputState: 'idle',
     videoInputState: 'idle',
     videoInputError: null,
     videoFacingMode: 'user',

@@ -24,6 +24,7 @@ import {
   createAudioOnsetState,
   evaluateAudioBeat,
   evaluateAudioOnset,
+  analyzeShapedBands,
   EMPTY_AUDIO_SOURCES,
   SILENT_AUDIO_FRAME,
   type AudioAnalysisFrame,
@@ -1423,11 +1424,28 @@ export class WebGLRenderer {
         const source = this.audioInput(compiledNode, audio);
         const gain = this.numberParam(compiledNode, 'gain');
         const floor = this.numberParam(compiledNode, 'floor');
+        const bands = source.spectrum
+          ? analyzeShapedBands(source.spectrum, {
+              bass: {
+                frequency: this.numberParam(compiledNode, 'bassFrequency'),
+                q: this.numberParam(compiledNode, 'bassQ'),
+              },
+              mid: {
+                frequency: this.numberParam(compiledNode, 'midFrequency'),
+                q: this.numberParam(compiledNode, 'midQ'),
+              },
+              treble: {
+                frequency: this.numberParam(compiledNode, 'trebleFrequency'),
+                q: this.numberParam(compiledNode, 'trebleQ'),
+              },
+            })
+          : source;
+        const values = { level: source.level, ...bands };
         for (const band of ['level', 'bass', 'mid', 'treble'] as const) {
           this.setControl(
             node.id,
             band,
-            clamp((source[band] - floor) * gain, 0, 1),
+            clamp((values[band] - floor) * gain, 0, 1),
           );
         }
         return;
@@ -2119,15 +2137,13 @@ export class WebGLRenderer {
         this.uniform1f(
           program,
           'uAmount',
-          clamp(
-            this.controlInput(
-              compiledNode,
-              'amount',
-              this.numberParam(compiledNode, 'amount'),
-            ),
-            0,
-            1,
-          ),
+          this.controlInput(
+            compiledNode,
+            'amount',
+            this.booleanParam(compiledNode, 'amount') ? 1 : 0,
+          ) > 0.5
+            ? 1
+            : 0,
         );
         this.uniform1f(
           program,
@@ -2443,6 +2459,17 @@ export class WebGLRenderer {
       return clamp(value, definition.min, definition.max);
     }
     return fallback;
+  }
+
+  private booleanParam(compiledNode: CompiledNode, id: string): boolean {
+    const definition = compiledNode.definition.params[id];
+    const value = compiledNode.node.params[id];
+    if (definition?.type !== 'boolean') {
+      throw new RendererError(
+        `Boolean parameter "${id}" is not defined on node "${compiledNode.node.id}".`,
+      );
+    }
+    return typeof value === 'boolean' ? value : definition.defaultValue;
   }
 
   private numberDefault(

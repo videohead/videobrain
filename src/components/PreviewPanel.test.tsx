@@ -142,7 +142,7 @@ function previewProps(document: GraphDocument, playing: boolean) {
     document,
     playing,
     resetToken: 0,
-    audioInputState: 'demo' as const,
+    audioInputState: 'idle' as const,
     videoInputState: 'idle' as const,
     videoSource: null,
     videoModelSources: new Map<string, HTMLImageElement>(),

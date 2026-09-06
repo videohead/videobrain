@@ -18,7 +18,7 @@ import './catalog.css';
 
 const STORY_INPUT_RUNTIME: OperatorInputRuntime = {
   audio: {
-    inputState: 'demo',
+    inputState: 'idle',
     meterLevel: 0.28,
     enable: () => Promise.resolve(),
     disable: () => undefined,
@@ -277,7 +277,7 @@ export const AudioSoftFocusExample: Story = {
   parameters: {
     docs: {
       description: {
-        story: 'Audio Level stays a scalar control: Map Range converts its deterministic demo pulse or live microphone level into a 0–18 pixel Blur radius.',
+        story: 'Audio Level stays a scalar control: Map Range converts its live microphone level into a 0–18 pixel Blur radius. With the microphone stopped the node reads silence.',
       },
     },
   },

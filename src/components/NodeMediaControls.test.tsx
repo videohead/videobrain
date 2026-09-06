@@ -16,7 +16,7 @@ function createRuntime(
 ) {
   const runtime: OperatorInputRuntime = {
     audio: {
-      inputState: overrides.audioState ?? 'demo',
+      inputState: overrides.audioState ?? 'idle',
       meterLevel: overrides.meterLevel ?? 0.42,
       enable: vi.fn(() => Promise.resolve()),
       disable: vi.fn(),
@@ -69,12 +69,12 @@ describe('NodeMediaControls', () => {
       />,
     );
 
-    expect(screen.getByText('DEMO')).toBeVisible();
+    expect(screen.getByText('IDLE')).toBeVisible();
     expect(screen.getByText('control out')).toBeVisible();
     expect(
-      screen.getByText('Demo beat drives Level and Audio until the mic starts'),
+      screen.getByText('Start the mic to drive Level and Audio'),
     ).toBeVisible();
-    expect(screen.getByRole('meter', { name: 'Demo control output level' })).toHaveAttribute(
+    expect(screen.getByRole('meter', { name: 'Idle control output level' })).toHaveAttribute(
       'aria-valuenow',
       '64',
     );

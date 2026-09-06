@@ -181,6 +181,23 @@ export function Inspector({
                   </label>
                 );
               }
+              if (parameter.type === 'boolean') {
+                const checked = typeof value === 'boolean' ? value : parameter.defaultValue;
+                return (
+                  <div className="parameter-row" key={paramId}>
+                    <span className="parameter-label">{parameter.label}</span>
+                    <button
+                      type="button"
+                      className="text-button"
+                      aria-pressed={checked}
+                      aria-label={`${definition.title} ${parameter.label}`}
+                      onClick={() => onParamChange(node.id, paramId, !checked)}
+                    >
+                      {checked ? 'On' : 'Off'}
+                    </button>
+                  </div>
+                );
+              }
 
               const numericValue = typeof value === 'number' ? value : parameter.defaultValue;
               const progress = ((numericValue - parameter.min) / (parameter.max - parameter.min)) * 100;
@@ -503,14 +520,14 @@ function videoStateLabel(state: VideoInputState): string {
 
 function audioStateDescription(state: AudioInputState): string {
   switch (state) {
-    case 'demo':
-      return 'Demo pulse is active. Enable the microphone to analyze live loudness.';
+    case 'idle':
+      return 'No audio is being captured. Enable the microphone to analyze live sound.';
     case 'requesting':
       return 'Choose Allow in the browser prompt to begin microphone analysis.';
     case 'live':
       return 'Microphone loudness analysis is active in this tab.';
     case 'unavailable':
-      return 'Microphone access is unavailable or blocked. The demo pulse remains active.';
+      return 'Microphone access is unavailable or blocked, so this node reads silence.';
   }
 }
 

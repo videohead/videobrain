@@ -343,7 +343,16 @@ describe('operator registry', () => {
       ['mid', 'control.f32'],
       ['treble', 'control.f32'],
     ]);
-    expect(getDefaultParams('audioSpectrum')).toEqual({ gain: 2, floor: 0.05 });
+    expect(getDefaultParams('audioSpectrum')).toEqual({
+      gain: 2,
+      floor: 0.05,
+      bassFrequency: 70,
+      bassQ: 0.7,
+      midFrequency: 900,
+      midQ: 0.7,
+      trebleFrequency: 5_000,
+      trebleQ: 0.7,
+    });
     expect(getOperatorExecution('audioSpectrum')).toEqual({
       visualPasses: 0,
       renderTargets: 0,
@@ -557,13 +566,13 @@ describe('operator registry', () => {
     expect(getDefaultParams('strobe')).toEqual({
       rate: 1,
       duty: 0.8,
-      amount: 0.35,
+      amount: true,
       closedMode: 'black',
     });
     expect(definition.params).toMatchObject({
       rate: { label: 'Rate (Hz)', min: 0, max: 3 },
       duty: { label: 'Open fraction', min: 0.05, max: 0.95 },
-      amount: { min: 0, max: 1 },
+      amount: { type: 'boolean', label: 'On', defaultValue: true },
       closedMode: {
         options: [
           { value: 'black', label: 'Black' },

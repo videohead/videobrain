@@ -684,10 +684,10 @@ test('starts audio analysis from the node and shows its control output', async (
 }) => {
   const audioNode = page.locator('article[aria-label="Audio Level node"]');
   const meter = audioNode.getByRole('meter', {
-    name: 'Demo control output level',
+    name: 'Idle control output level',
   });
 
-  await expect(audioNode.getByText('DEMO', { exact: true })).toBeVisible();
+  await expect(audioNode.getByText('IDLE', { exact: true })).toBeVisible();
   await expect(meter).toBeVisible();
   await audioNode.getByRole('button', { name: 'Start mic' }).click();
 

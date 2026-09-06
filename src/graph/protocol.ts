@@ -19,7 +19,7 @@ import {
   type OperatorParamDefinition,
   type PortDefinition,
   type PortType,
-  type XYParameterLayout,
+  type ParameterLayout,
 } from './types';
 
 export const GRAPH_PROTOCOL_VERSION = 1 as const;
@@ -38,7 +38,7 @@ export interface OperatorCatalogEntry {
   inputs: OperatorCatalogPort[];
   outputs: OperatorCatalogPort[];
   params: Record<string, OperatorParamDefinition>;
-  parameterLayout?: XYParameterLayout;
+  parameterLayout?: ParameterLayout;
   execution: OperatorExecution;
 }
 
@@ -128,7 +128,7 @@ function catalogEntry(definition: OperatorDefinition): OperatorCatalogEntry {
       ]),
     ),
     parameterLayout: definition.parameterLayout
-      ? { ...definition.parameterLayout }
+      ? structuredClone(definition.parameterLayout)
       : undefined,
     execution: getOperatorExecution(definition.kind),
   };

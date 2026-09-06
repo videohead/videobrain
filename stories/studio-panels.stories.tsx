@@ -40,7 +40,7 @@ interface InspectorFixtureProps {
 
 function InspectorFixture({
   kind,
-  audioState = 'demo',
+  audioState = 'idle',
   videoState = 'idle',
   videoError = null,
   facingMode = 'user',
@@ -138,7 +138,7 @@ function InspectorFixture({
           setCurrentAudioState('live');
           return Promise.resolve();
         }}
-        onDisableMicrophone={() => setCurrentAudioState('demo')}
+        onDisableMicrophone={() => setCurrentAudioState('idle')}
         onEnableCamera={(nextFacingMode) => {
           setCurrentFacingMode(nextFacingMode);
           setCurrentVideoState('live');

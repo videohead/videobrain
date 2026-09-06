@@ -41,7 +41,7 @@ function NodeCanvas({
   selectedKind,
   unreachableKinds = [],
   compact = false,
-  audioState: initialAudioState = 'demo',
+  audioState: initialAudioState = 'idle',
   audioMeterLevel = 0.38,
   videoState: initialVideoState = 'idle',
 }: NodeCanvasProps) {
@@ -79,7 +79,7 @@ function NodeCanvas({
           return Promise.resolve();
         },
         disable: () => {
-          setAudioState('demo');
+          setAudioState('idle');
           setGesture('Microphone simulation stopped');
         },
       },
@@ -196,7 +196,7 @@ const meta = {
     kinds: NODE_KINDS,
     unreachableKinds: [],
     compact: false,
-    audioState: 'demo',
+    audioState: 'idle',
     audioMeterLevel: 0.38,
     videoState: 'idle',
   },

@@ -10,6 +10,8 @@ The proof of concept opens into a working composition and runs locally without a
 - Local image, video, and audio files with browser playback controls
 - Audio Mixer with 2/4/8 source routing, per-source gain, and three-band EQ
 - Explicit Audio Output monitoring with relative dBFS metering
+- Audio Spectrum FFT analysis of any patched block, with draggable per-band
+  center frequency and Q, plus Audio Trigger envelopes and an implied beat clock
 - Demand-rooted graph compilation with cycle rejection
 - Procedural GPU sources, warp, blend, trails, spiral feedback, internally
   rate-capped strobe processing, color grading, and display
@@ -81,16 +83,39 @@ appear in the Inspector). Merely adding, selecting, or wiring a device node does
 not start it. For a direct camera check, connect **Video Input · Frame** to
 **Display · Source**, press **Start camera**, and approve the browser prompt.
 
-**Audio Level is an analyzer, not an audio player or audio-through node.** It
-never sends microphone sound to the speakers, which is a feedback-safe default.
-It emits a normalized `control.f32` Level value calculated as
-`clamp((input - Floor) * Gain, 0, 1)`. Floor rejects quiet background noise and
-Gain changes analysis sensitivity; neither setting is speaker volume. Connect
-**Audio Level · Level** to any compatible control input, including **Flow Field ·
-Energy**, **Warp · Amount**, **Blend · Mix**, **Trails · Feedback**, or **Color
-Grade · Hue/Exposure/Saturation**. While connected, the incoming control replaces
-that target's inline slider value. Without microphone access, Audio Level uses a
-deterministic demo pulse.
+**Audio Level owns the microphone session.** It emits a normalized `control.f32`
+Level value calculated as `clamp((input - Floor) * Gain, 0, 1)`. Floor rejects
+quiet background noise and Gain changes analysis sensitivity; neither setting is
+speaker volume. Connect **Audio Level · Level** to any compatible control input,
+including **Flow Field · Energy**, **Warp · Amount**, **Blend · Mix**, **Trails ·
+Feedback**, or **Color Grade · Hue/Exposure/Saturation**. While connected, the
+incoming control replaces that target's inline slider value. Audio Level also
+publishes the captured **Audio** block so analyzers can read it. Analysis never
+reaches the speakers by itself; routing that block into **Audio Output** monitors
+the microphone aloud and can cause howlround, so use headphones. With no
+microphone running, Audio Level reads silence — there is no synthetic fallback.
+
+### Audio analysis: spectrum, triggers, and an implied beat clock
+
+**Audio Spectrum** has no device controls of its own. Patch any `audio.block`
+into its **Audio** input — **Audio Level · Audio**, **File · Audio**, or **Audio
+Mixer · Audio** — and it publishes Level, Bass, Mid, and Treble controls. An
+empty input reads silence.
+
+Each band is a resonant filter with its own center frequency and Q. Drag the
+three coloured handles on the node's response curve: left and right set the
+center frequency on a logarithmic scale, up and down set Q, which is how tightly
+the band rejects everything either side of that center. A low Q listens broadly;
+a high Q isolates one narrow region, so Bass can lock onto a kick while Treble
+follows only the hats. The same values are available on the Bass/Mid/Treble Hz
+and Q sliders, and the curve redraws as either changes.
+
+**Audio Trigger** turns a band's rise above its own rolling average into a
+Trigger gate and a decaying Envelope, so it stays responsive at any volume
+without re-tuning the threshold. **Audio Beat Clock** infers tempo from the
+spacing between those triggers and reports Phase, Beat, Bar, BPM, and Confidence,
+free-running at its Resting BPM until triggers arrive. Open the **Audio Beat
+Pulse** starter for the complete path.
 
 The built-in Signal Graph's Video Model starts in a procedural preview that
 performs no model inference or network request, so the default project requests

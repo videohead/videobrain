@@ -100,6 +100,12 @@ describe('HelpDialog', () => {
     ).toBeVisible();
     expect(screen.getByText(/Flow Field · Energy/)).toBeVisible();
     expect(screen.getByText(/Floor rejects.*Gain controls/)).toBeVisible();
+    expect(screen.getByText('Using Audio Spectrum')).toBeVisible();
+    expect(
+      screen.getByText(/Audio Spectrum analyzes a patched block, not a device\./),
+    ).toBeVisible();
+    expect(screen.getAllByText(/how tightly the band rejects/)).toHaveLength(2);
+    expect(screen.getByText('Tune what each band listens to')).toBeVisible();
     expect(screen.getByText('Using Video Input')).toBeVisible();
     expect(screen.getByText('Using File audio')).toBeVisible();
     expect(

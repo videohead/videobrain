@@ -99,7 +99,7 @@ const recipes = [
   {
     title: 'Audio-controlled soft focus',
     path: 'Audio Level → Map Range → Blur Radius; Flow Field → Blur → Display',
-    note: 'Open Audio Soft Focus. The demo pulse works immediately; Start mic replaces it with analyzed input energy without playing any sound.',
+    note: 'Open Audio Soft Focus, then press Start mic inside Audio Level. Until a real source is running the node reads silence and the image holds still.',
   },
   {
     title: 'Audio-reactive trails',
@@ -109,12 +109,17 @@ const recipes = [
   {
     title: 'Bass impulses and an implied beat clock',
     path: 'Audio Level Audio → Audio Spectrum; Bass → Audio Trigger → Audio Beat Clock; Envelope → Energy, Beat → Warp Amount, Treble → Feedback',
-    note: 'Open Audio Beat Pulse. Audio Level owns the microphone and passes its block to Audio Spectrum, which splits it into bass, mid, and treble; Audio Trigger fires when a band rises above its own recent average, so it stays responsive at any volume; Audio Beat Clock infers tempo from the spacing between those triggers and reports BPM, phase, bar, and confidence. The demo beat drives it immediately, and Start mic inside Audio Level swaps in live input.',
+    note: 'Open Audio Beat Pulse. Audio Level owns the microphone and passes its block to Audio Spectrum, which splits it into bass, mid, and treble; Audio Trigger fires when a band rises above its own recent average, so it stays responsive at any volume; Audio Beat Clock infers tempo from the spacing between those triggers and reports BPM, phase, bar, and confidence. Press Start mic inside Audio Level, or patch a file, to give the analyzer real sound — there is no synthetic beat.',
   },
   {
     title: 'Analyze any audio source, not just the microphone',
     path: 'File Audio → Audio Mixer → Audio Spectrum Audio; Bass → Warp Amount',
     note: 'Open Local File Preview and choose a video or audio file. Audio Spectrum analyzes whatever audio block is patched into its left edge — a file, a mixer, or Audio Level. It has no device controls of its own: the microphone starts from Audio Level. A patched file reads silence until you enable audio output for it, because the browser only starts playback after an explicit action.',
+  },
+  {
+    title: 'Tune what each band listens to',
+    path: 'Audio Spectrum band handles → Bass, Mid, and Treble outputs',
+    note: 'Drag the three coloured handles on the Audio Spectrum curve. Left and right set each band’s center frequency on a logarithmic scale; up and down set its Q, which is how tightly the band rejects everything either side of that center. A low Q listens broadly, a high Q picks out one narrow region — useful for locking Bass onto a kick while Treble follows only the hats. The same values are on the Bass Hz, Bass Q, Mid Hz, Mid Q, Treble Hz, and Treble Q sliders, and the curve redraws as you move either one.',
   },
   {
     title: 'Spiralling recursive image',
@@ -472,6 +477,37 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               Neither setting is speaker volume. Add Map Range after Level to
               change its output span, then add Smooth when you want slower attack
               or release motion.
+            </p>
+            <h3>Using Audio Spectrum</h3>
+            <p>
+              <strong>Audio Spectrum analyzes a patched block, not a device.</strong>{' '}
+              Wire <strong>Audio Level · Audio</strong>, <strong>File · Audio</strong>,
+              or <strong>Audio Mixer · Audio</strong> into its <strong>Audio</strong>{' '}
+              input. It reads the frequency spectrum each visual frame and
+              publishes <strong>Level</strong>, <strong>Bass</strong>,{' '}
+              <strong>Mid</strong>, and <strong>Treble</strong> controls. An empty
+              Audio input reads silence; nothing synthetic stands in for a real
+              source.
+            </p>
+            <p>
+              Each band is a resonant filter you can aim. Drag the three coloured
+              handles on the response curve: left and right set that band's{' '}
+              <strong>center frequency</strong> on a logarithmic scale, and up and
+              down set its <strong>Q</strong>, which is how tightly the band
+              rejects everything either side of that center. A low Q listens
+              broadly; a high Q isolates one narrow region, so Bass can lock onto
+              a kick drum while Treble follows only the hats. The Bass, Mid, and
+              Treble Hz and Q sliders edit the same saved values, and the curve
+              redraws as either changes.
+            </p>
+            <p>
+              Feed a band into <strong>Audio Trigger</strong> to turn a rise above
+              its own recent average into a <strong>Trigger</strong> gate and a
+              decaying <strong>Envelope</strong>, then feed that trigger into{' '}
+              <strong>Audio Beat Clock</strong> for inferred{' '}
+              <strong>BPM</strong>, <strong>Phase</strong>, <strong>Beat</strong>,{' '}
+              <strong>Bar</strong>, and <strong>Confidence</strong>. The clock
+              free-runs at its Resting BPM until triggers arrive.
             </p>
             <h3>Using Video Input</h3>
             <p>

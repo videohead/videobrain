@@ -1290,6 +1290,98 @@ textarea:focus-visible,
   transform: translate(-50%, -50%);
 }
 
+.node-band-control {
+  display: grid;
+  gap: 6px;
+}
+
+.node-band-heading {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font: 7px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.node-band-surface {
+  position: relative;
+  width: 100%;
+  height: 88px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--node-accent, var(--acid)) 28%, var(--line));
+  border-radius: 7px;
+  background:
+    linear-gradient(to right, transparent 24.5%, rgb(255 255 255 / 5%) 25%, transparent 25.5%),
+    linear-gradient(to right, transparent 49.5%, rgb(255 255 255 / 5%) 50%, transparent 50.5%),
+    linear-gradient(to right, transparent 74.5%, rgb(255 255 255 / 5%) 75%, transparent 75.5%),
+    #0a0d12;
+  touch-action: none;
+}
+
+.node-band-plot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.node-band-curve {
+  fill: none;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.node-band-curve.is-bass {
+  stroke: #ff6b8b;
+}
+
+.node-band-curve.is-mid {
+  stroke: #ffd166;
+}
+
+.node-band-curve.is-treble {
+  stroke: #6bd8ff;
+}
+
+.node-band-handle {
+  position: absolute;
+  top: var(--band-y);
+  left: var(--band-x);
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 2px solid #11141a;
+  border-radius: 50%;
+  color: #11141a;
+  font: 700 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  cursor: grab;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+}
+
+.node-band-handle.is-bass {
+  background: #ff6b8b;
+  box-shadow: 0 0 10px rgb(255 107 139 / 45%);
+}
+
+.node-band-handle.is-mid {
+  background: #ffd166;
+  box-shadow: 0 0 10px rgb(255 209 102 / 45%);
+}
+
+.node-band-handle.is-treble {
+  background: #6bd8ff;
+  box-shadow: 0 0 10px rgb(107 216 255 / 45%);
+}
+
+.node-band-handle:focus-visible {
+  outline: 2px solid var(--node-accent, var(--acid));
+  outline-offset: 3px;
+}
+
 .monitor-rail {
   display: grid;
   grid-template-rows: minmax(250px, 46%) minmax(0, 54%);

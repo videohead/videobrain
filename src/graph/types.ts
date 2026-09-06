@@ -106,6 +106,12 @@ export interface NumberParamDefinition {
   step: number;
 }
 
+export interface BooleanParamDefinition {
+  type: 'boolean';
+  label: string;
+  defaultValue: boolean;
+}
+
 export interface SelectParamOption {
   value: string;
   label: string;
@@ -129,6 +135,7 @@ export interface TextParamDefinition {
 
 export type OperatorParamDefinition =
   | NumberParamDefinition
+  | BooleanParamDefinition
   | SelectParamDefinition
   | TextParamDefinition;
 
@@ -138,6 +145,21 @@ export interface XYParameterLayout {
   xParamId: string;
   yParamId: string;
 }
+
+export interface AudioBandLayoutEntry {
+  id: string;
+  label: string;
+  frequencyParamId: string;
+  qParamId: string;
+}
+
+export interface AudioBandParameterLayout {
+  type: 'audio-bands';
+  label: string;
+  bands: readonly AudioBandLayoutEntry[];
+}
+
+export type ParameterLayout = XYParameterLayout | AudioBandParameterLayout;
 
 export interface OperatorExecution {
   visualPasses: number;
@@ -156,6 +178,6 @@ export interface OperatorDefinition {
   inputs: readonly PortDefinition[];
   outputs: readonly PortDefinition[];
   params: Readonly<Record<string, OperatorParamDefinition>>;
-  parameterLayout?: XYParameterLayout;
+  parameterLayout?: ParameterLayout;
   execution?: Readonly<OperatorExecutionOverrides>;
 }

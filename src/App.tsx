@@ -126,8 +126,8 @@ function Studio() {
     : null;
   const sampleMicrophoneAudio = audio.sampleAudio;
   const sampleAudio = useCallback(
-    (timeSeconds: number): AudioAnalysisSnapshot => {
-      const frame = sampleMicrophoneAudio(timeSeconds);
+    (): AudioAnalysisSnapshot => {
+      const frame = sampleMicrophoneAudio();
       const sources: Record<string, AudioAnalysisFrame> = {};
       graphDocument.nodes.forEach((node) => {
         if (node.kind === 'file') {
@@ -306,7 +306,7 @@ function Studio() {
     (node) => node.kind === 'audioLevel' || node.kind === 'audioSpectrum',
   );
   useEffect(() => {
-    if (!hasAudioLevel && audioInputState !== 'demo') {
+    if (!hasAudioLevel && audioInputState !== 'idle') {
       disableMicrophone();
     }
   }, [audioInputState, disableMicrophone, hasAudioLevel]);

@@ -429,7 +429,7 @@ function createStrobeGraph(connectControls = true): GraphDocument {
         {
           rate: 3,
           duty: 0.6,
-          amount: 0.35,
+          amount: true,
           closedMode: 'invert',
         },
         'strobe',
@@ -1574,7 +1574,7 @@ describe('frame-node evaluation', () => {
     });
     expect(lastUniformValue(uniform1f, 'uPhase')).toBe(0.75);
     expect(lastUniformValue(uniform1f, 'uDuty')).toBe(0.6);
-    expect(lastUniformValue(uniform1f, 'uAmount')).toBe(0.72);
+    expect(lastUniformValue(uniform1f, 'uAmount')).toBe(1);
     expect(lastUniformValue(uniform1f, 'uClosedMode')).toBe(3);
     renderer.dispose();
   });
@@ -1589,7 +1589,7 @@ describe('frame-node evaluation', () => {
     uniform1f.mockClear();
     expect(renderer.render(0.75)).toMatchObject({ rendered: true });
     expect(lastUniformValue(uniform1f, 'uPhase')).toBe(0.25);
-    expect(lastUniformValue(uniform1f, 'uAmount')).toBe(0.35);
+    expect(lastUniformValue(uniform1f, 'uAmount')).toBe(1);
     renderer.dispose();
   });
 

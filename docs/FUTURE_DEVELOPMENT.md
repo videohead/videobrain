@@ -273,7 +273,7 @@ Three filters order the work:
 | 1 — local media and framing | 🚧 Next | Image File, Video File, Screen Capture, Crop/Fit, Resize, and Test Card | *Image Color Lab*, *Clip Framing*, and *Screen Layout & Test*; every new node must be output-reachable across the set |
 | 2 — explicit frame state | 🚧 Next | General Frame Delay/Feedback with visible initialization, read/commit, pause, seek, and reset rules | *Feedback Laboratory* |
 | 3 — decisions and events | 🚧 Next | `control.bool`, `event.trigger`, explicit bool/control conversion, Compare, Logic, Trigger, Gate, Hold, Frame Hold, Counter, Timer, and seeded Random | *Cue Logic Basics*, *Freeze & Release*, *Beat-cut Montage*, *Timed Transition*, and *Triggered Variations* |
-| 4 — buffered audio | 🚧 Next | Shipped `audio.block` file playback, Mixer, and explicit Audio Output/Monitor; remaining work is Audio Device In, `audio.spectrum`, Spectrum, Band Energy, Envelope Follower, Onset, and sample-rate analysis | *Audio Patch 101*, *Spectrum Color Bands*, and *Onset Switcher* |
+| 4 — buffered audio | 🚧 Next | Shipped `audio.block` file playback, Mixer, explicit Audio Output/Monitor, and patched analysis through Audio Spectrum, Audio Trigger, and Audio Beat Clock; remaining work is Audio Device In, a public `audio.spectrum` wire, and sample-rate analysis | *Audio Patch 101*, *Spectrum Color Bands*, and *Onset Switcher* |
 | 5 — color, shape, and keying | 🧭 | Levels, Channel Shuffle, Luma/Chroma Key, Displace, Gradient, Shape, and Text | *Poster Maker*, *Keyed Camera*, and *Displacement Map Lab* |
 | 6 — reusable boundaries | 🧭 | Public Input/Output/Parameter contracts, nested Module/Subgraph, instances, presets, and scene routing | *Reusable Performance Rig* and *Scene Bank Basics* |
 | 7 — broader typed systems | 🔬 | Structured data, vision/depth, geometry/materials, and output/gateway families, introduced only after their types and clocks are inspectable | At least one permission-free or recorded-fixture tutorial per new family before live-device examples |
@@ -321,8 +321,8 @@ Adding a node should start with its data contract. The renderer can change from 
 | `control.bool` | 🚧 | Gates, toggles, comparisons, and device buttons |
 | `event.trigger` | 🚧 | Discrete events that must not be confused with a sustained value |
 | `control.vec2`, `control.vec3`, `control.vec4` | 🚧 | Coordinates, color, multi-axis sensors, and packed controls |
-| `audio.block` | 🚧 | Sample-rate audio buffers evaluated by an audio clock |
-| `audio.spectrum` | 🚧 | Frequency bins with sample rate, FFT size, and window metadata |
+| `audio.block` | ✅ | Session-only audio routed between File, Mixer, Audio Level, Audio Output, and the analyzers |
+| `audio.spectrum` | 🚧 | Frequency bins with sample rate, FFT size, and window metadata; analysis currently stays inside Audio Spectrum rather than crossing a wire |
 | `data.table` | 🧭 | Rows/columns for CSV, device maps, cues, and structured transforms |
 | `data.json` | 🧭 | Bounded structured messages and API responses |
 | `frame.depth` | 🧭 | Calibrated depth texture with unit/range metadata |
@@ -474,26 +474,30 @@ per second.
 
 ### Audio analysis and processing
 
-Visual-rate analysis and sample-rate audio are different runtimes. The current
-Audio Level node reads microphone amplitude only and emits a normalized
-visual-rate control; it intentionally has no audio output and never monitors the
-microphone through the speakers. File audio has a separate session-only playback
+Visual-rate analysis and sample-rate audio are different runtimes. Audio Level
+owns the opt-in microphone session, emits a normalized visual-rate control, and
+exposes the captured block on an `audio.block` output so analyzers can read it.
+Audio Spectrum has no device controls of its own: it analyzes whichever block is
+patched into it and reads silence when that input is empty, so nothing synthetic
+ever stands in for a real source. File audio has a separate session-only playback
 path through File, Audio Mixer, and Audio Output, with monitoring muted until the
-user explicitly enables it. File meters are relative dBFS readings, not calibrated
-sound-level measurements. An `AudioWorklet` should own future sample-critical
-nodes; visual controls receive downsampled analysis values.
+user explicitly enables it. Routing a microphone block into Audio Output monitors
+it aloud and can cause howlround, so that path warns the performer. File meters
+are relative dBFS readings, not calibrated sound-level measurements. An
+`AudioWorklet` should own future sample-critical nodes; visual controls receive
+downsampled analysis values.
 
 | Priority | Node/module | Purpose |
 | --- | --- | --- |
-| P0 | ✅ Audio Level | Visual-frame energy control from an opt-in microphone; `clamp((input - floor) * gain, 0, 1)`, with no playback or pass-through |
+| P0 | ✅ Audio Level | Visual-frame energy control from an opt-in microphone; `clamp((input - floor) * gain, 0, 1)`, plus an `audio.block` output for analyzers |
 | P0 | ✅ Audio File path | File selection and media-clock playback for local audio tracks; exposes `audio.block` without persisting media handles |
-| P0 | ✅ Audio Output / Monitor | Explicit browser-tab destination with user activation, muted-by-default startup, relative dBFS metering, and no microphone monitoring |
+| P0 | ✅ Audio Output / Monitor | Explicit browser-tab destination with user activation, muted-by-default startup, and relative dBFS metering |
 | P0 | ✅ Mixer | Two, four, or eight source inputs with per-source gain and shared low/mid/high EQ; routing is explicit and session-only |
 | P1 | 🚧 Audio Device In | Select device and channels and expose an `audio.block`; monitoring remains off until routed explicitly |
-| P1 | 🚧 Spectrum / FFT | Windowed frequency bins and logarithmic views |
-| P1 | 🚧 Band Energy | Bass, low-mid, high-mid, and treble envelopes |
-| P1 | 🚧 Envelope Follower | Peak/RMS with attack and release |
-| P1 | 🚧 Onset / Beat | Transient events with confidence and refractory period |
+| P1 | ✅ Spectrum / FFT | Audio Spectrum reads `getFloatFrequencyData` from any patched block and publishes normalized magnitudes for downstream shaping |
+| P1 | ✅ Band Energy | Bass, mid, and treble outputs weighted by three inline resonant bands, each with its own draggable center frequency and Q |
+| P1 | ✅ Envelope Follower | Audio Trigger emits a decaying Envelope alongside its gate, with inline Hold and Decay controls |
+| P1 | ✅ Onset / Beat | Audio Trigger fires against a band's own rolling average; Audio Beat Clock infers BPM, phase, bar, and confidence from trigger spacing |
 | P1 | 🚧 Pitch | Fundamental estimate plus confidence |
 | P1 | 🚧 Waveform | Time-domain block for scope and geometry conversion |
 | P2 | 🧭 Gain / Pan | Audio-rate amplitude and stereo placement |

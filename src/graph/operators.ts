@@ -30,6 +30,15 @@ const numberParam = (
   step,
 });
 
+const booleanParam = (
+  label: string,
+  defaultValue: boolean,
+): OperatorParamDefinition => ({
+  type: 'boolean',
+  label,
+  defaultValue,
+});
+
 const selectParam = (
   label: string,
   defaultValue: string,
@@ -315,6 +324,36 @@ const definitions = [
     params: {
       gain: numberParam('Gain', 2, 0, 8, 0.01),
       floor: numberParam('Floor', 0.05, 0, 1, 0.01),
+      bassFrequency: numberParam('Bass Hz', 70, 20, 400, 1),
+      bassQ: numberParam('Bass Q', 0.7, 0.2, 12, 0.05),
+      midFrequency: numberParam('Mid Hz', 900, 100, 6_000, 5),
+      midQ: numberParam('Mid Q', 0.7, 0.2, 12, 0.05),
+      trebleFrequency: numberParam('Treble Hz', 5_000, 1_000, 18_000, 25),
+      trebleQ: numberParam('Treble Q', 0.7, 0.2, 12, 0.05),
+    },
+    parameterLayout: {
+      type: 'audio-bands',
+      label: 'Band shape',
+      bands: [
+        {
+          id: 'bass',
+          label: 'Bass',
+          frequencyParamId: 'bassFrequency',
+          qParamId: 'bassQ',
+        },
+        {
+          id: 'mid',
+          label: 'Mid',
+          frequencyParamId: 'midFrequency',
+          qParamId: 'midQ',
+        },
+        {
+          id: 'treble',
+          label: 'Treble',
+          frequencyParamId: 'trebleFrequency',
+          qParamId: 'trebleQ',
+        },
+      ],
     },
   },
   {
@@ -764,7 +803,7 @@ const definitions = [
     params: {
       rate: numberParam('Rate (Hz)', 1, 0, 3, 0.01),
       duty: numberParam('Open fraction', 0.8, 0.05, 0.95, 0.01),
-      amount: numberParam('Amount', 0.35, 0, 1, 0.01),
+      amount: booleanParam('On', true),
       closedMode: selectParam('Closed', 'black', [
         'black',
         'white',

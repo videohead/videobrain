@@ -184,7 +184,7 @@ describe('graph presets', () => {
       kind: 'strobe',
       params: {
         duty: 0.82,
-        amount: 0.55,
+        amount: true,
         closedMode: 'invert',
       },
     });

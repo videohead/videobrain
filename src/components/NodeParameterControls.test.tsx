@@ -55,6 +55,38 @@ describe('NodeParameterControls', () => {
     expect(props.onGestureEnd).toHaveBeenCalledOnce();
   });
 
+  it('gives each analysis band a draggable frequency and Q handle beside its sliders', () => {
+    const props = renderControls('audioSpectrum');
+
+    for (const band of ['Bass', 'Mid', 'Treble']) {
+      expect(
+        screen.getByRole('button', {
+          name: `Audio Spectrum ${band} frequency and Q`,
+        }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole('slider', { name: `Audio Spectrum ${band} Hz` }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole('slider', { name: `Audio Spectrum ${band} Q` }),
+      ).toBeVisible();
+    }
+
+    const handle = screen.getByRole('button', {
+      name: 'Audio Spectrum Treble frequency and Q',
+    });
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+    fireEvent.keyUp(handle, { key: 'ArrowUp' });
+
+    expect(props.onGestureStart).toHaveBeenCalledOnce();
+    expect(props.onParamChange).toHaveBeenCalledWith(
+      'audioSpectrum-1',
+      'trebleQ',
+      0.75,
+    );
+    expect(props.onGestureEnd).toHaveBeenCalledOnce();
+  });
+
   it('exposes enumerated node values as compact selects', async () => {
     const user = userEvent.setup();
     const props = renderControls('videoInput');

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AUDIO_BAND_RANGES,
+  analyzeShapedBands,
   analyzeSpectrumBands,
+  bandResponse,
   createAudioBeatState,
   createAudioOnsetState,
   evaluateAudioBeat,
@@ -126,6 +128,50 @@ describe('spectrum band analysis', () => {
     expect(bands.bass).toBeGreaterThanOrEqual(0);
     expect(bands.bass).toBeLessThanOrEqual(1);
     expect(Number.isFinite(bands.mid)).toBe(true);
+  });
+});
+
+describe('band shaping', () => {
+  it('peaks at the center frequency and falls away either side', () => {
+    expect(bandResponse(1_000, 1_000, 4)).toBeCloseTo(1);
+    expect(bandResponse(500, 1_000, 4)).toBeLessThan(0.5);
+    expect(bandResponse(2_000, 1_000, 4)).toBeLessThan(0.5);
+  });
+
+  it('narrows the passband as Q rises', () => {
+    const wide = bandResponse(1_400, 1_000, 0.7);
+    const tight = bandResponse(1_400, 1_000, 8);
+
+    expect(tight).toBeLessThan(wide);
+    expect(bandResponse(1_000, 1_000, 8)).toBeCloseTo(1);
+  });
+
+  it('rejects a non-finite or non-positive frequency', () => {
+    expect(bandResponse(0, 1_000, 1)).toBe(0);
+    expect(bandResponse(Number.NaN, 1_000, 1)).toBe(0);
+    expect(Number.isFinite(bandResponse(1_000, Number.NaN, Number.NaN))).toBe(
+      true,
+    );
+  });
+
+  it('moves a band onto new energy when its center frequency changes', () => {
+    const magnitudes = new Float32Array(BIN_COUNT);
+    const binWidth = SAMPLE_RATE / 2 / BIN_COUNT;
+    magnitudes[Math.round(3_000 / binWidth)] = 1;
+    const spectrum = { magnitudes, sampleRate: SAMPLE_RATE };
+
+    const away = analyzeShapedBands(spectrum, {
+      bass: { frequency: 70, q: 6 },
+      mid: { frequency: 900, q: 6 },
+      treble: { frequency: 12_000, q: 6 },
+    });
+    const onto = analyzeShapedBands(spectrum, {
+      bass: { frequency: 70, q: 6 },
+      mid: { frequency: 900, q: 6 },
+      treble: { frequency: 3_000, q: 6 },
+    });
+
+    expect(onto.treble).toBeGreaterThan(away.treble);
   });
 });
 

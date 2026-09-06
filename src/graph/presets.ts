@@ -77,7 +77,7 @@ export const GRAPH_PRESETS = [
   {
     id: 'mic-pulse-trails',
     title: 'Mic Pulse Trails',
-    description: 'Audio energy drives color and feedback, with a demo pulse fallback.',
+    description: 'Audio energy drives color and feedback once the microphone starts.',
   },
   {
     id: 'audio-beat-pulse',
@@ -743,7 +743,7 @@ function createLiveCutLabGraph(): GraphDocument {
       createGraphNode(
         'strobe',
         { x: 230, y: -90 },
-        { rate: 0.67, duty: 0.82, amount: 0.55, closedMode: 'invert' },
+        { rate: 0.67, duty: 0.82, amount: true, closedMode: 'invert' },
         'live-cut-strobe',
       ),
       createGraphNode(
