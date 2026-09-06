@@ -44,7 +44,7 @@ describe('HelpDialog', () => {
     expect(screen.getByText('Control arithmetic and mapping')).toBeVisible();
     expect(screen.getByText('Smoothed pointer motion')).toBeVisible();
     expect(screen.getByText('Two-dimensional transform controls')).toBeVisible();
-    expect(screen.getByText('Sixteen patches to try')).toBeVisible();
+    expect(screen.getByText('Seventeen patches to try')).toBeVisible();
     expect(screen.getByText('Mask and composite fundamentals')).toBeVisible();
     expect(screen.getByText('Tempo-locked source switching')).toBeVisible();
     expect(
@@ -77,6 +77,12 @@ describe('HelpDialog', () => {
     ).toBeVisible();
     expect(screen.getByText('Audio-controlled soft focus')).toBeVisible();
     expect(screen.getByText('Audio-reactive trails')).toBeVisible();
+    expect(
+      screen.getByText('Bass impulses and an implied beat clock'),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/infers tempo from the spacing between those triggers/),
+    ).toBeVisible();
     expect(screen.getByText('Spiralling recursive image')).toBeVisible();
     expect(
       screen.getByText(/Return to frame zero discards and deterministically re-seeds history/),
@@ -89,7 +95,9 @@ describe('HelpDialog', () => {
     expect(screen.getByText('AI Chat and Video Model')).toBeVisible();
     expect(screen.getByText(/entering an arbitrary vendor URL/)).toBeVisible();
     expect(screen.getByText('Using Audio Level')).toBeVisible();
-    expect(screen.getByText(/Audio Level analyzes sound/)).toBeVisible();
+    expect(
+      screen.getByText(/Audio Level owns the microphone\./),
+    ).toBeVisible();
     expect(screen.getByText(/Flow Field · Energy/)).toBeVisible();
     expect(screen.getByText(/Floor rejects.*Gain controls/)).toBeVisible();
     expect(screen.getByText('Using Video Input')).toBeVisible();

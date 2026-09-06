@@ -906,6 +906,155 @@ describe('control-node evaluation', () => {
     renderer.dispose();
   });
 
+  it('routes each analyzed audio band through Audio Spectrum', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    const spectrumGraph = (portId: string) =>
+      createControlOutputGraph(
+        [
+          createGraphNode(
+            'audioSpectrum',
+            { x: 0, y: 0 },
+            { gain: 1, floor: 0 },
+            'spectrum',
+          ),
+        ],
+        [],
+        { nodeId: 'spectrum', portId },
+      );
+    const frame = { level: 0.5, bass: 0.9, mid: 0.4, treble: 0.2 };
+
+    for (const [portId, expected] of Object.entries(frame)) {
+      uniform1f.mockClear();
+      renderer.setGraph(spectrumGraph(portId));
+      expect(renderer.render(0, frame)).toMatchObject({ rendered: true });
+      expect(lastUniformValue(uniform1f, 'uSaturation')).toBeCloseTo(expected);
+    }
+    renderer.dispose();
+  });
+
+  it('reads the patched audio source instead of the session default', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    const patched = createControlOutputGraph(
+      [
+        createGraphNode('file', { x: -200, y: 0 }, {}, 'clip'),
+        createGraphNode(
+          'audioSpectrum',
+          { x: 0, y: 0 },
+          { gain: 1, floor: 0 },
+          'spectrum',
+        ),
+      ],
+      [
+        {
+          id: 'clip-spectrum',
+          source: { nodeId: 'clip', portId: 'audio' },
+          target: { nodeId: 'spectrum', portId: 'audio' },
+        },
+      ],
+      { nodeId: 'spectrum', portId: 'bass' },
+    );
+    renderer.setGraph(patched);
+
+    renderer.render(0, {
+      frame: { level: 0.1, bass: 0.1, mid: 0.1, treble: 0.1 },
+      sources: { clip: { level: 0.8, bass: 0.75, mid: 0.2, treble: 0.1 } },
+    });
+    expect(lastUniformValue(uniform1f, 'uSaturation')).toBeCloseTo(0.75);
+
+    // A patched source with no running audio reads silence, never the microphone.
+    uniform1f.mockClear();
+    renderer.render(0, {
+      frame: { level: 0.9, bass: 0.9, mid: 0.9, treble: 0.9 },
+      sources: {},
+    });
+    expect(lastUniformValue(uniform1f, 'uSaturation')).toBeCloseTo(0);
+    renderer.dispose();
+  });
+
+  it('follows an Audio Level pass-through to the session microphone', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    renderer.setGraph(
+      createControlOutputGraph(
+        [
+          createGraphNode('audioLevel', { x: -200, y: 0 }, {}, 'mic'),
+          createGraphNode(
+            'audioSpectrum',
+            { x: 0, y: 0 },
+            { gain: 1, floor: 0 },
+            'spectrum',
+          ),
+        ],
+        [
+          {
+            id: 'mic-spectrum',
+            source: { nodeId: 'mic', portId: 'audio' },
+            target: { nodeId: 'spectrum', portId: 'audio' },
+          },
+        ],
+        { nodeId: 'spectrum', portId: 'treble' },
+      ),
+    );
+
+    renderer.render(0, {
+      frame: { level: 0.5, bass: 0.2, mid: 0.3, treble: 0.62 },
+      sources: {},
+    });
+    expect(lastUniformValue(uniform1f, 'uSaturation')).toBeCloseTo(0.62);
+    renderer.dispose();
+  });
+
+  it('falls back to the overall level when Audio Trigger has no connected value', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    renderer.setGraph(
+      createControlOutputGraph(
+        [
+          createGraphNode(
+            'audioTrigger',
+            { x: 0, y: 0 },
+            { threshold: 0.2, sensitivity: 1, hold: 0.1, decay: 0.2 },
+            'trigger',
+          ),
+        ],
+        [],
+        { nodeId: 'trigger', portId: 'envelope' },
+      ),
+    );
+
+    renderer.render(0, { level: 0.9, bass: 0, mid: 0, treble: 0 });
+    expect(lastUniformValue(uniform1f, 'uSaturation')).toBe(1);
+
+    uniform1f.mockClear();
+    renderer.render(1, { level: 0.02, bass: 0, mid: 0, treble: 0 });
+    expect(lastUniformValue(uniform1f, 'uSaturation')).toBeLessThan(0.01);
+    renderer.dispose();
+  });
+
+  it('holds the resting tempo on Audio Beat Clock until triggers arrive', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    renderer.setGraph(
+      createControlOutputGraph(
+        [
+          createGraphNode(
+            'audioBeat',
+            { x: 0, y: 0 },
+            { restingBpm: 60, minBpm: 40, maxBpm: 240 },
+            'beat',
+          ),
+        ],
+        [],
+        { nodeId: 'beat', portId: 'phase' },
+      ),
+    );
+
+    renderer.render(0.5);
+    expect(lastUniformValue(uniform1f, 'uSaturation')).toBeCloseTo(0.5);
+
+    uniform1f.mockClear();
+    renderer.render(1.25);
+    expect(lastUniformValue(uniform1f, 'uSaturation')).toBeCloseTo(0.25);
+    renderer.dispose();
+  });
+
   it('smooths rising and falling values by elapsed transport time', () => {
     const { renderer, uniform1f } = createRendererHarness();
     const graph = createControlOutputGraph(

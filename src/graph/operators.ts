@@ -284,14 +284,86 @@ const definitions = [
   {
     kind: 'audioLevel',
     title: 'Audio Level',
-    summary: 'A normalized audio-energy control signal.',
+    summary:
+      'Starts the microphone, reports its loudness, and passes the block on for analysis.',
     domain: 'control',
     category: 'inputs',
-    inputs: [],
-    outputs: [port('value', 'Level', 'control.f32')],
+    inputs: [port('audio', 'Audio', 'audio.block', true)],
+    outputs: [
+      port('value', 'Level', 'control.f32'),
+      port('audio', 'Audio', 'audio.block'),
+    ],
     params: {
       gain: numberParam('Gain', 1.5, 0, 8, 0.01),
       floor: numberParam('Floor', 0.02, 0, 1, 0.01),
+    },
+  },
+  {
+    kind: 'audioSpectrum',
+    title: 'Audio Spectrum',
+    summary:
+      'Splits a patched audio source into bass, mid, and treble control signals.',
+    domain: 'control',
+    category: 'inputs',
+    inputs: [port('audio', 'Audio', 'audio.block', true)],
+    outputs: [
+      port('level', 'Level', 'control.f32'),
+      port('bass', 'Bass', 'control.f32'),
+      port('mid', 'Mid', 'control.f32'),
+      port('treble', 'Treble', 'control.f32'),
+    ],
+    params: {
+      gain: numberParam('Gain', 2, 0, 8, 0.01),
+      floor: numberParam('Floor', 0.05, 0, 1, 0.01),
+    },
+  },
+  {
+    kind: 'audioTrigger',
+    title: 'Audio Trigger',
+    summary:
+      'Turns rises above a band’s own recent average into a gate and a decaying envelope.',
+    domain: 'control',
+    category: 'control',
+    inputs: [port('value', 'Value', 'control.f32', true)],
+    outputs: [
+      port('trigger', 'Trigger', 'control.f32'),
+      port('envelope', 'Envelope', 'control.f32'),
+    ],
+    params: {
+      threshold: numberParam('Threshold', 0.12, 0, 1, 0.01),
+      sensitivity: numberParam('Sensitivity', 1.3, 0, 4, 0.01),
+      hold: numberParam('Hold (s)', 0.12, 0.01, 2, 0.01),
+      decay: numberParam('Decay (s)', 0.35, 0.01, 4, 0.01),
+    },
+    execution: {
+      stateful: true,
+    },
+  },
+  {
+    kind: 'audioBeat',
+    title: 'Audio Beat Clock',
+    summary:
+      'Infers tempo and beat phase from the spacing between incoming triggers.',
+    domain: 'control',
+    category: 'timing',
+    inputs: [port('trigger', 'Trigger', 'control.f32', true)],
+    outputs: [
+      port('phase', 'Phase', 'control.f32'),
+      port('beat', 'Beat', 'control.f32'),
+      port('bar', 'Bar', 'control.f32'),
+      port('bpm', 'BPM', 'control.f32'),
+      port('confidence', 'Confidence', 'control.f32'),
+    ],
+    params: {
+      restingBpm: numberParam('Resting BPM', 120, 40, 240, 1),
+      minBpm: numberParam('Min BPM', 70, 40, 240, 1),
+      maxBpm: numberParam('Max BPM', 170, 40, 240, 1),
+      beatsPerBar: numberParam('Beats / bar', 4, 1, 16, 1),
+      pulseWidth: numberParam('Pulse width', 0.12, 0.01, 0.95, 0.01),
+      lock: numberParam('Lock', 0.35, 0.01, 1, 0.01),
+    },
+    execution: {
+      stateful: true,
     },
   },
   {

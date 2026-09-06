@@ -7,6 +7,7 @@ import {
   compileGraph,
   getOperatorExecution,
   type CompiledGraph,
+  type CompiledInputBinding,
   type CompiledNode,
   type GraphDocument,
   type NodeKind,
@@ -18,6 +19,18 @@ import {
   type AutoSelectorOrder,
 } from './autoSelector';
 import { RollingFrameRate } from './frameTiming';
+import {
+  createAudioBeatState,
+  createAudioOnsetState,
+  evaluateAudioBeat,
+  evaluateAudioOnset,
+  EMPTY_AUDIO_SOURCES,
+  SILENT_AUDIO_FRAME,
+  type AudioAnalysisFrame,
+  type AudioAnalysisSnapshot,
+  type AudioBeatState,
+  type AudioOnsetState,
+} from './audioAnalysis';
 import {
   evaluateInternalStrobePhase,
   normalizeStrobePhase,
@@ -97,6 +110,35 @@ function clamp(value: number, min: number, max: number): number {
 
 function finiteOr(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
+}
+
+/** A bare level keeps every band equal so older callers stay valid. */
+function normalizeAudioFrame(
+  audio: number | AudioAnalysisFrame,
+): AudioAnalysisFrame {
+  if (typeof audio === 'number') {
+    const level = clamp(finiteOr(audio, 0), 0, 1);
+    return { level, bass: level, mid: level, treble: level };
+  }
+  return {
+    level: clamp(finiteOr(audio.level, 0), 0, 1),
+    bass: clamp(finiteOr(audio.bass, 0), 0, 1),
+    mid: clamp(finiteOr(audio.mid, 0), 0, 1),
+    treble: clamp(finiteOr(audio.treble, 0), 0, 1),
+  };
+}
+
+const MAX_AUDIO_CHAIN_DEPTH = 8;
+
+function normalizeAudioSnapshot(
+  audio: number | AudioAnalysisFrame | AudioAnalysisSnapshot,
+): AudioAnalysisSnapshot {  if (typeof audio === 'object' && 'frame' in audio) {
+    return {
+      frame: normalizeAudioFrame(audio.frame),
+      sources: audio.sources ?? EMPTY_AUDIO_SOURCES,
+    };
+  }
+  return { frame: normalizeAudioFrame(audio), sources: EMPTY_AUDIO_SOURCES };
 }
 
 export interface RenderSize {
@@ -323,6 +365,8 @@ export class WebGLRenderer {
   private outputTextures = new Map<string, WebGLTexture>();
   private controlValues = new Map<string, number>();
   private smoothControlStates = new Map<string, SmoothControlState>();
+  private audioOnsetStates = new Map<string, AudioOnsetState>();
+  private audioBeatStates = new Map<string, AudioBeatState>();
   private vertexArray: WebGLVertexArrayObject | null = null;
   private blackTexture: WebGLTexture | null = null;
   private transparentTexture: WebGLTexture | null = null;
@@ -491,6 +535,25 @@ export class WebGLRenderer {
         this.smoothControlStates.delete(nodeId);
       }
     }
+    this.pruneNodeStates(this.audioOnsetStates, validatedGraph, 'audioTrigger');
+    this.pruneNodeStates(this.audioBeatStates, validatedGraph, 'audioBeat');
+  }
+
+  private pruneNodeStates(
+    states: Map<string, unknown>,
+    graph: CompiledGraph,
+    kind: NodeKind,
+  ): void {
+    const nodeIds = new Set(
+      graph.document.nodes
+        .filter((node) => node.kind === kind)
+        .map(({ id }) => id),
+    );
+    for (const nodeId of states.keys()) {
+      if (!nodeIds.has(nodeId)) {
+        states.delete(nodeId);
+      }
+    }
   }
 
   resize(width: number, height: number, pixelRatio = 1): void {
@@ -546,7 +609,7 @@ export class WebGLRenderer {
 
   render(
     timeSeconds: number,
-    audioLevel = 0,
+    audioLevel: number | AudioAnalysisFrame | AudioAnalysisSnapshot = 0,
     pointer: RenderPointer = DEFAULT_POINTER,
     presentationTimestamp?: number,
   ): RenderResult {
@@ -559,7 +622,7 @@ export class WebGLRenderer {
 
     try {
       const time = finiteOr(timeSeconds, 0);
-      const audio = clamp(finiteOr(audioLevel, 0), 0, 1);
+      const audio = normalizeAudioSnapshot(audioLevel);
       const safePointer = {
         x: clamp(finiteOr(pointer.x, 0.5), 0, 1),
         y: clamp(finiteOr(pointer.y, 0.5), 0, 1),
@@ -629,6 +692,8 @@ export class WebGLRenderer {
     this.lastPassCount = 0;
     this.controlValues.clear();
     this.smoothControlStates.clear();
+    this.audioOnsetStates.clear();
+    this.audioBeatStates.clear();
     this.outputTextures.clear();
     for (const resources of this.nodeResources.values()) {
       resources.nextTargetIndex = 0;
@@ -678,6 +743,8 @@ export class WebGLRenderer {
     this.outputTextures.clear();
     this.controlValues.clear();
     this.smoothControlStates.clear();
+    this.audioOnsetStates.clear();
+    this.audioBeatStates.clear();
     this.blackTexture = null;
     this.transparentTexture = null;
     this.videoTexture = null;
@@ -702,6 +769,8 @@ export class WebGLRenderer {
     this.outputTextures.clear();
     this.controlValues.clear();
     this.smoothControlStates.clear();
+    this.audioOnsetStates.clear();
+    this.audioBeatStates.clear();
     this.programs.clear();
     this.blackTexture = null;
     this.transparentTexture = null;
@@ -1154,7 +1223,7 @@ export class WebGLRenderer {
   private evaluateControlNode(
     compiledNode: CompiledNode,
     time: number,
-    audio: number,
+    audio: AudioAnalysisSnapshot,
     pointer: RenderPointer,
   ): void {
     const node = compiledNode.node;
@@ -1340,13 +1409,65 @@ export class WebGLRenderer {
         this.setControl(node.id, 'y', this.numberParam(compiledNode, 'y'));
         return;
       case 'audioLevel': {
+        const source = this.audioInput(compiledNode, audio);
         const gain = this.numberParam(compiledNode, 'gain');
         const floor = this.numberParam(compiledNode, 'floor');
         this.setControl(
           node.id,
           'value',
-          clamp((audio - floor) * gain, 0, 1),
+          clamp((source.level - floor) * gain, 0, 1),
         );
+        return;
+      }
+      case 'audioSpectrum': {
+        const source = this.audioInput(compiledNode, audio);
+        const gain = this.numberParam(compiledNode, 'gain');
+        const floor = this.numberParam(compiledNode, 'floor');
+        for (const band of ['level', 'bass', 'mid', 'treble'] as const) {
+          this.setControl(
+            node.id,
+            band,
+            clamp((source[band] - floor) * gain, 0, 1),
+          );
+        }
+        return;
+      }
+      case 'audioTrigger': {
+        const previous =
+          this.audioOnsetStates.get(node.id) ?? createAudioOnsetState();
+        const result = evaluateAudioOnset(previous, {
+          value: this.controlInput(compiledNode, 'value', audio.frame.level),
+          time,
+          threshold: this.numberParam(compiledNode, 'threshold'),
+          sensitivity: this.numberParam(compiledNode, 'sensitivity'),
+          hold: this.numberParam(compiledNode, 'hold'),
+          decay: this.numberParam(compiledNode, 'decay'),
+        });
+        this.audioOnsetStates.set(node.id, result.state);
+        this.setControl(node.id, 'trigger', result.trigger);
+        this.setControl(node.id, 'envelope', result.envelope);
+        return;
+      }
+      case 'audioBeat': {
+        const restingBpm = this.numberParam(compiledNode, 'restingBpm');
+        const previous =
+          this.audioBeatStates.get(node.id) ?? createAudioBeatState(restingBpm);
+        const result = evaluateAudioBeat(previous, {
+          trigger: this.controlInput(compiledNode, 'trigger', 0),
+          time,
+          restingBpm,
+          minBpm: this.numberParam(compiledNode, 'minBpm'),
+          maxBpm: this.numberParam(compiledNode, 'maxBpm'),
+          beatsPerBar: this.numberParam(compiledNode, 'beatsPerBar'),
+          pulseWidth: this.numberParam(compiledNode, 'pulseWidth'),
+          lock: this.numberParam(compiledNode, 'lock'),
+        });
+        this.audioBeatStates.set(node.id, result.state);
+        this.setControl(node.id, 'phase', result.phase);
+        this.setControl(node.id, 'beat', result.beat);
+        this.setControl(node.id, 'bar', result.bar);
+        this.setControl(node.id, 'bpm', result.bpm);
+        this.setControl(node.id, 'confidence', result.confidence);
         return;
       }
       default:
@@ -2280,8 +2401,31 @@ export class WebGLRenderer {
     );
   }
 
-  private setControl(nodeId: string, portId: string, value: number): void {
-    this.controlValues.set(this.controlKey(nodeId, portId), finiteOr(value, 0));
+  /** A patched block reads its own source; an empty input falls back to the session default. */
+  private audioInput(
+    compiledNode: CompiledNode,
+    snapshot: AudioAnalysisSnapshot,
+  ): AudioAnalysisFrame {
+    let current: CompiledNode | undefined = compiledNode;
+    // Audio Level passes its source through, so follow the chain to the real block.
+    for (let depth = 0; current && depth <= MAX_AUDIO_CHAIN_DEPTH; depth += 1) {
+      const binding: CompiledInputBinding | undefined = current.inputs.audio;
+      if (!binding) {
+        return snapshot.frame;
+      }
+      const source = snapshot.sources[binding.sourceNodeId];
+      if (source) {
+        return source;
+      }
+      const upstream: CompiledNode | undefined = this.plan?.nodes.find(
+        (candidate) => candidate.node.id === binding.sourceNodeId,
+      );
+      current = upstream?.node.kind === 'audioLevel' ? upstream : undefined;
+    }
+    return SILENT_AUDIO_FRAME;
+  }
+
+  private setControl(nodeId: string, portId: string, value: number): void {    this.controlValues.set(this.controlKey(nodeId, portId), finiteOr(value, 0));
   }
 
   private controlKey(nodeId: string, portId: string): string {

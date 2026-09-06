@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
+import {
+  analyzeAnalyser,
+  createAnalyserBuffers,
+  type AnalyserBuffers,
+  type AudioAnalysisFrame,
+} from '../engine/audioAnalysis';
+
 export type FileInputSource = HTMLMediaElement | HTMLImageElement;
 
 export interface AudioMixerConfig {
@@ -11,8 +18,8 @@ export interface AudioMixerConfig {
   high: number;
 }
 
-interface FileInputController {
-  inputRef: RefObject<HTMLInputElement | null>;
+export interface FileInputController {
+  inputRef?: RefObject<HTMLInputElement | null>;
   source: FileInputSource | null;
   frameSource: HTMLVideoElement | HTMLImageElement | null;
   name: string | null;
@@ -24,6 +31,7 @@ interface FileInputController {
   duration: number;
   audioEnabled: boolean;
   audioAvailable: boolean;
+  audioRouteConnected?: boolean;
   audioError: string | null;
   meterLevel: number;
   meterDecibels: number;
@@ -35,10 +43,36 @@ interface FileInputController {
   seek: (time: number) => void;
   enableAudio: () => Promise<void>;
   disableAudio: () => void;
-  handleChange: (file: File | undefined) => void;
+  sampleAudio?: () => AudioAnalysisFrame | null;
+  handleChange?: (file: File | undefined) => void;
 }
 
-export function useFileInput(mixerConfig: AudioMixerConfig | null = null): FileInputController {
+const fileControllers = new Map<string, FileInputController>();
+let fileSnapshot: ReadonlyMap<string, FileInputController> = new Map();
+const fileListeners = new Set<() => void>();
+
+function notifyFileControllers(): void {
+  fileSnapshot = new Map(fileControllers);
+  fileListeners.forEach((listener) => listener());
+}
+
+export function getFileInputController(nodeId: string): FileInputController | null {
+  return fileControllers.get(nodeId) ?? null;
+}
+
+export function getFileInputControllers(): ReadonlyMap<string, FileInputController> {
+  return fileSnapshot;
+}
+
+export function subscribeFileInputs(listener: () => void): () => void {
+  fileListeners.add(listener);
+  return () => fileListeners.delete(listener);
+}
+
+export function useFileInput(
+  nodeId: string,
+  mixerConfig: AudioMixerConfig | null = null,
+): FileInputController {
   const inputRef = useRef<HTMLInputElement>(null);
   const urlRef = useRef<string | null>(null);
   const sourceRef = useRef<FileInputSource | null>(null);
@@ -47,6 +81,7 @@ export function useFileInput(mixerConfig: AudioMixerConfig | null = null): FileI
   const mixerNodesRef = useRef<GainNode[]>([]);
   const eqNodesRef = useRef<BiquadFilterNode[]>([]);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const analyserBuffersRef = useRef<AnalyserBuffers | null>(null);
   const meterFrameRef = useRef<number | null>(null);
   const [source, setSource] = useState<FileInputSource | null>(null);
   const [name, setName] = useState<string | null>(null);
@@ -60,6 +95,7 @@ export function useFileInput(mixerConfig: AudioMixerConfig | null = null): FileI
   const [audioError, setAudioError] = useState<string | null>(null);
   const [meterLevel, setMeterLevel] = useState(0);
   const [meterDecibels, setMeterDecibels] = useState(-60);
+  const registeredControllerRef = useRef<FileInputController | null>(null);
 
   const stopMeter = useCallback(() => {
     if (meterFrameRef.current !== null) {
@@ -95,6 +131,7 @@ export function useFileInput(mixerConfig: AudioMixerConfig | null = null): FileI
     stopMeter();
     analyserRef.current?.disconnect();
     analyserRef.current = null;
+    analyserBuffersRef.current = null;
     audioSourceRef.current?.disconnect();
     audioSourceRef.current = null;
     mixerNodesRef.current.forEach((node) => node.disconnect());
@@ -237,7 +274,9 @@ export function useFileInput(mixerConfig: AudioMixerConfig | null = null): FileI
       if (!audioSourceRef.current) {
         audioSourceRef.current = context.createMediaElementSource(media);
         analyserRef.current = context.createAnalyser();
-        analyserRef.current.fftSize = 256;
+        // Wide enough to resolve the bass, mid, and treble analysis bands.
+        analyserRef.current.fftSize = 1_024;
+        analyserBuffersRef.current = createAnalyserBuffers(analyserRef.current);
         const mixer = mixerConfig;
         if (mixer) {
           const low = context.createBiquadFilter();
@@ -321,12 +360,25 @@ export function useFileInput(mixerConfig: AudioMixerConfig | null = null): FileI
 
   useEffect(() => () => clear(), [clear]);
 
+  const sampleAudio = useCallback((): AudioAnalysisFrame | null => {
+    const analyser = analyserRef.current;
+    const buffers = analyserBuffersRef.current;
+    if (!analyser || !buffers) {
+      return null;
+    }
+    return analyzeAnalyser(
+      analyser,
+      buffers,
+      audioContextRef.current?.sampleRate,
+    );
+  }, []);
+
   const audioAvailable = (isVideo || isAudio) && Boolean(source);
   const frameSource = source instanceof HTMLImageElement || source instanceof HTMLVideoElement
     ? source
     : null;
 
-  return {
+  const controller = {
     inputRef,
     source,
     frameSource,
@@ -350,6 +402,41 @@ export function useFileInput(mixerConfig: AudioMixerConfig | null = null): FileI
     seek,
     enableAudio,
     disableAudio,
+    sampleAudio,
     handleChange,
   };
+
+  const registeredController = registeredControllerRef.current ?? controller;
+  if (!registeredControllerRef.current) {
+    registeredControllerRef.current = registeredController;
+  } else {
+    Object.assign(registeredController, controller);
+  }
+
+  useEffect(() => {
+    fileControllers.set(nodeId, registeredController);
+    notifyFileControllers();
+    return () => {
+      if (fileControllers.get(nodeId) === registeredController) {
+        fileControllers.delete(nodeId);
+        notifyFileControllers();
+      }
+    };
+  }, [nodeId, registeredController]);
+
+  useEffect(() => {
+    if (fileControllers.get(nodeId) === registeredController) {
+      notifyFileControllers();
+    }
+  }, [
+    audioAvailable,
+    audioEnabled,
+    errorMessage,
+    source,
+    name,
+    nodeId,
+    registeredController,
+  ]);
+
+  return controller;
 }

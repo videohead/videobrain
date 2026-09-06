@@ -4,8 +4,11 @@ import type {
   VideoFacingMode,
   VideoInputState,
 } from '../hooks/useVideoInput';
+import type { FileInputController } from '../hooks/useFileInput';
 
 export interface OperatorInputRuntime {
+  mixerConfig?: import('../hooks/useFileInput').AudioMixerConfig | null;
+  audioRouteConnected?: boolean;
   audio: {
     inputState: AudioInputState;
     meterLevel: number;
@@ -19,31 +22,8 @@ export interface OperatorInputRuntime {
     enable: (facingMode: VideoFacingMode) => Promise<void>;
     disable: () => void;
   };
-  file: {
-    source: HTMLMediaElement | HTMLImageElement | null;
-    frameSource: HTMLVideoElement | HTMLImageElement | null;
-    name: string | null;
-    errorMessage: string | null;
-    isVideo: boolean;
-    isAudio: boolean;
-    isPlaying: boolean;
-    currentTime: number;
-    duration: number;
-    audioEnabled: boolean;
-    audioAvailable: boolean;
-    audioRouteConnected: boolean;
-    audioError: string | null;
-    meterLevel: number;
-    meterDecibels: number;
-    choose: () => void;
-    clear: () => void;
-    play: () => void;
-    pause: () => void;
-    stop: () => void;
-    seek: (time: number) => void;
-    enableAudio: () => Promise<void>;
-    disableAudio: () => void;
-  };
+  file: FileInputController;
+  getFile?: (nodeId: string) => FileInputController | null;
 }
 
 export const OperatorInputRuntimeContext =

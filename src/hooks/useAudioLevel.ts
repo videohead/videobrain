@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import {
+  analyzeSpectrumBands,
+  type AudioAnalysisFrame,
+  type AudioBands,
+} from '../engine/audioAnalysis';
+
+const DEFAULT_SAMPLE_RATE = 48_000;
+
 export type AudioInputState = 'demo' | 'requesting' | 'live' | 'unavailable';
 
 interface AudioLevelController {
@@ -7,7 +15,7 @@ interface AudioLevelController {
   meterLevel: number;
   enableMicrophone: () => Promise<void>;
   disableMicrophone: () => void;
-  sampleLevel: (timeSeconds: number) => number;
+  sampleAudio: (timeSeconds: number) => AudioAnalysisFrame;
 }
 
 interface AudioSession {
@@ -48,10 +56,41 @@ function releaseAudioSession(session: AudioSession): void {
   }
 }
 
+function readSpectrumBands(
+  analyser: AnalyserNode,
+  spectrum: Float32Array<ArrayBuffer> | null,
+  context: AudioContext | null | undefined,
+): AudioBands {
+  if (!spectrum || typeof analyser.getFloatFrequencyData !== 'function') {
+    return { bass: 0, mid: 0, treble: 0 };
+  }
+  analyser.getFloatFrequencyData(spectrum);
+  return analyzeSpectrumBands(
+    spectrum,
+    context?.sampleRate ?? DEFAULT_SAMPLE_RATE,
+    analyser.minDecibels,
+    analyser.maxDecibels,
+  );
+}
+
+function sampleDemoAudio(timeSeconds: number): AudioAnalysisFrame {
+  const low = Math.sin(timeSeconds * 2.15) * 0.5 + 0.5;
+  const pulse = Math.pow(Math.sin(timeSeconds * 4.2) * 0.5 + 0.5, 7);
+  const kick = Math.pow(Math.sin(timeSeconds * Math.PI * 4) * 0.5 + 0.5, 12);
+  const hats = Math.pow(Math.sin(timeSeconds * Math.PI * 8 + 1.6) * 0.5 + 0.5, 6);
+  return {
+    level: 0.16 + low * 0.16 + pulse * 0.36,
+    bass: 0.08 + kick * 0.82,
+    mid: 0.12 + low * 0.34,
+    treble: 0.06 + hats * 0.52,
+  };
+}
+
 export function useAudioLevel(): AudioLevelController {
   const sessionRef = useRef<AudioSession | null>(null);
   const requestVersionRef = useRef(0);
   const samplesRef = useRef<Float32Array<ArrayBuffer> | null>(null);
+  const spectrumRef = useRef<Float32Array<ArrayBuffer> | null>(null);
   const smoothedRef = useRef(0);
   const meterUpdateRef = useRef(0);
   const [inputState, setInputState] = useState<AudioInputState>('demo');
@@ -61,6 +100,7 @@ export function useAudioLevel(): AudioLevelController {
     const session = sessionRef.current;
     sessionRef.current = null;
     samplesRef.current = null;
+    spectrumRef.current = null;
     if (session) {
       releaseAudioSession(session);
     }
@@ -150,6 +190,9 @@ export function useAudioLevel(): AudioLevelController {
       }
 
       samplesRef.current = new Float32Array(analyser.fftSize);
+      spectrumRef.current = new Float32Array(
+        Math.max(1, Math.floor(analyser.fftSize / 2)),
+      );
       setInputState('live');
     } catch {
       if (requestVersionRef.current === requestVersion) {
@@ -159,10 +202,11 @@ export function useAudioLevel(): AudioLevelController {
     }
   }, [releaseCurrentSession]);
 
-  const sampleLevel = useCallback(
-    (timeSeconds: number) => {
-      let nextLevel: number;
-      const analyser = sessionRef.current?.analyser;
+  const sampleAudio = useCallback(
+    (timeSeconds: number): AudioAnalysisFrame => {
+      let frame: AudioAnalysisFrame;
+      const session = sessionRef.current;
+      const analyser = session?.analyser;
       const samples = samplesRef.current;
 
       if (analyser && samples) {
@@ -174,19 +218,20 @@ export function useAudioLevel(): AudioLevelController {
         const rms = Math.sqrt(energy / samples.length);
         const boosted = Math.min(1, rms * 4.5);
         smoothedRef.current += (boosted - smoothedRef.current) * 0.22;
-        nextLevel = smoothedRef.current;
+        frame = {
+          level: smoothedRef.current,
+          ...readSpectrumBands(analyser, spectrumRef.current, session?.context),
+        };
       } else {
-        const low = Math.sin(timeSeconds * 2.15) * 0.5 + 0.5;
-        const pulse = Math.pow(Math.sin(timeSeconds * 4.2) * 0.5 + 0.5, 7);
-        nextLevel = 0.16 + low * 0.16 + pulse * 0.36;
+        frame = sampleDemoAudio(timeSeconds);
       }
 
       const now = performance.now();
       if (now - meterUpdateRef.current > 90) {
         meterUpdateRef.current = now;
-        setMeterLevel(nextLevel);
+        setMeterLevel(frame.level);
       }
-      return nextLevel;
+      return frame;
     },
     [],
   );
@@ -204,6 +249,6 @@ export function useAudioLevel(): AudioLevelController {
     meterLevel,
     enableMicrophone,
     disableMicrophone,
-    sampleLevel,
+    sampleAudio,
   };
 }

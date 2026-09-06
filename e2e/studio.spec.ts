@@ -137,7 +137,7 @@ test('starts blank and example graphs from the New patch menu', async ({
   await trigger.click();
   const menu = page.getByRole('menu', { name: 'New patch starters' });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('menuitem')).toHaveCount(16);
+  await expect(menu.getByRole('menuitem')).toHaveCount(18);
   await expect(
     menu.getByRole('menuitem', { name: /Blank Canvas/ }),
   ).toBeFocused();
@@ -167,6 +167,9 @@ test('starts blank and example graphs from the New patch menu', async ({
   ).toBeVisible();
   await expect(
     menu.getByRole('menuitem', { name: /Audio Soft Focus/ }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole('menuitem', { name: /Audio Beat Pulse/ }),
   ).toBeVisible();
   await expect(
     menu.getByRole('menuitem', { name: /Camera Dream/ }),
@@ -354,6 +357,34 @@ test('runs every teaching node inside a visible starter graph', async ({
       .locator('article[aria-label="Audio Level node"]')
       .getByRole('button', { name: 'Start mic' }),
   ).toBeVisible();
+
+  await loadStarter('Audio Beat Pulse');
+  const spectrum = page.locator('article[aria-label="Audio Spectrum node"]');
+  const audioTrigger = page.locator('article[aria-label="Audio Trigger node"]');
+  const audioBeat = page.locator('article[aria-label="Audio Beat Clock node"]');
+  await expect(
+    spectrum.getByRole('slider', { name: 'Audio Spectrum Gain' }),
+  ).toHaveValue('2.4');
+  await expect(
+    spectrum.getByRole('button', { name: 'Start mic' }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .locator('article[aria-label="Audio Level node"]')
+      .getByRole('button', { name: 'Start mic' }),
+  ).toBeVisible();
+  await expect(
+    audioTrigger.getByRole('slider', { name: 'Audio Trigger Threshold' }),
+  ).toHaveValue('0.14');
+  await expect(
+    audioTrigger.getByRole('slider', { name: 'Audio Trigger Hold (s)' }),
+  ).toHaveValue('0.14');
+  await expect(
+    audioBeat.getByRole('slider', { name: 'Audio Beat Clock Resting BPM' }),
+  ).toHaveValue('120');
+  await expect(
+    audioBeat.getByRole('slider', { name: 'Audio Beat Clock Max BPM' }),
+  ).toHaveValue('170');
 
   await loadStarter('Live Cut Lab');
   const selector = page.locator('article[aria-label="Auto Selector node"]');
@@ -678,7 +709,7 @@ test('opens in-app help with current nodes, I/O guidance, and contribution link'
   await page.getByRole('button', { name: 'Help & about' }).click();
   const dialog = page.getByRole('dialog', { name: 'Explore the Signal Graph' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('Three signal types, one graph')).toBeVisible();
+  await expect(dialog.getByText('Four signal types, one graph')).toBeVisible();
   await expect(dialog.getByText('Video Input', { exact: true })).toBeVisible();
   await expect(
     dialog.getByRole('heading', {

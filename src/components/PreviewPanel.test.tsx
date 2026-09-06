@@ -147,7 +147,12 @@ function previewProps(document: GraphDocument, playing: boolean) {
     videoSource: null,
     videoModelSources: new Map<string, HTMLImageElement>(),
     meterLevel: 0.25,
-    sampleAudioLevel: vi.fn(() => 0.25),
+    sampleAudio: vi.fn(() => ({
+      level: 0.25,
+      bass: 0.4,
+      mid: 0.2,
+      treble: 0.1,
+    })),
     onRuntimeUpdate: vi.fn(),
     onNotify: vi.fn(),
   };
@@ -238,7 +243,7 @@ describe('PreviewPanel monitor lifecycle', () => {
     expect(renderer.render).toHaveBeenCalledTimes(1);
     expect(renderer.render).toHaveBeenLastCalledWith(
       0,
-      0.25,
+      { level: 0.25, bass: 0.4, mid: 0.2, treble: 0.1 },
       expect.any(Object),
       16,
     );

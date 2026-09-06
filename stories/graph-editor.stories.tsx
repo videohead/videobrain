@@ -283,6 +283,18 @@ export const AudioSoftFocusExample: Story = {
   },
 };
 
+export const AudioBeatPulseExample: Story = {
+  args: { presetId: 'audio-beat-pulse' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The complete audio-analysis lesson: Audio Level owns the microphone and patches its block into Audio Spectrum, which splits the deterministic demo beat or live input into bass, mid, and treble; the bass band drives Audio Trigger, whose gate feeds Audio Beat Clock; the inferred beat pulse animates Warp while the trigger envelope, treble band, and beat phase shape Flow Field, Trails, and Color Grade. Nothing plays through the speakers, and the microphone starts only from the explicit action inside Audio Level.',
+      },
+    },
+  },
+};
+
 export const SpiralFeedbackLabExample: Story = {
   args: { presetId: 'spiral-feedback-lab' },
   parameters: {

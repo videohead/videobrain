@@ -22,7 +22,7 @@ const plannedAreas = [
   {
     title: 'Audio',
     items:
-      'Audio Device In, file playback, FFT and band energy, onset/beat/pitch analysis, explicit Audio Output/Monitor, mixing, effects, and recording',
+      'Audio Device In, pitch and transient analysis, spectral visualization, explicit Audio Output/Monitor, effects, and recording',
   },
   {
     title: 'Devices and networking',
@@ -105,6 +105,16 @@ const recipes = [
     title: 'Audio-reactive trails',
     path: 'Flow Field → Trails → Color Grade → Display; Audio Level → Energy, Feedback, and Hue',
     note: 'Open Mic Pulse Trails, then start the microphone inside Audio Level. It emits a 0–1 loudness control; it does not play or pass through sound.',
+  },
+  {
+    title: 'Bass impulses and an implied beat clock',
+    path: 'Audio Level Audio → Audio Spectrum; Bass → Audio Trigger → Audio Beat Clock; Envelope → Energy, Beat → Warp Amount, Treble → Feedback',
+    note: 'Open Audio Beat Pulse. Audio Level owns the microphone and passes its block to Audio Spectrum, which splits it into bass, mid, and treble; Audio Trigger fires when a band rises above its own recent average, so it stays responsive at any volume; Audio Beat Clock infers tempo from the spacing between those triggers and reports BPM, phase, bar, and confidence. The demo beat drives it immediately, and Start mic inside Audio Level swaps in live input.',
+  },
+  {
+    title: 'Analyze any audio source, not just the microphone',
+    path: 'File Audio → Audio Mixer → Audio Spectrum Audio; Bass → Warp Amount',
+    note: 'Open Local File Preview and choose a video or audio file. Audio Spectrum analyzes whatever audio block is patched into its left edge — a file, a mixer, or Audio Level. It has no device controls of its own: the microphone starts from Audio Level. A patched file reads silence until you enable audio output for it, because the browser only starts playback after an explicit action.',
   },
   {
     title: 'Spiralling recursive image',
@@ -357,7 +367,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           </section>
 
           <section id="help-recipes" className="help-section">
-            <h2>Sixteen patches to try</h2>
+            <h2>Seventeen patches to try</h2>
             <div className="help-recipe-list">
               {recipes.map((recipe) => (
                 <article key={recipe.title}>
@@ -435,13 +445,15 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             </p>
             <h3>Using Audio Level</h3>
             <p>
-              <strong>Audio Level analyzes sound; it does not produce sound.</strong>{' '}
+              <strong>Audio Level owns the microphone.</strong>{' '}
               Press <strong>Start mic</strong> inside the node (or Enable
               microphone in its Inspector), approve the browser prompt, then speak
               or play sound near that input. Its meter and <strong>Level</strong>{' '}
-              output show normalized loudness from 0 to 1. For feedback safety,
-              microphone audio is never sent to the speakers, mixed, recorded, or
-              passed through by this node.
+              output show normalized loudness from 0 to 1, and its{' '}
+              <strong>Audio</strong> output carries the block itself so Audio
+              Spectrum and other analyzers can read it. Analysis never reaches the
+              speakers on its own; routing that block into Audio Output monitors
+              the microphone aloud and can cause howlround, so use headphones.
             </p>
             <ul>
               <li><strong>Flow Field · Energy</strong> — quiet to energetic motion and color.</li>

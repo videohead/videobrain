@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   AlertTriangle,
   CircleHelp,
@@ -23,7 +23,7 @@ import {
   type GraphParamValue,
   type NodeKind,
 } from './graph';
-import type { RenderResult } from './engine';
+import type { AudioAnalysisFrame, AudioAnalysisSnapshot, RenderResult } from './engine';
 import { CommandPalette } from './components/CommandPalette';
 import { GraphEditor } from './components/GraphEditor';
 import { HelpDialog } from './components/HelpDialog';
@@ -35,7 +35,12 @@ import { OperatorLibrary } from './components/OperatorLibrary';
 import { PreviewPanel } from './components/PreviewPanel';
 import { useAudioLevel } from './hooks/useAudioLevel';
 import { useVideoInput } from './hooks/useVideoInput';
-import { useFileInput, type AudioMixerConfig } from './hooks/useFileInput';
+import {
+  getFileInputController,
+  getFileInputControllers,
+  subscribeFileInputs,
+  type AudioMixerConfig,
+} from './hooks/useFileInput';
 import { useVideoModel } from './hooks/useVideoModel';
 import {
   projectStore,
@@ -110,7 +115,31 @@ function Studio() {
       high: typeof mixer.params.high === 'number' ? mixer.params.high : 0,
     };
   }, [graphDocument.nodes]);
-  const fileInput = useFileInput(mixerConfig);
+  const fileControllers = useSyncExternalStore(
+    subscribeFileInputs,
+    getFileInputControllers,
+    getFileInputControllers,
+  );
+  const firstFileNodeId = graphDocument.nodes.find((node) => node.kind === 'file')?.id;
+  const fallbackFile = firstFileNodeId
+    ? fileControllers.get(firstFileNodeId) ?? null
+    : null;
+  const sampleMicrophoneAudio = audio.sampleAudio;
+  const sampleAudio = useCallback(
+    (timeSeconds: number): AudioAnalysisSnapshot => {
+      const frame = sampleMicrophoneAudio(timeSeconds);
+      const sources: Record<string, AudioAnalysisFrame> = {};
+      graphDocument.nodes.forEach((node) => {
+        if (node.kind === 'file') {
+          const file = fileControllers.get(node.id);
+          const fileFrame = file?.sampleAudio?.();
+          if (fileFrame) sources[node.id] = fileFrame;
+        }
+      });
+      return { frame, sources };
+    },
+    [fileControllers, graphDocument.nodes, sampleMicrophoneAudio],
+  );
   const audioRouteConnected = useMemo(() => {
     const reverse = new Map<string, string[]>();
     graphDocument.edges.forEach((edge) => {
@@ -133,6 +162,30 @@ function Studio() {
     }
     return false;
   }, [graphDocument.edges, graphDocument.nodes]);
+  const getRuntimeFile = useCallback(
+    (nodeId: string) => {
+      const direct = getFileInputController(nodeId);
+      if (direct) return direct;
+      const reverse = new Map<string, string[]>();
+      graphDocument.edges.forEach((edge) => {
+        const sources = reverse.get(edge.target.nodeId) ?? [];
+        sources.push(edge.source.nodeId);
+        reverse.set(edge.target.nodeId, sources);
+      });
+      const pending = [nodeId];
+      const seen = new Set<string>();
+      while (pending.length) {
+        const current = pending.pop();
+        if (!current || seen.has(current)) continue;
+        seen.add(current);
+        const file = getFileInputController(current);
+        if (file) return file;
+        pending.push(...(reverse.get(current) ?? []));
+      }
+      return null;
+    },
+    [graphDocument.edges],
+  );
   const videoModel = useVideoModel(
     graphDocument,
     videoInputState === 'live' ? videoElement : null,
@@ -148,6 +201,7 @@ function Studio() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const graphInputRuntime = useMemo<OperatorInputRuntime>(
     () => ({
+      audioRouteConnected,
       audio: {
         inputState: audio.inputState,
         meterLevel: audio.meterLevel,
@@ -162,30 +216,36 @@ function Studio() {
         disable: disableCamera,
       },
       file: {
-        source: fileInput.source,
-        frameSource: fileInput.frameSource,
-        name: fileInput.name,
-        errorMessage: fileInput.errorMessage,
-        isVideo: fileInput.isVideo,
-        isAudio: fileInput.isAudio,
-        isPlaying: fileInput.isPlaying,
-        currentTime: fileInput.currentTime,
-        duration: fileInput.duration,
-        audioEnabled: fileInput.audioEnabled,
-        audioAvailable: fileInput.audioAvailable,
+        ...(fallbackFile ?? {
+          source: null,
+          frameSource: null,
+          name: null,
+          errorMessage: null,
+          isVideo: false,
+          isAudio: false,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          audioEnabled: false,
+          audioAvailable: false,
+          audioError: null,
+          meterLevel: 0,
+          meterDecibels: -60,
+          choose: () => undefined,
+          clear: () => undefined,
+          play: () => undefined,
+          pause: () => undefined,
+          stop: () => undefined,
+          seek: () => undefined,
+          enableAudio: () => Promise.resolve(),
+          disableAudio: () => undefined,
+          sampleAudio: () => null,
+          inputRef: { current: null },
+        }),
         audioRouteConnected,
-        audioError: fileInput.audioError,
-        meterLevel: fileInput.meterLevel,
-        meterDecibels: fileInput.meterDecibels,
-        choose: fileInput.choose,
-        clear: fileInput.clear,
-        play: fileInput.play,
-        pause: fileInput.pause,
-        stop: fileInput.stop,
-        seek: fileInput.seek,
-        enableAudio: fileInput.enableAudio,
-        disableAudio: fileInput.disableAudio,
       },
+      getFile: getRuntimeFile,
+      mixerConfig,
     }),
     [
       audio.disableMicrophone,
@@ -197,29 +257,10 @@ function Studio() {
       videoFacingMode,
       videoInputError,
       videoInputState,
-      fileInput.choose,
-      fileInput.clear,
-      fileInput.errorMessage,
-      fileInput.frameSource,
-      fileInput.isAudio,
-      fileInput.isPlaying,
-      fileInput.isVideo,
-      fileInput.currentTime,
-      fileInput.duration,
-      fileInput.audioAvailable,
+      fallbackFile,
+      fileControllers,
+      getRuntimeFile,
       audioRouteConnected,
-      fileInput.audioEnabled,
-      fileInput.audioError,
-      fileInput.meterDecibels,
-      fileInput.meterLevel,
-      fileInput.disableAudio,
-      fileInput.enableAudio,
-      fileInput.name,
-      fileInput.pause,
-      fileInput.play,
-      fileInput.seek,
-      fileInput.stop,
-      fileInput.source,
     ],
   );
 
@@ -261,7 +302,9 @@ function Studio() {
     }
   }, [disableCamera, hasVideoInput, videoInputState]);
 
-  const hasAudioLevel = graphDocument.nodes.some((node) => node.kind === 'audioLevel');
+  const hasAudioLevel = graphDocument.nodes.some(
+    (node) => node.kind === 'audioLevel' || node.kind === 'audioSpectrum',
+  );
   useEffect(() => {
     if (!hasAudioLevel && audioInputState !== 'demo') {
       disableMicrophone();
@@ -269,10 +312,12 @@ function Studio() {
   }, [audioInputState, disableMicrophone, hasAudioLevel]);
 
   useEffect(() => {
-    if (!audioRouteConnected && fileInput.audioEnabled) {
-      fileInput.disableAudio();
+    if (!audioRouteConnected) {
+      fileControllers.forEach((controller) => {
+        if (controller.audioEnabled) controller.disableAudio();
+      });
     }
-  }, [audioRouteConnected, fileInput.audioEnabled, fileInput.disableAudio]);
+  }, [audioRouteConnected, fileControllers]);
 
   useEffect(() => {
     const previousDocument = previousGraphDocumentRef.current;
@@ -482,16 +527,6 @@ function Studio() {
           event.target.value = '';
         }}
       />
-      <input
-        ref={fileInput.inputRef}
-        type="file"
-        accept="image/*,video/*,audio/*"
-        className="sr-only"
-        onChange={(event) => {
-          fileInput.handleChange(event.target.files?.[0]);
-          event.target.value = '';
-        }}
-      />
       <video
         ref={videoRef}
         className="video-input-element"
@@ -527,14 +562,14 @@ function Studio() {
             videoInputState={videoInputState}
             videoSource={
               graphDocument.nodes.some((node) => node.kind === 'file')
-                ? fileInput.frameSource
+                ? fallbackFile?.frameSource ?? null
                 : videoInputState === 'live'
                   ? videoElement
                   : null
             }
             videoModelSources={videoModel.frames}
             meterLevel={audio.meterLevel}
-            sampleAudioLevel={audio.sampleLevel}
+            sampleAudio={sampleAudio}
             onRuntimeUpdate={setRuntime}
             onNotify={notify}
           />

@@ -13,6 +13,9 @@ import {
 import { NodeParameterControls } from './NodeParameterControls';
 import { NodeMediaControls } from './NodeMediaControls';
 import { DOMAIN_LABELS, OPERATOR_META } from './operatorMeta';
+import { useContext } from 'react';
+import { OperatorInputRuntimeContext } from './operatorInputRuntime';
+import { useFileInput } from '../hooks/useFileInput';
 
 export interface OperatorNodeData extends Record<string, unknown> {
   kind: NodeKind;
@@ -41,6 +44,11 @@ function summarizeParams(params: Record<string, GraphParamValue>): string {
 }
 
 function OperatorNodeView({ id, data, selected, isConnectable }: NodeProps<OperatorFlowNode>) {
+  const runtime = useContext(OperatorInputRuntimeContext);
+  const fileRuntime = useFileInput(
+    data.kind === 'file' ? id : `__inactive_${id}`,
+    runtime?.mixerConfig ?? null,
+  );
   const definition = getOperatorDefinition(data.kind);
   const meta = OPERATOR_META[data.kind];
   const Icon = meta.icon;
@@ -103,10 +111,24 @@ function OperatorNodeView({ id, data, selected, isConnectable }: NodeProps<Opera
       </div>
 
       <NodeMediaControls
+        nodeId={id}
         kind={data.kind}
         params={data.params}
+        runtime={runtime ? (data.kind === 'file' ? { ...runtime, file: fileRuntime } : runtime) : undefined}
         onSelect={data.onSelect}
       />
+      {data.kind === 'file' ? (
+        <input
+          ref={fileRuntime.inputRef}
+          type="file"
+          accept="image/*,video/*,audio/*"
+          className="sr-only"
+          onChange={(event) => {
+            fileRuntime.handleChange?.(event.target.files?.[0]);
+            event.target.value = '';
+          }}
+        />
+      ) : null}
 
       <NodeParameterControls
         nodeId={id}

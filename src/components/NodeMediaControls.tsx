@@ -22,6 +22,7 @@ import {
 export type { OperatorInputRuntime } from './operatorInputRuntime';
 
 interface NodeMediaControlsProps {
+  nodeId?: string;
   kind: NodeKind;
   params: Record<string, GraphParamValue>;
   runtime?: OperatorInputRuntime;
@@ -72,6 +73,7 @@ function formatMediaTime(seconds: number): string {
 }
 
 export function NodeMediaControls({
+  nodeId,
   kind,
   params,
   runtime: runtimeOverride,
@@ -83,6 +85,8 @@ export function NodeMediaControls({
   if (!runtime) {
     return null;
   }
+
+  const fileRuntime = runtime.getFile?.(nodeId ?? '') ?? runtime.file;
 
   if (kind === 'audioLevel') {
     const gain = typeof params.gain === 'number' ? params.gain : 1.5;
@@ -142,8 +146,8 @@ export function NodeMediaControls({
         </button>
         <p className="node-input-hint">
           {live
-            ? 'Level → control, not speakers · Stop → demo'
-            : 'Level → control · no speaker output'}
+            ? 'Level → control, Audio → analyzers · Stop → demo'
+            : 'Demo beat drives Level and Audio until the mic starts'}
         </p>
       </section>
     );
@@ -194,7 +198,7 @@ export function NodeMediaControls({
   }
 
   if (kind === 'file') {
-    const selected = Boolean(runtime.file.source);
+    const selected = Boolean(fileRuntime.source);
     return (
       <section
         className="node-input-runtime nodrag nopan nowheel"
@@ -203,10 +207,10 @@ export function NodeMediaControls({
         <span
           className={`node-input-state ${selected ? 'is-live' : ''}`}
           aria-live="polite"
-          title={runtime.file.errorMessage ?? undefined}
+          title={fileRuntime.errorMessage ?? undefined}
         >
           <i aria-hidden="true" />
-          {runtime.file.errorMessage ?? (selected ? runtime.file.name : 'no file selected')}
+          {fileRuntime.errorMessage ?? (selected ? fileRuntime.name : 'no file selected')}
         </span>
         <button
           type="button"
@@ -215,49 +219,49 @@ export function NodeMediaControls({
           onClick={(event) => {
             event.stopPropagation();
             onSelect();
-            runtime.file.choose();
+            fileRuntime.choose();
           }}
         >
           <FileImage aria-hidden="true" />
           Choose file
         </button>
         {selected ? (
-          runtime.file.isVideo || runtime.file.isAudio ? (
+          fileRuntime.isVideo || fileRuntime.isAudio ? (
             <>
               <div className="node-file-progress">
                 <input
                   type="range"
                   min={0}
-                  max={runtime.file.duration || 0}
+                  max={fileRuntime.duration || 0}
                   step={0.01}
-                  value={Math.min(runtime.file.currentTime, runtime.file.duration || 0)}
+                  value={Math.min(fileRuntime.currentTime, fileRuntime.duration || 0)}
                   aria-label="File playback position"
-                  disabled={!runtime.file.duration}
+                  disabled={!fileRuntime.duration}
                   onPointerDown={(event) => event.stopPropagation()}
-                  onChange={(event) => runtime.file.seek(Number(event.target.value))}
+                  onChange={(event) => fileRuntime.seek(Number(event.target.value))}
                 />
                 <span>
-                  {formatMediaTime(runtime.file.currentTime)} / {formatMediaTime(runtime.file.duration)}
+                  {formatMediaTime(fileRuntime.currentTime)} / {formatMediaTime(fileRuntime.duration)}
                 </span>
               </div>
               <div className="node-file-actions">
                 <button
                   type="button"
                   className="node-input-button"
-                  aria-label={runtime.file.isPlaying ? 'Pause file' : 'Play file'}
+                  aria-label={fileRuntime.isPlaying ? 'Pause file' : 'Play file'}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.stopPropagation();
                     onSelect();
-                    if (runtime.file.isPlaying) {
-                      runtime.file.pause();
+                    if (fileRuntime.isPlaying) {
+                      fileRuntime.pause();
                     } else {
-                      runtime.file.play();
+                      fileRuntime.play();
                     }
                   }}
                 >
-                  {runtime.file.isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-                  {runtime.file.isPlaying ? 'Pause' : 'Play'}
+                  {fileRuntime.isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+                  {fileRuntime.isPlaying ? 'Pause' : 'Play'}
                 </button>
                 <button
                   type="button"
@@ -267,14 +271,14 @@ export function NodeMediaControls({
                   onClick={(event) => {
                     event.stopPropagation();
                     onSelect();
-                    runtime.file.stop();
+                    fileRuntime.stop();
                   }}
                 >
                   <Square aria-hidden="true" />
                   Stop
                 </button>
               </div>
-              {runtime.file.audioAvailable ? (
+              {fileRuntime.audioAvailable ? (
                 <div className="node-file-meter">
                   <span>audio level</span>
                   <div
@@ -283,10 +287,10 @@ export function NodeMediaControls({
                     aria-label="File audio SPL meter (relative dBFS)"
                     aria-valuemin={-60}
                     aria-valuemax={0}
-                    aria-valuenow={Math.round(runtime.file.meterDecibels)}
-                    aria-valuetext={`${Math.round(runtime.file.meterDecibels)} dBFS`}
+                    aria-valuenow={Math.round(fileRuntime.meterDecibels)}
+                    aria-valuetext={`${Math.round(fileRuntime.meterDecibels)} dBFS`}
                   >
-                    <i style={{ '--meter-level': `${runtime.file.meterLevel * 100}%` } as React.CSSProperties} />
+                    <i style={{ '--meter-level': `${fileRuntime.meterLevel * 100}%` } as React.CSSProperties} />
                   </div>
                   <small>relative dBFS, not calibrated SPL</small>
                 </div>
@@ -302,7 +306,7 @@ export function NodeMediaControls({
             onClick={(event) => {
               event.stopPropagation();
               onSelect();
-              runtime.file.clear();
+              fileRuntime.clear();
             }}
           >
             Clear file
@@ -313,8 +317,10 @@ export function NodeMediaControls({
   }
 
   if (kind === 'audioOutput') {
-    const enabled = runtime.file.audioEnabled;
-    const available = runtime.file.audioAvailable && runtime.file.audioRouteConnected;
+    const enabled = fileRuntime.audioEnabled;
+    const available =
+      fileRuntime.audioAvailable &&
+      (runtime.audioRouteConnected ?? fileRuntime.audioRouteConnected ?? false);
     return (
       <section
         className="node-input-runtime nodrag nopan nowheel"
@@ -323,10 +329,10 @@ export function NodeMediaControls({
         <span
           className={`node-input-state ${enabled ? 'is-live' : ''}`}
           aria-live="polite"
-          title={runtime.file.audioError ?? undefined}
+          title={fileRuntime.audioError ?? undefined}
         >
           <i aria-hidden="true" />
-          {runtime.file.audioError ?? (enabled ? 'audio live' : available ? 'audio off' : 'no file audio')}
+          {fileRuntime.audioError ?? (enabled ? 'audio live' : available ? 'audio off' : 'no file audio')}
         </span>
         <button
           type="button"
@@ -337,9 +343,9 @@ export function NodeMediaControls({
             event.stopPropagation();
             onSelect();
             if (enabled) {
-              runtime.file.disableAudio();
+              fileRuntime.disableAudio();
             } else {
-              void runtime.file.enableAudio();
+              void fileRuntime.enableAudio();
             }
           }}
         >
@@ -355,10 +361,10 @@ export function NodeMediaControls({
               aria-label="Output audio SPL meter (relative dBFS)"
               aria-valuemin={-60}
               aria-valuemax={0}
-              aria-valuenow={Math.round(runtime.file.meterDecibels)}
-              aria-valuetext={`${Math.round(runtime.file.meterDecibels)} dBFS`}
+              aria-valuenow={Math.round(fileRuntime.meterDecibels)}
+              aria-valuetext={`${Math.round(fileRuntime.meterDecibels)} dBFS`}
             >
-              <i style={{ '--meter-level': `${runtime.file.meterLevel * 100}%` } as React.CSSProperties} />
+              <i style={{ '--meter-level': `${fileRuntime.meterLevel * 100}%` } as React.CSSProperties} />
             </div>
             <small>relative dBFS, not calibrated SPL</small>
           </div>

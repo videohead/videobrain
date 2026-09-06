@@ -382,7 +382,7 @@ Conversions should be explicit nodes: scalar-to-vector, spectrum-band-to-scalar,
 | P1 | 🚧 Shape | Rectangle, ellipse, line, polygon, star, and rounded forms |
 | P1 | 🚧 Text | Font asset, layout, alignment, wrapping, and live string input |
 | P1 | 🚧 Image File | Drag/drop or picker import with orientation and color handling |
-| P1 | 🚧 Video File | Local clip playback with loop, rate, seek, and frame metadata |
+| P1 | ✅ Video File | Local clip playback with loop, rate, seek, and frame metadata |
 | P1 | 🚧 Screen Capture | User-selected tab, window, or display via browser capture prompt |
 | P1 | 🚧 SVG | Safe rasterization of imported vector artwork |
 | P1 | 🚧 Checker / Grid | Calibration, mapping, and debugging pattern |

@@ -329,6 +329,72 @@ describe('operator registry', () => {
     });
   });
 
+  it('splits audio analysis into three named bands plus overall level', () => {
+    const definition = OPERATOR_REGISTRY.audioSpectrum;
+
+    expect(definition.domain).toBe('control');
+    expect(definition.category).toBe('inputs');
+    expect(definition.inputs).toEqual([
+      { id: 'audio', label: 'Audio', type: 'audio.block', optional: true },
+    ]);
+    expect(definition.outputs.map(({ id, type }) => [id, type])).toEqual([
+      ['level', 'control.f32'],
+      ['bass', 'control.f32'],
+      ['mid', 'control.f32'],
+      ['treble', 'control.f32'],
+    ]);
+    expect(getDefaultParams('audioSpectrum')).toEqual({ gain: 2, floor: 0.05 });
+    expect(getOperatorExecution('audioSpectrum')).toEqual({
+      visualPasses: 0,
+      renderTargets: 0,
+      stateful: false,
+    });
+  });
+
+  it('defines an optional-input audio trigger with gate and envelope outputs', () => {
+    const definition = OPERATOR_REGISTRY.audioTrigger;
+
+    expect(definition.inputs).toEqual([
+      { id: 'value', label: 'Value', type: 'control.f32', optional: true },
+    ]);
+    expect(definition.outputs.map(({ id }) => id)).toEqual([
+      'trigger',
+      'envelope',
+    ]);
+    expect(getDefaultParams('audioTrigger')).toEqual({
+      threshold: 0.12,
+      sensitivity: 1.3,
+      hold: 0.12,
+      decay: 0.35,
+    });
+    expect(getOperatorExecution('audioTrigger').stateful).toBe(true);
+  });
+
+  it('mirrors tempo timing outputs on the inferred audio beat clock', () => {
+    const definition = OPERATOR_REGISTRY.audioBeat;
+
+    expect(definition.category).toBe('timing');
+    expect(definition.inputs).toEqual([
+      { id: 'trigger', label: 'Trigger', type: 'control.f32', optional: true },
+    ]);
+    expect(definition.outputs.map(({ id }) => id)).toEqual([
+      'phase',
+      'beat',
+      'bar',
+      'bpm',
+      'confidence',
+    ]);
+    expect(getDefaultParams('audioBeat')).toEqual({
+      restingBpm: 120,
+      minBpm: 70,
+      maxBpm: 170,
+      beatsPerBar: 4,
+      pulseWidth: 0.12,
+      lock: 0.35,
+    });
+    expect(getOperatorExecution('audioBeat').stateful).toBe(true);
+  });
+
   it('defines local files as output-only frame sources', () => {
     const definition = OPERATOR_REGISTRY.file;
 

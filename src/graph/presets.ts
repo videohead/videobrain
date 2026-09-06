@@ -80,6 +80,12 @@ export const GRAPH_PRESETS = [
     description: 'Audio energy drives color and feedback, with a demo pulse fallback.',
   },
   {
+    id: 'audio-beat-pulse',
+    title: 'Audio Beat Pulse',
+    description:
+      'Bass impulses trigger an envelope and an inferred beat clock (optional microphone).',
+  },
+  {
     id: 'camera-dream',
     title: 'Camera Dream',
     description: 'Mix an opt-in camera with a visible procedural fallback.',
@@ -92,7 +98,8 @@ export const GRAPH_PRESETS = [
   {
     id: 'file-preview',
     title: 'Local File Preview',
-    description: 'Display an image or video selected from this browser session.',
+    description:
+      'Display a file from this browser session and warp it with its own bass content.',
   },
 ] as const;
 
@@ -124,6 +131,9 @@ export const NODE_EXAMPLES = {
   file: ['file-preview'],
   audioOutput: ['file-preview'],
   audioMixer: ['file-preview'],
+  audioSpectrum: ['audio-beat-pulse'],
+  audioTrigger: ['audio-beat-pulse'],
+  audioBeat: ['audio-beat-pulse'],
 } as const satisfies Record<
   | 'constant'
   | 'math'
@@ -141,7 +151,10 @@ export const NODE_EXAMPLES = {
   | 'strobe'
   | 'file'
   | 'audioOutput'
-  | 'audioMixer',
+  | 'audioMixer'
+  | 'audioSpectrum'
+  | 'audioTrigger'
+  | 'audioBeat',
   readonly GraphPresetId[]
 >;
 
@@ -174,13 +187,28 @@ function createFilePreviewGraph(): GraphDocument {
     [
       createGraphNode('file', { x: -240, y: 0 }, {}, 'file-input'),
       createGraphNode('audioMixer', { x: -40, y: 180 }, {}, 'file-mixer'),
-      createGraphNode('display', { x: 120, y: 0 }, {}, 'file-display'),
+      createGraphNode(
+        'audioSpectrum',
+        { x: 120, y: 320 },
+        { gain: 2.4, floor: 0.04 },
+        'file-spectrum',
+      ),
+      createGraphNode(
+        'warp',
+        { x: 120, y: 0 },
+        { amount: 0.25, frequency: 7, speed: 0.3 },
+        'file-warp',
+      ),
+      createGraphNode('display', { x: 360, y: 0 }, {}, 'file-display'),
       createGraphNode('audioOutput', { x: 120, y: 180 }, {}, 'file-audio'),
     ],
     [
-      edge('file-display', 'file-input', 'frame', 'file-display', 'source'),
+      edge('file-input-warp', 'file-input', 'frame', 'file-warp', 'source'),
+      edge('file-display', 'file-warp', 'frame', 'file-display', 'source'),
       edge('file-mixer', 'file-input', 'audio', 'file-mixer', 'source1'),
       edge('file-audio', 'file-mixer', 'audio', 'file-audio', 'audio'),
+      edge('file-spectrum', 'file-mixer', 'audio', 'file-spectrum', 'audio'),
+      edge('file-warp-amount', 'file-spectrum', 'bass', 'file-warp', 'amount'),
     ],
   );
 }
@@ -915,6 +943,119 @@ function createMicPulseTrailsGraph(): GraphDocument {
   );
 }
 
+function createAudioBeatPulseGraph(): GraphDocument {
+  return graph(
+    [
+      createGraphNode('time', { x: -720, y: -240 }, {}, 'pulse-time'),
+      createGraphNode(
+        'audioLevel',
+        { x: -980, y: 60 },
+        { gain: 1.5, floor: 0.02 },
+        'pulse-input',
+      ),
+      createGraphNode(
+        'audioSpectrum',
+        { x: -720, y: 60 },
+        { gain: 2.4, floor: 0.06 },
+        'pulse-spectrum',
+      ),
+      createGraphNode(
+        'audioTrigger',
+        { x: -460, y: 60 },
+        { threshold: 0.14, sensitivity: 1.25, hold: 0.14, decay: 0.32 },
+        'pulse-trigger',
+      ),
+      createGraphNode(
+        'audioBeat',
+        { x: -200, y: 60 },
+        { restingBpm: 120, minBpm: 70, maxBpm: 170, pulseWidth: 0.18 },
+        'pulse-beat',
+      ),
+      createGraphNode(
+        'plasma',
+        { x: -460, y: -240 },
+        { scale: 4.6, speed: 0.42, hue: 0.08 },
+        'pulse-field',
+      ),
+      createGraphNode(
+        'warp',
+        { x: -200, y: -240 },
+        { amount: 0.35, frequency: 7.5, speed: 0.28 },
+        'pulse-warp',
+      ),
+      createGraphNode(
+        'trails',
+        { x: 60, y: -240 },
+        { feedback: 0.86 },
+        'pulse-trails',
+      ),
+      createGraphNode(
+        'colorGrade',
+        { x: 320, y: -240 },
+        { contrast: 1.2, saturation: 1.45 },
+        'pulse-grade',
+      ),
+      createGraphNode('display', { x: 580, y: -240 }, {}, 'pulse-display'),
+    ],
+    [
+      edge('pulse-time-field', 'pulse-time', 'value', 'pulse-field', 'time'),
+      edge(
+        'pulse-input-spectrum',
+        'pulse-input',
+        'audio',
+        'pulse-spectrum',
+        'audio',
+      ),
+      edge(
+        'pulse-spectrum-trigger',
+        'pulse-spectrum',
+        'bass',
+        'pulse-trigger',
+        'value',
+      ),
+      edge(
+        'pulse-trigger-beat',
+        'pulse-trigger',
+        'trigger',
+        'pulse-beat',
+        'trigger',
+      ),
+      edge(
+        'pulse-trigger-field',
+        'pulse-trigger',
+        'envelope',
+        'pulse-field',
+        'energy',
+      ),
+      edge('pulse-field-warp', 'pulse-field', 'frame', 'pulse-warp', 'source'),
+      edge('pulse-beat-warp', 'pulse-beat', 'beat', 'pulse-warp', 'amount'),
+      edge('pulse-warp-trails', 'pulse-warp', 'frame', 'pulse-trails', 'source'),
+      edge(
+        'pulse-spectrum-trails',
+        'pulse-spectrum',
+        'treble',
+        'pulse-trails',
+        'feedback',
+      ),
+      edge(
+        'pulse-trails-grade',
+        'pulse-trails',
+        'frame',
+        'pulse-grade',
+        'source',
+      ),
+      edge('pulse-beat-grade', 'pulse-beat', 'phase', 'pulse-grade', 'hue'),
+      edge(
+        'pulse-grade-display',
+        'pulse-grade',
+        'frame',
+        'pulse-display',
+        'source',
+      ),
+    ],
+  );
+}
+
 function createCameraDreamGraph(): GraphDocument {
   return graph(
     [
@@ -1073,6 +1214,7 @@ const PRESET_FACTORIES: Readonly<
   'audio-soft-focus': createAudioSoftFocusGraph,
   'pointer-bend': createPointerBendGraph,
   'mic-pulse-trails': createMicPulseTrailsGraph,
+  'audio-beat-pulse': createAudioBeatPulseGraph,
   'camera-dream': createCameraDreamGraph,
   'prompted-preview': createPromptedPreviewGraph,
   'file-preview': createFilePreviewGraph,

@@ -71,7 +71,9 @@ describe('NodeMediaControls', () => {
 
     expect(screen.getByText('DEMO')).toBeVisible();
     expect(screen.getByText('control out')).toBeVisible();
-    expect(screen.getByText('Level → control · no speaker output')).toBeVisible();
+    expect(
+      screen.getByText('Demo beat drives Level and Audio until the mic starts'),
+    ).toBeVisible();
     expect(screen.getByRole('meter', { name: 'Demo control output level' })).toHaveAttribute(
       'aria-valuenow',
       '64',
@@ -99,9 +101,25 @@ describe('NodeMediaControls', () => {
         {...live}
       />,
     );
-    expect(screen.getByText('Level → control, not speakers · Stop → demo')).toBeVisible();
+    expect(
+      screen.getByText('Level → control, Audio → analyzers · Stop → demo'),
+    ).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Stop mic' }));
     expect(live.runtime.audio.disable).toHaveBeenCalledOnce();
+  });
+
+  it('leaves Audio Spectrum free of device controls so it only analyzes a patched block', () => {
+    const props = createRuntime({ meterLevel: 0.42 });
+    const { container } = render(
+      <NodeMediaControls
+        kind="audioSpectrum"
+        params={{ gain: 2, floor: 0.1 }}
+        {...props}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(props.runtime.audio.enable).not.toHaveBeenCalled();
   });
 
   it('disables the microphone action while permission is being requested', () => {

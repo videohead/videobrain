@@ -363,3 +363,54 @@ export const LiveDeviceInputs: Story = {
     },
   },
 };
+
+export const AudioAnalysisNodes: Story = {
+  args: {
+    kinds: ['audioSpectrum', 'audioTrigger', 'audioBeat'],
+    compact: false,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Audio Spectrum publishes level, bass, mid, and treble controls from the Audio block patched into its left edge, and has no device controls of its own — the microphone starts from Audio Level. Audio Trigger converts a rise above a band’s own recent average into a Trigger gate and a decaying Envelope, and follows the overall level when Value is disconnected. Audio Beat Clock infers tempo from the spacing between triggers and free-runs at Resting BPM until triggers arrive.',
+      },
+    },
+  },
+};
+
+export const AudioAnalysisLive: Story = {
+  args: {
+    kinds: ['audioLevel', 'audioSpectrum'],
+    selectedKind: 'audioLevel',
+    compact: true,
+    audioState: 'live',
+    audioMeterLevel: 0.66,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Audio Level in its live microphone state with the Stop mic action inside the node, beside the Audio Spectrum card it feeds. Audio Spectrum carries no device controls of its own; it only analyzes the block patched into its Audio input.',
+      },
+    },
+  },
+};
+
+export const AudioAnalysisUnavailable: Story = {
+  args: {
+    kinds: ['audioLevel', 'audioTrigger'],
+    unreachableKinds: ['audioTrigger'],
+    compact: true,
+    audioState: 'unavailable',
+    audioMeterLevel: 0,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Audio Level with microphone capture unavailable, beside an Audio Trigger that no connected Display can reach. Neither state blocks editing.',
+      },
+    },
+  },
+};

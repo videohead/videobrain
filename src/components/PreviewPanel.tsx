@@ -5,6 +5,8 @@ import {
   FRAME_PACING_OPTIONS,
   FramePacer,
   WebGLRenderer,
+  type AudioAnalysisFrame,
+  type AudioAnalysisSnapshot,
   type FramePacingMode,
   type RenderPointer,
   type RenderResult,
@@ -21,7 +23,9 @@ interface PreviewPanelProps {
   videoSource: HTMLVideoElement | HTMLImageElement | null;
   videoModelSources: ReadonlyMap<string, HTMLImageElement>;
   meterLevel: number;
-  sampleAudioLevel: (timeSeconds: number) => number;
+  sampleAudio: (
+    timeSeconds: number,
+  ) => AudioAnalysisFrame | AudioAnalysisSnapshot;
   onRuntimeUpdate: (result: RenderResult | null) => void;
   onNotify: (message: string, tone?: 'success' | 'error') => void;
 }
@@ -40,7 +44,7 @@ export function PreviewPanel({
   videoSource,
   videoModelSources,
   meterLevel,
-  sampleAudioLevel,
+  sampleAudio,
   onRuntimeUpdate,
   onNotify,
 }: PreviewPanelProps) {
@@ -92,7 +96,7 @@ export function PreviewPanel({
       if (!renderer) {
         return;
       }
-      const audio = sampleAudioLevel(elapsedRef.current);
+      const audio = sampleAudio(elapsedRef.current);
       const result = renderer.render(
         elapsedRef.current,
         audio,
@@ -106,7 +110,7 @@ export function PreviewPanel({
       };
       publishResult(result, forcePublish);
     },
-    [publishResult, sampleAudioLevel],
+    [publishResult, sampleAudio],
   );
 
   useEffect(() => {
