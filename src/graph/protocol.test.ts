@@ -22,7 +22,7 @@ describe('graph protocol inspection', () => {
     expect(first.protocolVersion).toBe(GRAPH_PROTOCOL_VERSION);
     expect(first.graphSchemaVersion).toBe(GRAPH_SCHEMA_VERSION);
     expect(first.catalogVersion).toBe(OPERATOR_CATALOG_VERSION);
-    expect(first.catalogVersion).toBe(3);
+    expect(first.catalogVersion).toBe(6);
     expect(first.operators.map(({ kind }) => kind)).toEqual(
       OPERATOR_DEFINITIONS.map(({ kind }) => kind),
     );
@@ -30,6 +30,7 @@ describe('graph protocol inspection', () => {
       'frame.rgba',
       'control.f32',
       'text.utf8',
+      'audio.block',
     ]);
     expect(first.categories).toEqual(OPERATOR_CATEGORY_IDS);
     expect(first.operators.map(({ category }) => category)).toEqual(

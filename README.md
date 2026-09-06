@@ -1,12 +1,15 @@
 # VideoBrain
 
-VideoBrain is a browser-native visual signal studio. Its **Signal Graph** combines typed control, text, and frame paths with a multipass GPU renderer in one static web application.
+VideoBrain is a browser-native visual signal studio. Its **Signal Graph** combines typed control, text, frame, and audio paths with a multipass GPU renderer and browser audio runtime in one static web application.
 
 The proof of concept opens into a working composition and runs locally without an account, backend, or device permission. Connect signal nodes to visual parameters, rewire frame processors, tune values directly in the nodes, and watch the result update live.
 
 ## What is included
 
-- Typed `control.f32`, `text.utf8`, and `frame.rgba` connections
+- Typed `control.f32`, `text.utf8`, `frame.rgba`, and `audio.block` connections
+- Local image, video, and audio files with browser playback controls
+- Audio Mixer with 2/4/8 source routing, per-source gain, and three-band EQ
+- Explicit Audio Output monitoring with relative dBFS metering
 - Demand-rooted graph compilation with cycle rejection
 - Procedural GPU sources, warp, blend, trails, spiral feedback, internally
   rate-capped strobe processing, color grading, and display
@@ -24,7 +27,7 @@ The proof of concept opens into a working composition and runs locally without a
   display-synced/60/30 fps monitor pacing
 - Node creation, connection, deletion, movement, and parameter editing
 - Searchable, collapsible node categories backed by the operator registry
-- A New patch menu with Blank Canvas and fifteen complete starter graphs
+- A New patch menu with Blank Canvas and sixteen complete starter graphs
 - Always-visible inline sliders, selects, and XY controls synchronized with the inspector
 - Undo and redo for project edits
 - Versioned local autosave plus JSON import and export
@@ -93,11 +96,27 @@ The built-in Signal Graph's Video Model starts in a procedural preview that
 performs no model inference or network request, so the default project requests
 neither device permission nor a server connection.
 
+### Local file audio
+
+File exposes **Frame** and **Audio** outputs. Connect **Audio** to **Audio
+Output**, then press **Enable audio** in that node. Browser audio remains muted
+until explicit activation. Image files provide no audio; audio-only files use
+the same File player controls without a Frame signal. The meters show relative
+dBFS and are not calibrated physical SPL measurements. Play, pause, stop, and
+seek remain controlled by the File node.
+
+Use **Audio Mixer** between File and Audio Output when combining sources. Set
+Sources to 2, 4, or 8, connect the corresponding Audio ports, adjust each
+source gain, and use Low EQ, Mid EQ, and High EQ for the shared three-band tone
+shaping.
+
 Use **New patch** to start from Blank Canvas, Full Studio, Beat-Synced
 Color, Spiral Feedback Lab, Two-World Mixer, Control Math, Smooth Pointer,
 Transform Playground, Mask & Composite Lab, Beat Switcher, Live Cut Lab, Audio
 Soft Focus, Pointer Bend, Mic Pulse Trails, Camera Dream, or Prompted Visual
-Preview. The graph replacement is undoable, but it stops active camera and
+Preview, or Local File Preview. Local File Preview uses an explicit file picker
+and keeps the selected image, video, or audio in this browser session. The graph
+replacement is undoable, but it stops active camera and
 microphone sessions, closes model connections, and clears session-only model
 keys. Device-based starters remain in fallback mode until access is explicitly
 enabled again.

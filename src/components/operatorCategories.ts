@@ -40,7 +40,7 @@ export const OPERATOR_CATEGORIES = [
   {
     id: 'inputs',
     label: 'Inputs',
-    summary: 'Camera and microphone signals.',
+    summary: 'Camera, microphone, and local media files.',
     icon: Camera,
   },
   {
@@ -64,7 +64,7 @@ export const OPERATOR_CATEGORIES = [
   {
     id: 'output',
     label: 'Output',
-    summary: 'Present frames on the stage.',
+    summary: 'Present frames and route audio to the browser tab.',
     icon: MonitorUp,
   },
 ] as const satisfies readonly OperatorCategoryDefinition[];

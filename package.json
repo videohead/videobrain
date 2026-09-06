@@ -19,13 +19,15 @@
     "build:deploy": "npm run build && npm run build:storybook -- --output-dir dist/storybook",
     "check:storybook-dist": "node scripts/check-storybook-artifact.mjs dist/storybook",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "control-server": "node server/control-server.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.11.6",
     "lucide-react": "^1.40.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "ws": "^8.21.3",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

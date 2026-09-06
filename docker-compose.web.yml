@@ -1,0 +1,10 @@
+services:
+  videobrain-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: videobrain-web
+    container_name: videobrain-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8936:80"

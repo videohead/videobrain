@@ -309,6 +309,61 @@ const definitions = [
     },
   },
   {
+    kind: 'file',
+    title: 'File',
+    summary: 'A local image, video, or audio file selected in this browser session.',
+    domain: 'frame',
+    category: 'inputs',
+    inputs: [],
+    outputs: [
+      port('frame', 'Frame', 'frame.rgba'),
+      port('audio', 'Audio', 'audio.block'),
+    ],
+    params: {},
+  },
+  {
+    kind: 'audioOutput',
+    title: 'Audio Output',
+    summary: 'Routes a connected audio block to this browser tab after activation.',
+    domain: 'audio',
+    category: 'output',
+    inputs: [port('audio', 'Audio', 'audio.block')],
+    outputs: [],
+    params: {},
+  },
+  {
+    kind: 'audioMixer',
+    title: 'Audio Mixer',
+    summary: 'Mixes 2, 4, or 8 audio sources with per-source gain and three-band EQ.',
+    domain: 'audio',
+    category: 'compositing',
+    inputs: [
+      port('source1', 'Source 1', 'audio.block', true),
+      port('source2', 'Source 2', 'audio.block', true),
+      port('source3', 'Source 3', 'audio.block', true),
+      port('source4', 'Source 4', 'audio.block', true),
+      port('source5', 'Source 5', 'audio.block', true),
+      port('source6', 'Source 6', 'audio.block', true),
+      port('source7', 'Source 7', 'audio.block', true),
+      port('source8', 'Source 8', 'audio.block', true),
+    ],
+    outputs: [port('audio', 'Audio', 'audio.block')],
+    params: {
+      sourceCount: selectParam('Sources', '2', ['2', '4', '8']),
+      gain1: numberParam('Source 1 gain', 1, 0, 2, 0.01),
+      gain2: numberParam('Source 2 gain', 1, 0, 2, 0.01),
+      gain3: numberParam('Source 3 gain', 1, 0, 2, 0.01),
+      gain4: numberParam('Source 4 gain', 1, 0, 2, 0.01),
+      gain5: numberParam('Source 5 gain', 1, 0, 2, 0.01),
+      gain6: numberParam('Source 6 gain', 1, 0, 2, 0.01),
+      gain7: numberParam('Source 7 gain', 1, 0, 2, 0.01),
+      gain8: numberParam('Source 8 gain', 1, 0, 2, 0.01),
+      low: numberParam('Low EQ', 0, -12, 12, 0.1),
+      mid: numberParam('Mid EQ', 0, -12, 12, 0.1),
+      high: numberParam('High EQ', 0, -12, 12, 0.1),
+    },
+  },
+  {
     kind: 'videoModel',
     title: 'Video Model',
     summary: 'Receives generated frames from a compatible worker or API gateway.',
@@ -699,7 +754,7 @@ export function getOperatorDefinition(kind: NodeKind): OperatorDefinition {
 export function getOperatorExecution(kind: NodeKind): OperatorExecution {
   const definition = OPERATOR_REGISTRY[kind];
   const defaults: OperatorExecution =
-    definition.domain === 'control'
+    definition.domain === 'control' || definition.domain === 'audio'
       ? { visualPasses: 0, renderTargets: 0, stateful: false }
       : definition.domain === 'display'
         ? { visualPasses: 1, renderTargets: 0, stateful: false }

@@ -1,0 +1,14 @@
+services:
+  videobrain-control:
+    build:
+      context: .
+      dockerfile: Dockerfile.control
+    image: videobrain-control
+    container_name: videobrain-control
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8933:8933"
+    environment:
+      # Set a real secret before running; external POST/GET calls must send it
+      # back as the X-Api-Key header.
+      - CONTROL_API_KEY=${VIDEOBRAIN_CONTROL_API_KEY:?set VIDEOBRAIN_CONTROL_API_KEY}

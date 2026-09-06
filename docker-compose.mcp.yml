@@ -1,0 +1,28 @@
+services:
+  videobrain-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    image: videobrain-mcp
+    container_name: videobrain-mcp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8932:8932"
+    volumes:
+      # Full repo checkout so read_repo_file, git_status, and npm scripts see
+      # live source. node_modules stays in the image/anonymous volume so a
+      # host install (or lack of one) doesn't shadow it.
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    environment:
+      - VIDEOBRAIN_CONTROL_URL=http://videobrain-control:8933
+      - VIDEOBRAIN_CONTROL_API_KEY=${VIDEOBRAIN_CONTROL_API_KEY:?set VIDEOBRAIN_CONTROL_API_KEY}
+    command: ["python3", "/opt/videobrain-mcp/server.py"]
+    networks:
+      - default
+      - metis-network
+
+networks:
+  metis-network:
+    external: true

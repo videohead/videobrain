@@ -98,6 +98,31 @@ function NodeCanvas({
           setGesture('Camera simulation stopped');
         },
       },
+      file: {
+        source: null,
+        frameSource: null,
+        name: null,
+        errorMessage: null,
+        isVideo: false,
+        isAudio: false,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+        audioEnabled: false,
+        audioAvailable: false,
+        audioRouteConnected: false,
+        audioError: null,
+        meterLevel: 0,
+        meterDecibels: -60,
+        choose: () => setGesture('File picker simulation opened'),
+        clear: () => setGesture('Local file simulation cleared'),
+        play: () => setGesture('File playback started'),
+        pause: () => setGesture('File playback paused'),
+        stop: () => setGesture('File playback stopped'),
+        seek: () => setGesture('File playback position changed'),
+        enableAudio: () => Promise.resolve(),
+        disableAudio: () => setGesture('File audio muted'),
+      },
     }),
     [audioMeterLevel, audioState, videoFacingMode, videoState],
   );
@@ -311,12 +336,12 @@ export const InactiveNode: Story = {
 
 export const SourcesAndOutput: Story = {
   args: {
-    kinds: ['pointer', 'videoInput', 'display'],
+    kinds: ['pointer', 'videoInput', 'file', 'audioMixer', 'audioOutput', 'display'],
   },
   parameters: {
     docs: {
       description: {
-        story: 'Source, device-presentation, and terminal nodes shown together. The camera choices are local values only and never open a device.',
+        story: 'Source, local media, device-presentation, and terminal nodes shown together. Camera and file actions are deterministic simulations.',
       },
     },
   },

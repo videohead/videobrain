@@ -14,6 +14,9 @@ export const NODE_KINDS = [
   'xyPad',
   'audioLevel',
   'videoInput',
+  'file',
+  'audioOutput',
+  'audioMixer',
   'videoModel',
   'solid',
   'plasma',
@@ -48,9 +51,9 @@ export const OPERATOR_CATEGORY_IDS = [
 
 export type OperatorCategoryId = (typeof OPERATOR_CATEGORY_IDS)[number];
 
-export type PortType = 'frame.rgba' | 'control.f32' | 'text.utf8';
+export type PortType = 'frame.rgba' | 'control.f32' | 'text.utf8' | 'audio.block';
 
-export type OperatorDomain = 'control' | 'frame' | 'display';
+export type OperatorDomain = 'control' | 'frame' | 'audio' | 'display';
 
 export type GraphParamValue = number | string | boolean;
 

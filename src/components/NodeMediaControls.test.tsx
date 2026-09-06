@@ -28,6 +28,31 @@ function createRuntime(
       enable: vi.fn(() => Promise.resolve()),
       disable: vi.fn(),
     },
+    file: {
+      source: null,
+      frameSource: null,
+      name: null,
+      errorMessage: null,
+      isVideo: false,
+      isAudio: false,
+      isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+      audioEnabled: false,
+      audioAvailable: false,
+      audioRouteConnected: false,
+      audioError: null,
+      meterLevel: 0,
+      meterDecibels: -60,
+      choose: vi.fn(),
+      clear: vi.fn(),
+      play: vi.fn(),
+      pause: vi.fn(),
+      stop: vi.fn(),
+      seek: vi.fn(),
+      enableAudio: vi.fn(() => Promise.resolve()),
+      disableAudio: vi.fn(),
+    },
   };
   const onSelect = vi.fn();
   return { runtime, onSelect };
@@ -129,5 +154,57 @@ describe('NodeMediaControls', () => {
     expect(screen.getByText('rear live')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Stop camera' }));
     expect(props.runtime.video.disable).toHaveBeenCalledOnce();
+  });
+
+  it('opens and clears a local file without adding graph inputs', () => {
+    const props = createRuntime();
+    render(
+      <NodeMediaControls kind="file" params={{}} {...props} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose file' }));
+    expect(props.runtime.file.choose).toHaveBeenCalledOnce();
+  });
+
+  it('controls video playback and seeks through its progress', () => {
+    const props = createRuntime();
+    props.runtime.file.source = document.createElement('video');
+    props.runtime.file.name = 'clip.mp4';
+    props.runtime.file.isVideo = true;
+    props.runtime.file.isPlaying = true;
+    props.runtime.file.currentTime = 12.4;
+    props.runtime.file.duration = 65;
+    render(<NodeMediaControls kind="file" params={{}} {...props} />);
+
+    expect(screen.getByText('0:12 / 1:05')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause file' }));
+    expect(props.runtime.file.pause).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop file' }));
+    expect(props.runtime.file.stop).toHaveBeenCalledOnce();
+    fireEvent.change(screen.getByRole('slider', { name: 'File playback position' }), {
+      target: { value: '30' },
+    });
+    expect(props.runtime.file.seek).toHaveBeenCalledWith(30);
+  });
+
+  it('uses the same player controls for an audio-only file', () => {
+    const props = createRuntime();
+    props.runtime.file.source = document.createElement('audio');
+    props.runtime.file.name = 'track.mp3';
+    props.runtime.file.isAudio = true;
+    props.runtime.file.audioAvailable = true;
+    props.runtime.file.currentTime = 8;
+    props.runtime.file.duration = 120;
+    props.runtime.file.meterDecibels = -12;
+    props.runtime.file.meterLevel = 0.8;
+    render(<NodeMediaControls kind="file" params={{}} {...props} />);
+
+    expect(screen.getByText('0:08 / 2:00')).toBeVisible();
+    expect(screen.getByRole('meter', { name: /File audio SPL meter/ })).toHaveAttribute(
+      'aria-valuenow',
+      '-12',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Play file' }));
+    expect(props.runtime.file.play).toHaveBeenCalledOnce();
   });
 });

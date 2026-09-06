@@ -23,7 +23,7 @@ Build a static TypeScript application whose editing and baseline rendering stay 
 
 WebGL2 is the only rendering backend required for the MVP. The runtime will hide it behind a renderer interface so WebGPU can be added without changing graph semantics.
 
-This decision tests the actual product architecture while retaining broad browser reach and static hosting. The built-in visual path avoids remote-renderer latency, cost, authentication, and lifecycle complexity; optional model connections must remain an explicit extension rather than a startup dependency.
+This decision tests the actual product architecture while retaining broad browser reach and static hosting. The built-in visual path avoids remote-renderer latency, cost, authentication, and lifecycle complexity; optional model connections must remain an explicit extension rather than a startup dependency. Browser-local media playback and audio routing are session-owned and require explicit user activation.
 
 ## Options considered
 
@@ -43,7 +43,7 @@ The application opens directly into a working project. The user can:
 1. see the animated result immediately;
 2. pan, zoom, select, and move nodes;
 3. add a node from a searchable palette;
-4. replace the graph from New patch with Blank Canvas or one of fifteen complete starters;
+4. replace the graph from New patch with Blank Canvas or one of sixteen complete starters;
 5. connect compatible ports and receive clear feedback for invalid connections;
 6. edit a node from its visible inline controls or the selected-node inspector;
 7. connect a control output to a visual parameter and see it animate;
@@ -63,7 +63,7 @@ The built-in **Signal Graph** is attractive without media permissions or network
 - Infinite graph canvas with pan and zoom.
 - Select, move, connect, disconnect, create, duplicate, and delete.
 - Searchable node palette.
-- Accessible New patch menu with Blank Canvas and fifteen validated starter graphs.
+- Accessible New patch menu with Blank Canvas and sixteen validated starter graphs.
 - Custom node cards with category, name, typed ports, reachability state, and always-visible parameter controls.
 - Inspector with parameter sliders and operator details.
 - Distinct visual treatment for `frame.rgba`, `control.f32`, and `text.utf8` connections.
@@ -112,6 +112,12 @@ Every animatable numeric visual parameter uses the same typed control-port mecha
 
 See [Model Connectors](MODEL_CONNECTORS.md) for the current wire contract and adapter architecture.
 
+### Implemented media and audio nodes
+
+- File accepts local image, video, and audio files. Image/video files can emit `frame.rgba`; media files emit `audio.block` through the session-owned player. Playback includes play, pause, stop, seek, current time, duration, and relative dBFS metering.
+- Audio Mixer accepts eight stable optional `audio.block` inputs, activates 2, 4, or 8 source slots, applies per-source gain, and provides shared low/mid/high EQ.
+- Audio Output is an explicit browser sink. Audio remains muted until the user enables it on a connected output route; media handles, object URLs, and Web Audio nodes are never serialized.
+
 ### Deferred node breadth
 
 - Uploaded image/video, screen capture, crop/fit, resize, levels, channel
@@ -119,12 +125,12 @@ See [Model Connectors](MODEL_CONNECTORS.md) for the current wire contract and ad
 - Compare, trigger, vector, envelope, and sample-and-hold controls.
 - A general-purpose Delay node beyond the specialized retained state inside
   Trails and Spiral Feedback.
-- Audio Device In, file playback, FFT/band analysis, and an explicit feedback-safe Audio Output/Monitor path.
+- Audio Device In, FFT/band analysis, calibrated SPL measurement, independent per-node media asset sessions, and recording.
 
 ### Runtime
 
 - Typed port validation.
-- Reachability from display outputs, with the first connected display presented.
+- Reachability from display and audio output roots, with the first connected display presented.
 - Topological execution planning.
 - Detection and rejection of zero-delay cycles.
 - Stable elapsed-time behavior when frame rate changes.

@@ -6,11 +6,16 @@ Status: proof-of-concept architecture. This document defines the product model a
 
 VideoBrain is a browser-native environment for building live visual systems from connected nodes. Editing and playback happen at the same time: changing a value or connection should affect the output immediately, without a separate compile or export step.
 
-The first release presents one **Signal Graph** with three typed paths:
+The first release presents one **Signal Graph** with four typed paths:
 
 - a GPU-backed `frame.rgba` path for generating, receiving, and processing images;
 - a CPU-backed `control.f32` path for transport/beat timing, oscillation, editable XY values, pointer/audio input, and parameter modulation;
 - a `text.utf8` path for model prompts and future text processing.
+- an `audio.block` path for session-owned media playback routed to an explicit
+  Audio Output node.
+- Audio Mixer is an audio-domain processor with eight stable optional inputs;
+  its source-count selector activates 2, 4, or 8 inputs and its low/mid/high
+  parameters control a shared three-band EQ.
 
 An optional session-owned connector can exchange prompts and bounded image frames with a compatible user-run model adapter. The default graph instead uses a built-in procedural preview, so it opens without a backend, network request, credential, or device permission.
 
@@ -32,6 +37,7 @@ Text prompts -> Control/text plan -- resolved values ------+
                       |                                    |
                       v                                    v
 Frame sources -> Frame processors -> Active Display -> Preview canvas
+Audio files -> Audio Mixer -> Audio Output -> Browser speakers
       ^               |                                      |
       |               v                                      v
       |          GPU textures                         Runtime status
@@ -44,7 +50,7 @@ Compatible model adapter <-> session connector       Editor / inspector
                                                     Serializable project
 ```
 
-Display outputs are demand roots. Only nodes reachable from a display belong to its execution plan. Input events update controls or authoring state; they do not render directly.
+Display and Audio Output nodes are demand roots. Only nodes reachable from an output belong to the corresponding execution plan. Input events update controls or authoring state; they do not render directly.
 
 ## Core concepts
 
@@ -87,7 +93,7 @@ Current and canonical planned data types are:
 | `control.bool` | Sustained logic state | Future |
 | `event.trigger` | A discrete occurrence with an optional timestamp and bounded payload | Future |
 | `control.vec2`, `control.vec3`, `control.vec4` | Short fixed-size coordinates, colors, or sensor values | Future |
-| `audio.block` | Timestamped sample-rate audio with channel metadata | Future |
+| `audio.block` | Timestamped sample-rate audio with channel metadata | Yes |
 | `audio.spectrum` | Bounded FFT bins with sample-rate/window metadata | Future |
 | `data.table` | Typed named rows and columns | Future |
 | `data.json` | Bounded structured messages | Future |

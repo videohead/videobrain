@@ -28,6 +28,8 @@ import {
   Sparkles,
   Timer,
   Waves,
+  Volume2,
+  SlidersHorizontal,
   Zap,
   type LucideIcon,
 } from 'lucide-react';
@@ -42,11 +44,13 @@ interface OperatorMeta {
 export const DOMAIN_LABELS: Record<OperatorDomain, string> = {
   control: 'Signals',
   frame: 'Visuals',
+  audio: 'Audio',
   display: 'Outputs',
 };
 export const DOMAIN_ACCENTS: Record<OperatorDomain, string> = {
   control: '#d8ff5f',
   frame: '#65ddff',
+  audio: '#ffb84d',
   display: '#ff795c',
 };
 
@@ -64,6 +68,9 @@ export const OPERATOR_META: Record<NodeKind, OperatorMeta> = {
   xyPad: { accent: '#d8ff5f', icon: Crosshair, shortLabel: 'XY Pad' },
   audioLevel: { accent: '#ffbd5f', icon: Mic2, shortLabel: 'Audio' },
   videoInput: { accent: '#5fffc7', icon: Camera, shortLabel: 'Camera' },
+  file: { accent: '#70e4ff', icon: ScanLine, shortLabel: 'File' },
+  audioOutput: { accent: '#ff795c', icon: Volume2, shortLabel: 'Audio' },
+  audioMixer: { accent: '#f59e6b', icon: SlidersHorizontal, shortLabel: 'Mixer' },
   videoModel: { accent: '#70e4ff', icon: Cpu, shortLabel: 'Model' },
   solid: { accent: '#5fe6ff', icon: Circle, shortLabel: 'Solid' },
   plasma: { accent: '#65ddff', icon: Sparkles, shortLabel: 'Field' },

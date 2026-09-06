@@ -57,6 +57,8 @@ export interface CompiledGraph {
   nodes: readonly CompiledNode[];
   controlNodes: readonly CompiledNode[];
   frameNodes: readonly CompiledNode[];
+  audioNodes: readonly CompiledNode[];
+  audioOutputNodes: readonly CompiledNode[];
   displayNodes: readonly CompiledNode[];
   reachableNodeIds: ReadonlySet<string>;
   visualPasses: number;
@@ -181,7 +183,7 @@ function topologicalOrder(
   };
 }
 
-function reachableFromDisplays(
+function reachableFromOutputs(
   nodes: readonly GraphNode[],
   edges: readonly GraphEdge[],
 ): Set<string> {
@@ -198,7 +200,7 @@ function reachableFromDisplays(
 
   const reachable = new Set<string>();
   const pending = nodes
-    .filter((node) => node.kind === 'display')
+    .filter((node) => node.kind === 'display' || node.kind === 'audioOutput')
     .map((node) => node.id)
     .sort()
     .reverse();
@@ -362,7 +364,7 @@ export function compileGraph(document: GraphDocument): CompiledGraph {
     inputBindings.set(edge.target.nodeId, inputs);
   }
 
-  const reachableNodeIds = reachableFromDisplays(
+  const reachableNodeIds = reachableFromOutputs(
     [...nodeById.values()],
     validEdges.map(({ edge }) => edge),
   );
@@ -382,6 +384,12 @@ export function compileGraph(document: GraphDocument): CompiledGraph {
 
   const frameNodes = orderedNodes.filter(
     ({ definition }) => definition.domain === 'frame',
+  );
+  const audioNodes = orderedNodes.filter(
+    ({ definition }) => definition.domain === 'audio',
+  );
+  const audioOutputNodes = audioNodes.filter(
+    ({ node }) => node.kind === 'audioOutput',
   );
   const displayNodes = orderedNodes.filter(
     ({ definition }) => definition.domain === 'display',
@@ -428,6 +436,8 @@ export function compileGraph(document: GraphDocument): CompiledGraph {
       ({ definition }) => definition.domain === 'control',
     ),
     frameNodes,
+    audioNodes,
+    audioOutputNodes,
     displayNodes,
     reachableNodeIds,
     visualPasses: passCount,

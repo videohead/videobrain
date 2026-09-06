@@ -284,7 +284,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           </section>
 
           <section id="help-concepts" className="help-section">
-            <h2>Three signal types, one graph</h2>
+            <h2>Four signal types, one graph</h2>
             <div className="help-concept-grid">
               <article>
                 <i className="help-swatch control" />
@@ -308,6 +308,14 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
                 <p>
                   Bounded UTF-8 text carries prompts today and can grow into
                   formatting, labels, and structured text workflows later.
+                </p>
+              </article>
+              <article>
+                <i className="help-swatch audio" />
+                <h3>Audio</h3>
+                <p>
+                  Session-owned audio blocks flow from File through Audio Mixer
+                  to an explicitly enabled Audio Output.
                 </p>
               </article>
             </div>
@@ -349,7 +357,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           </section>
 
           <section id="help-recipes" className="help-section">
-            <h2>Fifteen patches to try</h2>
+            <h2>Sixteen patches to try</h2>
             <div className="help-recipe-list">
               {recipes.map((recipe) => (
                 <article key={recipe.title}>
@@ -412,9 +420,10 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             <p>
               The current release supports transport and beat timing, the built-in
               XY pad, pointer position/held/press/release, AI prompt text, a
-              compatible model adapter, and opt-in camera and microphone access.
+              compatible model adapter, local image/video/audio files, Audio
+              Mixer, Audio Output, and opt-in camera and microphone access.
               Browser-native MIDI,
-              gamepad, files, recording, and peer streaming are planned. OSC,
+              gamepad, recording, and peer streaming are planned. OSC,
               lighting networks, specialist depth sensors, and native video-sharing
               protocols generally need a small local bridge because browsers cannot
               open arbitrary UDP sockets or native texture-sharing handles.
@@ -460,6 +469,16 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               simplest check. You can instead route it through Warp, Trails, Color
               Grade, Blend, or Video Model before Display. Selecting a camera node
               or connecting it does not start the device by itself.
+            </p>
+            <h3>Using File audio</h3>
+            <p>
+              Add File and choose an image, video, or audio file. Audio-only
+              files use the same player controls but provide no Frame output.
+              Connect File <strong>Audio</strong> to Audio Output, or place
+              Audio Mixer between them for 2, 4, or 8 source ports, per-source
+              gain, and Low/Mid/High EQ. Press <strong>Enable audio</strong> on
+              Audio Output after connecting the route. Its meter is relative
+              dBFS, not calibrated physical SPL.
             </p>
             <p className="help-note">
               <strong>Monitor pacing:</strong> Display sync follows the browser's

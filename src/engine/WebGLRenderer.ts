@@ -73,6 +73,8 @@ interface VideoModelTexture {
   dirty: boolean;
 }
 
+type VideoSource = HTMLVideoElement | HTMLImageElement;
+
 interface SmoothControlState {
   value: number;
   time: number;
@@ -325,7 +327,7 @@ export class WebGLRenderer {
   private blackTexture: WebGLTexture | null = null;
   private transparentTexture: WebGLTexture | null = null;
   private videoTexture: WebGLTexture | null = null;
-  private videoSource: HTMLVideoElement | null = null;
+  private videoSource: VideoSource | null = null;
   private videoSourceWidth = 1;
   private videoSourceHeight = 1;
   private videoModelSources = new Map<string, HTMLImageElement>();
@@ -411,7 +413,7 @@ export class WebGLRenderer {
     }
   }
 
-  setVideoSource(video: HTMLVideoElement | null): void {
+  setVideoSource(video: VideoSource | null): void {
     this.assertActive();
     if (this.videoSource === video) {
       return;
@@ -582,7 +584,7 @@ export class WebGLRenderer {
       for (const node of this.plan.controlNodes) {
         this.evaluateControlNode(node, time, audio, safePointer);
       }
-      if (this.plan.frameNodes.some(({ node }) => node.kind === 'videoInput')) {
+      if (this.plan.frameNodes.some(({ node }) => node.kind === 'videoInput' || node.kind === 'file')) {
         this.uploadVideoFrame();
       }
       const frameStateCommits: FrameStateCommit[] = [];
@@ -815,11 +817,10 @@ export class WebGLRenderer {
     if (!video || !texture) {
       return;
     }
-    const size = readVideoFrameSize(
-      video,
-      this.maxTextureDimension,
-      MAX_RENDER_PIXELS,
-    );
+    const size =
+      video instanceof HTMLImageElement
+        ? readImageFrameSize(video, this.maxTextureDimension, MAX_RENDER_PIXELS)
+        : readVideoFrameSize(video, this.maxTextureDimension, MAX_RENDER_PIXELS);
     if (!size) {
       return;
     }
@@ -1008,7 +1009,7 @@ export class WebGLRenderer {
         .map(({ node }) => node.id),
     );
     let sourcePixels = graph.frameNodes.some(
-      ({ node }) => node.kind === 'videoInput',
+      ({ node }) => node.kind === 'videoInput' || node.kind === 'file',
     )
       ? videoSize.width * videoSize.height
       : 0;
@@ -1532,6 +1533,22 @@ export class WebGLRenderer {
           'uMirror',
           this.stringParam(compiledNode, 'mirror') === 'on' ? 1 : 0,
         );
+        break;
+      case 'file':
+        this.bindTexture(
+          program,
+          'uSource',
+          this.videoTexture ?? this.fallbackTexture(),
+          0,
+        );
+        this.uniform2f(
+          program,
+          'uSourceSize',
+          this.videoSourceWidth,
+          this.videoSourceHeight,
+        );
+        this.uniform1f(program, 'uFit', videoFitIndex('cover'));
+        this.uniform1f(program, 'uMirror', 0);
         break;
       case 'videoModel': {
         const generatedTexture = this.uploadVideoModelFrame(

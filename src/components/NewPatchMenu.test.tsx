@@ -42,7 +42,7 @@ describe('NewPatchMenu', () => {
     trigger.focus();
     await user.keyboard('{ArrowUp}');
     expect(
-      screen.getByRole('menuitem', { name: /Prompted Visual Preview/ }),
+      screen.getByRole('menuitem', { name: /Local File Preview/ }),
     ).toHaveFocus();
 
     await user.keyboard('{Home}');

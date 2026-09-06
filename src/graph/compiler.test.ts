@@ -125,6 +125,31 @@ describe('graph compiler', () => {
     ).toEqual({ valid: true });
   });
 
+  it('routes File audio blocks to an Audio Output root', () => {
+    const document = graph(
+      [node('file', 'file'), node('audioOutput', 'audio-output')],
+      [edge('file-audio', 'file', 'audio', 'audio-output', 'audio')],
+    );
+    const compiled = compileGraph(document);
+
+    expect(compiled.audioNodes.map(({ node: item }) => item.kind)).toEqual([
+      'audioOutput',
+    ]);
+    expect(compiled.audioOutputNodes.map(({ node: item }) => item.id)).toEqual([
+      'audio-output',
+    ]);
+    expect(compiled.reachableNodeIds).toEqual(new Set(['file', 'audio-output']));
+  });
+
+  it('rejects frame-to-audio connections', () => {
+    const document = graph(
+      [node('file', 'file'), node('audioOutput', 'audio-output')],
+      [edge('file-frame', 'file', 'frame', 'audio-output', 'audio')],
+    );
+
+    expect(issueCodes(document)).toContain('port-type-mismatch');
+  });
+
   it('binds both XY pad outputs to independent control inputs', () => {
     const compiled = compileGraph(
       graph(

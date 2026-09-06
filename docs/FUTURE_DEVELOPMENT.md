@@ -124,7 +124,7 @@ adapters expose only the capabilities they can honestly support.
 
 ## Current proof of concept
 
-The app currently opens the permission-free **Signal Graph** with three signal types, a demand-rooted execution plan, WebGL2 multipass renderer, editor history, bounded JSON persistence, live diagnostics, responsive UI, and an accessible New patch menu with Blank Canvas plus fifteen complete starter graphs. Its model node defaults to a built-in visual preview; compatible external adapters are optional.
+The app currently opens the permission-free **Signal Graph** with frame, control, text, and audio-block signal types, a demand-rooted execution plan, WebGL2 multipass renderer, editor history, bounded JSON persistence, live diagnostics, responsive UI, and an accessible New patch menu with Blank Canvas plus sixteen complete starter graphs. Its model node defaults to a built-in visual preview; compatible external adapters are optional. File, Audio Mixer, and Audio Output provide browser-local media playback and explicit audio routing; media handles remain session state.
 
 ### Implemented node catalog
 
@@ -143,6 +143,9 @@ The app currently opens the permission-free **Signal Graph** with three signal t
 | Control | ✅ Smooth | Frame-rate-independent rise/fall filtering with deterministic reset |
 | Text | ✅ AI Chat | Bounded positive/negative prompt authoring with a `text.utf8` prompt output |
 | Frame input | ✅ Video Input | Opt-in live camera frames with front/rear preference, cover/contain/stretch fit, and mirroring |
+| Audio input | ✅ File audio path | Local image, video, or audio selection; audio playback is session-only and exposes an `audio.block` path for explicit routing |
+| Audio processing | ✅ Audio Mixer | Two, four, or eight connected audio sources with per-source gain and shared three-band EQ |
+| Audio output | ✅ Audio Output | Explicit browser-tab monitoring with user activation, relative dBFS metering, and muted-by-default routing |
 | Frame model | ✅ Video Model | Built-in procedural visual preview plus compatible user-run WebSocket/HTTP adapter modes |
 | Frame source | ✅ Solid | Flat RGBA color with independently controllable channels |
 | Frame source | ✅ Flow Field | Procedural animated color field with time and energy modulation |
@@ -231,7 +234,7 @@ aid, not a separate commitment or priority system.
 | Control and mapping | Compare, logic, gates, triggers, envelopes, timers, sequencing, vectors, and automation | [Control, events, and timing](#control-events-and-timing) |
 | Frame sources | Gradient/noise/shape/text, image and video files, screen capture, playlists, browser/network media, and custom shader sources | [Frame sources and media](#frame-sources-and-media) |
 | Image processing | Crop/resize, levels, keying, displacement, bloom, channel tools, time effects, and projection warp | [Frame processing and compositing](#frame-processing-and-compositing) |
-| Audio | Audio Device In, file playback, FFT/band/beat/pitch analysis, explicit Audio Output/Monitor, mixing, effects, and recording | [Audio analysis and processing](#audio-analysis-and-processing) |
+| Audio | Audio Device In, FFT/band/beat/pitch analysis, effects, recording, and sample-accurate processing | [Audio analysis and processing](#audio-analysis-and-processing) |
 | Data and networking | JSON/CSV/text tools, fetch, WebSocket, MQTT, WebRTC data, OSC and lighting gateways, and record/replay | [Data, text, and networking](#data-text-and-networking-nodes) |
 | Vision and ML | Motion/blobs, face/hand/body tracking, segmentation, depth, point clouds, detection, and advanced model effects | [Computer vision, tracking, and ML](#computer-vision-tracking-and-ml) |
 | 3D and particles | Geometry, materials, lighting, instancing, particles, physics, glTF, and 3D rendering | [Geometry, particles, materials, and rendering](#geometry-particles-materials-and-rendering) |
@@ -270,7 +273,7 @@ Three filters order the work:
 | 1 — local media and framing | 🚧 Next | Image File, Video File, Screen Capture, Crop/Fit, Resize, and Test Card | *Image Color Lab*, *Clip Framing*, and *Screen Layout & Test*; every new node must be output-reachable across the set |
 | 2 — explicit frame state | 🚧 Next | General Frame Delay/Feedback with visible initialization, read/commit, pause, seek, and reset rules | *Feedback Laboratory* |
 | 3 — decisions and events | 🚧 Next | `control.bool`, `event.trigger`, explicit bool/control conversion, Compare, Logic, Trigger, Gate, Hold, Frame Hold, Counter, Timer, and seeded Random | *Cue Logic Basics*, *Freeze & Release*, *Beat-cut Montage*, *Timed Transition*, and *Triggered Variations* |
-| 4 — buffered audio | 🚧 Next | `audio.block`, `audio.spectrum`, Audio Device In, Audio File, Spectrum, Band Energy, Envelope Follower, Onset, and explicit Audio Output/Monitor | *Audio Patch 101*, *Spectrum Color Bands*, and *Onset Switcher* |
+| 4 — buffered audio | 🚧 Next | Shipped `audio.block` file playback, Mixer, and explicit Audio Output/Monitor; remaining work is Audio Device In, `audio.spectrum`, Spectrum, Band Energy, Envelope Follower, Onset, and sample-rate analysis | *Audio Patch 101*, *Spectrum Color Bands*, and *Onset Switcher* |
 | 5 — color, shape, and keying | 🧭 | Levels, Channel Shuffle, Luma/Chroma Key, Displace, Gradient, Shape, and Text | *Poster Maker*, *Keyed Camera*, and *Displacement Map Lab* |
 | 6 — reusable boundaries | 🧭 | Public Input/Output/Parameter contracts, nested Module/Subgraph, instances, presets, and scene routing | *Reusable Performance Rig* and *Scene Bank Basics* |
 | 7 — broader typed systems | 🔬 | Structured data, vision/depth, geometry/materials, and output/gateway families, introduced only after their types and clocks are inspectable | At least one permission-free or recorded-fixture tutorial per new family before live-device examples |
@@ -472,26 +475,29 @@ per second.
 ### Audio analysis and processing
 
 Visual-rate analysis and sample-rate audio are different runtimes. The current
-Audio Level node reads amplitude only and emits a normalized visual-rate control;
-it intentionally has no audio output and never monitors the microphone through
-the speakers. That feedback-safe behavior must not be mistaken for a broken
-sound path. An `AudioWorklet` should own future sample-critical nodes; visual
-controls receive downsampled analysis values.
+Audio Level node reads microphone amplitude only and emits a normalized
+visual-rate control; it intentionally has no audio output and never monitors the
+microphone through the speakers. File audio has a separate session-only playback
+path through File, Audio Mixer, and Audio Output, with monitoring muted until the
+user explicitly enables it. File meters are relative dBFS readings, not calibrated
+sound-level measurements. An `AudioWorklet` should own future sample-critical
+nodes; visual controls receive downsampled analysis values.
 
 | Priority | Node/module | Purpose |
 | --- | --- | --- |
 | P0 | ✅ Audio Level | Visual-frame energy control from an opt-in microphone; `clamp((input - floor) * gain, 0, 1)`, with no playback or pass-through |
+| P0 | ✅ Audio File path | File selection and media-clock playback for local audio tracks; exposes `audio.block` without persisting media handles |
+| P0 | ✅ Audio Output / Monitor | Explicit browser-tab destination with user activation, muted-by-default startup, relative dBFS metering, and no microphone monitoring |
+| P0 | ✅ Mixer | Two, four, or eight source inputs with per-source gain and shared low/mid/high EQ; routing is explicit and session-only |
 | P1 | 🚧 Audio Device In | Select device and channels and expose an `audio.block`; monitoring remains off until routed explicitly |
-| P1 | 🚧 Audio File | Decode and play a local asset against an audio clock |
 | P1 | 🚧 Spectrum / FFT | Windowed frequency bins and logarithmic views |
 | P1 | 🚧 Band Energy | Bass, low-mid, high-mid, and treble envelopes |
 | P1 | 🚧 Envelope Follower | Peak/RMS with attack and release |
 | P1 | 🚧 Onset / Beat | Transient events with confidence and refractory period |
 | P1 | 🚧 Pitch | Fundamental estimate plus confidence |
 | P1 | 🚧 Waveform | Time-domain block for scope and geometry conversion |
-| P1 | 🚧 Audio Output / Monitor | Explicit speaker destination, opt-in monitoring, feedback warning, mute, and safety gain |
 | P2 | 🧭 Gain / Pan | Audio-rate amplitude and stereo placement |
-| P2 | 🧭 Mixer | Multi-channel gain, mute, solo, and metering |
+| P2 | 🧭 Mixer extensions | Multi-channel mute, solo, and independent metering beyond the shipped gain/EQ path |
 | P2 | 🧭 Filter / EQ | Biquad filters and parametric bands |
 | P2 | 🧭 Compressor / Limiter | Dynamics and output protection |
 | P2 | 🧭 Delay / Reverb | Time effects with tail lifecycle |
@@ -1153,8 +1159,10 @@ are authoritative.
 - Deliver Wave 3 typed decisions and events: `control.bool`, `event.trigger`,
   explicit converters, Compare, Logic, Trigger, Gate, Hold, Frame Hold, Counter,
   Timer, and seeded Random.
-- Deliver Wave 4 buffered audio on an audio clock: device/file input, spectrum,
-  band/onset analysis, and explicit opt-in Audio Output/Monitor.
+- Deliver the remaining Wave 4 buffered-audio work on an audio clock: device
+   input, spectrum, band/onset analysis, and sample-rate analysis snapshots. The
+   browser-local File, Mixer, and explicit opt-in Audio Output foundation is
+   already shipped.
 - Deliver Wave 5 color, shape, and keying essentials after their prerequisite
   source/framing and event paths exist.
 - Harden the current model adapter contract with conformance fixtures, cancellation, capability negotiation, and explicit source-upload semantics.

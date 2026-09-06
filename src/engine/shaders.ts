@@ -695,6 +695,7 @@ void main() {
 
 export const FRAME_FRAGMENT_SHADERS: Partial<Record<NodeKind, string>> = {
   videoInput,
+  file: videoInput,
   videoModel,
   solid,
   plasma,

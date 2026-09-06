@@ -35,6 +35,7 @@ import { OperatorLibrary } from './components/OperatorLibrary';
 import { PreviewPanel } from './components/PreviewPanel';
 import { useAudioLevel } from './hooks/useAudioLevel';
 import { useVideoInput } from './hooks/useVideoInput';
+import { useFileInput, type AudioMixerConfig } from './hooks/useFileInput';
 import { useVideoModel } from './hooks/useVideoModel';
 import {
   projectStore,
@@ -93,6 +94,45 @@ function Studio() {
     enableCamera,
     disableCamera,
   } = useVideoInput();
+  const mixerConfig = useMemo<AudioMixerConfig | null>(() => {
+    const mixer = graphDocument.nodes.find((node) => node.kind === 'audioMixer');
+    if (!mixer) {
+      return null;
+    }
+    return {
+      sourceCount: typeof mixer.params.sourceCount === 'string' ? Number(mixer.params.sourceCount) : 2,
+      gains: Array.from({ length: 8 }, (_, index) => {
+        const value = mixer.params[`gain${index + 1}`];
+        return typeof value === 'number' ? value : 1;
+      }),
+      low: typeof mixer.params.low === 'number' ? mixer.params.low : 0,
+      mid: typeof mixer.params.mid === 'number' ? mixer.params.mid : 0,
+      high: typeof mixer.params.high === 'number' ? mixer.params.high : 0,
+    };
+  }, [graphDocument.nodes]);
+  const fileInput = useFileInput(mixerConfig);
+  const audioRouteConnected = useMemo(() => {
+    const reverse = new Map<string, string[]>();
+    graphDocument.edges.forEach((edge) => {
+      const sources = reverse.get(edge.target.nodeId) ?? [];
+      sources.push(edge.source.nodeId);
+      reverse.set(edge.target.nodeId, sources);
+    });
+    const pending = graphDocument.nodes
+      .filter((node) => node.kind === 'audioOutput')
+      .map((node) => node.id);
+    const seen = new Set<string>();
+    while (pending.length) {
+      const nodeId = pending.pop();
+      if (!nodeId || seen.has(nodeId)) continue;
+      seen.add(nodeId);
+      if (graphDocument.nodes.find((node) => node.id === nodeId)?.kind === 'file') {
+        return true;
+      }
+      pending.push(...(reverse.get(nodeId) ?? []));
+    }
+    return false;
+  }, [graphDocument.edges, graphDocument.nodes]);
   const videoModel = useVideoModel(
     graphDocument,
     videoInputState === 'live' ? videoElement : null,
@@ -121,6 +161,31 @@ function Studio() {
         enable: enableCamera,
         disable: disableCamera,
       },
+      file: {
+        source: fileInput.source,
+        frameSource: fileInput.frameSource,
+        name: fileInput.name,
+        errorMessage: fileInput.errorMessage,
+        isVideo: fileInput.isVideo,
+        isAudio: fileInput.isAudio,
+        isPlaying: fileInput.isPlaying,
+        currentTime: fileInput.currentTime,
+        duration: fileInput.duration,
+        audioEnabled: fileInput.audioEnabled,
+        audioAvailable: fileInput.audioAvailable,
+        audioRouteConnected,
+        audioError: fileInput.audioError,
+        meterLevel: fileInput.meterLevel,
+        meterDecibels: fileInput.meterDecibels,
+        choose: fileInput.choose,
+        clear: fileInput.clear,
+        play: fileInput.play,
+        pause: fileInput.pause,
+        stop: fileInput.stop,
+        seek: fileInput.seek,
+        enableAudio: fileInput.enableAudio,
+        disableAudio: fileInput.disableAudio,
+      },
     }),
     [
       audio.disableMicrophone,
@@ -132,6 +197,29 @@ function Studio() {
       videoFacingMode,
       videoInputError,
       videoInputState,
+      fileInput.choose,
+      fileInput.clear,
+      fileInput.errorMessage,
+      fileInput.frameSource,
+      fileInput.isAudio,
+      fileInput.isPlaying,
+      fileInput.isVideo,
+      fileInput.currentTime,
+      fileInput.duration,
+      fileInput.audioAvailable,
+      audioRouteConnected,
+      fileInput.audioEnabled,
+      fileInput.audioError,
+      fileInput.meterDecibels,
+      fileInput.meterLevel,
+      fileInput.disableAudio,
+      fileInput.enableAudio,
+      fileInput.name,
+      fileInput.pause,
+      fileInput.play,
+      fileInput.seek,
+      fileInput.stop,
+      fileInput.source,
     ],
   );
 
@@ -179,6 +267,12 @@ function Studio() {
       disableMicrophone();
     }
   }, [audioInputState, disableMicrophone, hasAudioLevel]);
+
+  useEffect(() => {
+    if (!audioRouteConnected && fileInput.audioEnabled) {
+      fileInput.disableAudio();
+    }
+  }, [audioRouteConnected, fileInput.audioEnabled, fileInput.disableAudio]);
 
   useEffect(() => {
     const previousDocument = previousGraphDocumentRef.current;
@@ -388,6 +482,16 @@ function Studio() {
           event.target.value = '';
         }}
       />
+      <input
+        ref={fileInput.inputRef}
+        type="file"
+        accept="image/*,video/*,audio/*"
+        className="sr-only"
+        onChange={(event) => {
+          fileInput.handleChange(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
       <video
         ref={videoRef}
         className="video-input-element"
@@ -421,7 +525,13 @@ function Studio() {
             resetToken={resetToken}
             audioInputState={audio.inputState}
             videoInputState={videoInputState}
-            videoSource={videoInputState === 'live' ? videoElement : null}
+            videoSource={
+              graphDocument.nodes.some((node) => node.kind === 'file')
+                ? fileInput.frameSource
+                : videoInputState === 'live'
+                  ? videoElement
+                  : null
+            }
             videoModelSources={videoModel.frames}
             meterLevel={audio.meterLevel}
             sampleAudioLevel={audio.sampleLevel}

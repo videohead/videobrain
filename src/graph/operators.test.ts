@@ -112,7 +112,7 @@ describe('operator registry', () => {
     });
   });
 
-  it('keeps all public signals within the three exact port types', () => {
+  it('keeps all public signals within the four exact port types', () => {
     const signalTypes = new Set(
       OPERATOR_DEFINITIONS.flatMap((definition) => [
         ...definition.inputs.map(({ type }) => type),
@@ -121,7 +121,7 @@ describe('operator registry', () => {
     );
 
     expect(signalTypes).toEqual(
-      new Set(['frame.rgba', 'control.f32', 'text.utf8']),
+      new Set(['frame.rgba', 'control.f32', 'text.utf8', 'audio.block']),
     );
   });
 
@@ -327,6 +327,35 @@ describe('operator registry', () => {
       fit: 'cover',
       mirror: 'on',
     });
+  });
+
+  it('defines local files as output-only frame sources', () => {
+    const definition = OPERATOR_REGISTRY.file;
+
+    expect(definition.domain).toBe('frame');
+    expect(definition.inputs).toEqual([]);
+    expect(definition.outputs).toEqual([
+      { id: 'frame', label: 'Frame', type: 'frame.rgba', optional: false },
+      { id: 'audio', label: 'Audio', type: 'audio.block', optional: false },
+    ]);
+    expect(getDefaultParams('file')).toEqual({});
+  });
+
+  it('defines an 2, 4, or 8 source mixer with three EQ bands', () => {
+    const definition = OPERATOR_REGISTRY.audioMixer;
+
+    expect(definition.inputs).toHaveLength(8);
+    expect(definition.inputs.every(({ type, optional }) => type === 'audio.block' && optional)).toBe(true);
+    expect(definition.outputs).toEqual([
+      { id: 'audio', label: 'Audio', type: 'audio.block', optional: false },
+    ]);
+    expect(definition.params.sourceCount).toMatchObject({
+      type: 'select',
+      defaultValue: '2',
+    });
+    expect(definition.params.low).toMatchObject({ min: -12, max: 12 });
+    expect(definition.params.mid).toMatchObject({ min: -12, max: 12 });
+    expect(definition.params.high).toMatchObject({ min: -12, max: 12 });
   });
 
   it('defines a single-pass 2D transform with controllable spatial inputs', () => {

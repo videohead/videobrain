@@ -89,6 +89,11 @@ export const GRAPH_PRESETS = [
     title: 'Prompted Visual Preview',
     description: 'A ready-to-connect prompt and model preview frame path.',
   },
+  {
+    id: 'file-preview',
+    title: 'Local File Preview',
+    description: 'Display an image or video selected from this browser session.',
+  },
 ] as const;
 
 export type GraphPresetId = (typeof GRAPH_PRESETS)[number]['id'];
@@ -116,6 +121,9 @@ export const NODE_EXAMPLES = {
   feedbackSpiral: ['spiral-feedback-lab'],
   autoSelector: ['live-cut-lab'],
   strobe: ['live-cut-lab'],
+  file: ['file-preview'],
+  audioOutput: ['file-preview'],
+  audioMixer: ['file-preview'],
 } as const satisfies Record<
   | 'constant'
   | 'math'
@@ -130,7 +138,10 @@ export const NODE_EXAMPLES = {
   | 'blur'
   | 'feedbackSpiral'
   | 'autoSelector'
-  | 'strobe',
+  | 'strobe'
+  | 'file'
+  | 'audioOutput'
+  | 'audioMixer',
   readonly GraphPresetId[]
 >;
 
@@ -156,6 +167,22 @@ function graph(nodes: GraphNode[], edges: GraphEdge[]): GraphDocument {
 
 function createBlankGraph(): GraphDocument {
   return graph([], []);
+}
+
+function createFilePreviewGraph(): GraphDocument {
+  return graph(
+    [
+      createGraphNode('file', { x: -240, y: 0 }, {}, 'file-input'),
+      createGraphNode('audioMixer', { x: -40, y: 180 }, {}, 'file-mixer'),
+      createGraphNode('display', { x: 120, y: 0 }, {}, 'file-display'),
+      createGraphNode('audioOutput', { x: 120, y: 180 }, {}, 'file-audio'),
+    ],
+    [
+      edge('file-display', 'file-input', 'frame', 'file-display', 'source'),
+      edge('file-mixer', 'file-input', 'audio', 'file-mixer', 'source1'),
+      edge('file-audio', 'file-mixer', 'audio', 'file-audio', 'audio'),
+    ],
+  );
 }
 
 function createBeatColorGraph(): GraphDocument {
@@ -1048,6 +1075,7 @@ const PRESET_FACTORIES: Readonly<
   'mic-pulse-trails': createMicPulseTrailsGraph,
   'camera-dream': createCameraDreamGraph,
   'prompted-preview': createPromptedPreviewGraph,
+  'file-preview': createFilePreviewGraph,
 };
 
 export function getGraphPreset(id: GraphPresetId): GraphPreset {

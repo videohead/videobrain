@@ -18,7 +18,7 @@ interface PreviewPanelProps {
   resetToken: number;
   audioInputState: AudioInputState;
   videoInputState: VideoInputState;
-  videoSource: HTMLVideoElement | null;
+  videoSource: HTMLVideoElement | HTMLImageElement | null;
   videoModelSources: ReadonlyMap<string, HTMLImageElement>;
   meterLevel: number;
   sampleAudioLevel: (timeSeconds: number) => number;

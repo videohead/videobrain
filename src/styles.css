@@ -937,6 +937,43 @@ textarea:focus-visible,
   height: 10px;
 }
 
+.node-file-progress {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.node-file-progress input[type="range"] {
+  width: 100%;
+  accent-color: var(--node-accent, var(--acid));
+}
+
+.node-file-progress span {
+  text-align: right;
+}
+
+.node-file-actions {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.node-file-meter {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.node-file-meter small {
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
 .node-ports {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2154,6 +2191,11 @@ textarea:focus-visible,
 .help-swatch.text {
   color: var(--text-signal);
   background: var(--text-signal);
+}
+
+.help-swatch.audio {
+  color: #ffb84d;
+  background: #ffb84d;
 }
 
 .help-intro {

@@ -1,5 +1,13 @@
 import { useContext } from 'react';
-import { Mic2, Video } from 'lucide-react';
+import {
+  FileImage,
+  Mic2,
+  Pause,
+  Play,
+  Square,
+  Video,
+  Volume2,
+} from 'lucide-react';
 import type { GraphParamValue, NodeKind } from '../graph';
 import type { AudioInputState } from '../hooks/useAudioLevel';
 import type {
@@ -55,6 +63,12 @@ function videoStatus(
     default:
       return 'camera off';
   }
+}
+
+function formatMediaTime(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  return `${minutes}:${String(safeSeconds % 60).padStart(2, '0')}`;
 }
 
 export function NodeMediaControls({
@@ -175,6 +189,180 @@ export function NodeMediaControls({
           <Video aria-hidden="true" />
           {live ? 'Stop camera' : requesting ? 'Requesting…' : 'Start camera'}
         </button>
+      </section>
+    );
+  }
+
+  if (kind === 'file') {
+    const selected = Boolean(runtime.file.source);
+    return (
+      <section
+        className="node-input-runtime nodrag nopan nowheel"
+        aria-label="Local file input controls"
+      >
+        <span
+          className={`node-input-state ${selected ? 'is-live' : ''}`}
+          aria-live="polite"
+          title={runtime.file.errorMessage ?? undefined}
+        >
+          <i aria-hidden="true" />
+          {runtime.file.errorMessage ?? (selected ? runtime.file.name : 'no file selected')}
+        </span>
+        <button
+          type="button"
+          className="node-input-button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect();
+            runtime.file.choose();
+          }}
+        >
+          <FileImage aria-hidden="true" />
+          Choose file
+        </button>
+        {selected ? (
+          runtime.file.isVideo || runtime.file.isAudio ? (
+            <>
+              <div className="node-file-progress">
+                <input
+                  type="range"
+                  min={0}
+                  max={runtime.file.duration || 0}
+                  step={0.01}
+                  value={Math.min(runtime.file.currentTime, runtime.file.duration || 0)}
+                  aria-label="File playback position"
+                  disabled={!runtime.file.duration}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onChange={(event) => runtime.file.seek(Number(event.target.value))}
+                />
+                <span>
+                  {formatMediaTime(runtime.file.currentTime)} / {formatMediaTime(runtime.file.duration)}
+                </span>
+              </div>
+              <div className="node-file-actions">
+                <button
+                  type="button"
+                  className="node-input-button"
+                  aria-label={runtime.file.isPlaying ? 'Pause file' : 'Play file'}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect();
+                    if (runtime.file.isPlaying) {
+                      runtime.file.pause();
+                    } else {
+                      runtime.file.play();
+                    }
+                  }}
+                >
+                  {runtime.file.isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+                  {runtime.file.isPlaying ? 'Pause' : 'Play'}
+                </button>
+                <button
+                  type="button"
+                  className="node-input-button"
+                  aria-label="Stop file"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect();
+                    runtime.file.stop();
+                  }}
+                >
+                  <Square aria-hidden="true" />
+                  Stop
+                </button>
+              </div>
+              {runtime.file.audioAvailable ? (
+                <div className="node-file-meter">
+                  <span>audio level</span>
+                  <div
+                    className="node-level-meter"
+                    role="meter"
+                    aria-label="File audio SPL meter (relative dBFS)"
+                    aria-valuemin={-60}
+                    aria-valuemax={0}
+                    aria-valuenow={Math.round(runtime.file.meterDecibels)}
+                    aria-valuetext={`${Math.round(runtime.file.meterDecibels)} dBFS`}
+                  >
+                    <i style={{ '--meter-level': `${runtime.file.meterLevel * 100}%` } as React.CSSProperties} />
+                  </div>
+                  <small>relative dBFS, not calibrated SPL</small>
+                </div>
+              ) : null}
+            </>
+          ) : null
+        ) : null}
+        {selected ? (
+          <button
+            type="button"
+            className="node-input-button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect();
+              runtime.file.clear();
+            }}
+          >
+            Clear file
+          </button>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (kind === 'audioOutput') {
+    const enabled = runtime.file.audioEnabled;
+    const available = runtime.file.audioAvailable && runtime.file.audioRouteConnected;
+    return (
+      <section
+        className="node-input-runtime nodrag nopan nowheel"
+        aria-label="Audio output controls"
+      >
+        <span
+          className={`node-input-state ${enabled ? 'is-live' : ''}`}
+          aria-live="polite"
+          title={runtime.file.audioError ?? undefined}
+        >
+          <i aria-hidden="true" />
+          {runtime.file.audioError ?? (enabled ? 'audio live' : available ? 'audio off' : 'no file audio')}
+        </span>
+        <button
+          type="button"
+          className={`node-input-button ${enabled ? 'is-stop' : ''}`}
+          disabled={!available}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect();
+            if (enabled) {
+              runtime.file.disableAudio();
+            } else {
+              void runtime.file.enableAudio();
+            }
+          }}
+        >
+          <Volume2 aria-hidden="true" />
+          {enabled ? 'Mute audio' : 'Enable audio'}
+        </button>
+        {available ? (
+          <div className="node-file-meter">
+            <span>audio level</span>
+            <div
+              className="node-level-meter"
+              role="meter"
+              aria-label="Output audio SPL meter (relative dBFS)"
+              aria-valuemin={-60}
+              aria-valuemax={0}
+              aria-valuenow={Math.round(runtime.file.meterDecibels)}
+              aria-valuetext={`${Math.round(runtime.file.meterDecibels)} dBFS`}
+            >
+              <i style={{ '--meter-level': `${runtime.file.meterLevel * 100}%` } as React.CSSProperties} />
+            </div>
+            <small>relative dBFS, not calibrated SPL</small>
+          </div>
+        ) : null}
       </section>
     );
   }

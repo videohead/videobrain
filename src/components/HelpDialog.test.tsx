@@ -10,7 +10,7 @@ describe('HelpDialog', () => {
     expect(
       screen.getByRole('dialog', { name: 'Explore the Signal Graph' }),
     ).toBeVisible();
-    expect(screen.getByText('Three signal types, one graph')).toBeVisible();
+    expect(screen.getByText('Four signal types, one graph')).toBeVisible();
     expect(screen.getByText('Starter patches')).toBeVisible();
     expect(screen.getByText('Blank Canvas')).toBeVisible();
     expect(screen.getByText('Beat-Synced Color')).toBeVisible();
@@ -44,7 +44,7 @@ describe('HelpDialog', () => {
     expect(screen.getByText('Control arithmetic and mapping')).toBeVisible();
     expect(screen.getByText('Smoothed pointer motion')).toBeVisible();
     expect(screen.getByText('Two-dimensional transform controls')).toBeVisible();
-    expect(screen.getByText('Fifteen patches to try')).toBeVisible();
+    expect(screen.getByText('Sixteen patches to try')).toBeVisible();
     expect(screen.getByText('Mask and composite fundamentals')).toBeVisible();
     expect(screen.getByText('Tempo-locked source switching')).toBeVisible();
     expect(
@@ -93,6 +93,7 @@ describe('HelpDialog', () => {
     expect(screen.getByText(/Flow Field · Energy/)).toBeVisible();
     expect(screen.getByText(/Floor rejects.*Gain controls/)).toBeVisible();
     expect(screen.getByText('Using Video Input')).toBeVisible();
+    expect(screen.getByText('Using File audio')).toBeVisible();
     expect(
       screen.getByText(
         (_, element) =>
