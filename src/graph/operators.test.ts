@@ -53,12 +53,14 @@ describe('operator registry', () => {
               ({ value }) => value === parameter.defaultValue,
             ),
           ).toBe(true);
-        } else {
+        } else if (parameter.type === 'text') {
           expect(typeof parameter.defaultValue).toBe('string');
           expect(parameter.defaultValue.length).toBeLessThanOrEqual(
             parameter.maxLength,
           );
           expect(parameter.maxLength).toBeGreaterThan(0);
+        } else {
+          expect(typeof parameter.defaultValue).toBe('boolean');
         }
       }
     }

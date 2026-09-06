@@ -121,6 +121,14 @@ export function normalizeNodeParams(
       continue;
     }
 
+    if (definition.type === 'boolean') {
+      if (typeof param !== 'boolean') {
+        throw new GraphDocumentError(`${path}.${key} must be boolean.`);
+      }
+      params[key] = param;
+      continue;
+    }
+
     if (
       typeof param !== 'string' ||
       !definition.options.some(({ value: option }) => option === param)

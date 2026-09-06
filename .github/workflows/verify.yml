@@ -1,0 +1,50 @@
+name: Verify VideoBrain
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: videobrain-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify and build application
+        run: npm run verify
+      - name: Build component catalog
+        run: npm run build:deploy
+      - name: Install browser test runtime
+        run: npx playwright install --with-deps chromium
+      - name: Run browser smoke tests
+        run: npm run test:e2e
+      - name: Verify built artifact
+        run: |
+          test -f dist/index.html
+          test -f dist/storybook/index.html
+          test -f dist/storybook/iframe.html
+          test -f dist/storybook/index.json
+          npm run check:storybook-dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: videobrain-site
+          path: dist
+          if-no-files-found: error
+          retention-days: 7

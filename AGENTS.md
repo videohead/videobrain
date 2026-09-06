@@ -16,8 +16,7 @@ Read the relevant source before changing behavior:
 - `docs/FUTURE_DEVELOPMENT.md` for priorities, unbuilt modules, I/O boundaries,
   and example-patch plans.
 - `docs/MODEL_CONNECTORS.md` before changing model or network behavior.
-- `infra/README.md` and `.github/workflows/deploy-aws.yml` before deployment
-  work.
+- `.github/workflows/verify.yml` before CI or build verification work.
 
 Do not maintain a second graph model in UI, Storybook, tests, or an adapter. The
 production registry and compiler are the source of truth.
@@ -238,7 +237,17 @@ fake GL unit harness proves bindings, not pixel correctness.
 
 ## Required validation before handoff
 
-Use Node.js 22 or newer. Run all of these for a release-sized node/module change:
+Use Node.js 22 or newer. When Node/npm is unavailable on the host, run the
+application build and validation inside Docker using `Dockerfile.web` or
+`docker-compose.web.yml`; do not stop at a host-tooling error. For a
+release-sized node/module change, run all of these:
+
+```sh
+docker compose -f docker-compose.web.yml build --no-cache videobrain-web
+```
+
+Use a Node 22 container for checks that are not part of that production image
+build, such as the full test suite or lint command.
 
 ```sh
 npm run lint
@@ -273,7 +282,5 @@ before staging and make sure generated artifacts remain untracked.
 - Before a requested commit, review the staged diff and keep it limited to the
   task. Use a descriptive imperative commit message.
 - Bump package version and create an annotated tag only for an explicit release.
-- A push to `main` invokes the verified AWS workflow. Do not bypass it with a
-  manual object-store upload unless the user explicitly requests a recovery.
-- For a requested publication, wait for both `verify` and `deploy`, then test
-  the public app and `/storybook/` rather than reporting success at push time.
+- A push to `main` invokes the provider-neutral verification workflow. It does
+  not publish the site; publication is an explicit, separate operation.

@@ -37,7 +37,7 @@ The proof of concept opens into a working composition and runs locally without a
 - Responsive editor layout and keyboard shortcuts
 - Built-in Help & About guide with quick-start recipes and contribution links
 - A production component catalog at [videobrain.org/storybook](https://videobrain.org/storybook/)
-- Static AWS deployment through private S3, CloudFront, ACM, Route 53, and GitHub OIDC
+- Provider-neutral GitHub Actions verification for application and catalog builds
 
 ## Run locally
 

@@ -616,7 +616,6 @@ export function NodeParameterControls({
                   event.stopPropagation();
                   onSelect?.();
                 }}
-                onClick={(event) => event.stopPropagation()}
                 onFocus={onSelect}
                 onClick={(event) => {
                   event.stopPropagation();
