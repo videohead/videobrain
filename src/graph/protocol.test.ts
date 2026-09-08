@@ -22,7 +22,7 @@ describe('graph protocol inspection', () => {
     expect(first.protocolVersion).toBe(GRAPH_PROTOCOL_VERSION);
     expect(first.graphSchemaVersion).toBe(GRAPH_SCHEMA_VERSION);
     expect(first.catalogVersion).toBe(OPERATOR_CATALOG_VERSION);
-    expect(first.catalogVersion).toBe(8);
+    expect(first.catalogVersion).toBe(9);
     expect(first.operators.map(({ kind }) => kind)).toEqual(
       OPERATOR_DEFINITIONS.map(({ kind }) => kind),
     );

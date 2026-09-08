@@ -270,6 +270,52 @@ void main() {
 }
 `;
 
+const projectorMapping = `#version 300 es
+precision highp float;
+
+in vec2 vUv;
+out vec4 outColor;
+
+uniform sampler2D uSource;
+uniform vec4 uMapRow0;
+uniform vec4 uMapRow1;
+uniform vec4 uMapRow2;
+uniform float uEdgeMode;
+
+vec2 mirrorUv(vec2 uv) {
+  return 1.0 - abs(mod(uv, 2.0) - 1.0);
+}
+
+void main() {
+  mat3 inverseMap = mat3(
+    vec3(uMapRow0.xyz),
+    vec3(uMapRow1.xyz),
+    vec3(uMapRow2.xyz)
+  );
+  vec3 mapped = inverseMap * vec3(vUv, 1.0);
+  float w = mapped.z;
+  vec2 sourceUv = abs(w) > 0.00001 ? mapped.xy / w : vec2(2.0);
+
+  if (uEdgeMode < 0.5) {
+    if (
+      any(lessThan(sourceUv, vec2(0.0))) ||
+      any(greaterThan(sourceUv, vec2(1.0)))
+    ) {
+      outColor = vec4(0.0);
+      return;
+    }
+  } else if (uEdgeMode < 1.5) {
+    sourceUv = clamp(sourceUv, 0.0, 1.0);
+  } else if (uEdgeMode < 2.5) {
+    sourceUv = fract(sourceUv);
+  } else {
+    sourceUv = mirrorUv(sourceUv);
+  }
+
+  outColor = texture(uSource, sourceUv);
+}
+`;
+
 const warp = `#version 300 es
 precision highp float;
 
@@ -701,6 +747,7 @@ export const FRAME_FRAGMENT_SHADERS: Partial<Record<NodeKind, string>> = {
   plasma,
   cells,
   transform2d,
+  projectorMapping,
   warp,
   blur,
   threshold,

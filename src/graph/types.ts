@@ -25,6 +25,7 @@ export const NODE_KINDS = [
   'plasma',
   'cells',
   'transform2d',
+  'projectorMapping',
   'warp',
   'blur',
   'threshold',
@@ -159,7 +160,21 @@ export interface AudioBandParameterLayout {
   bands: readonly AudioBandLayoutEntry[];
 }
 
-export type ParameterLayout = XYParameterLayout | AudioBandParameterLayout;
+export interface ProjectionEditorParameterLayout {
+  type: 'projection-editor';
+  label: string;
+  cornerXParams: readonly [string, string, string, string];
+  cornerYParams: readonly [string, string, string, string];
+  offsetXParamId: string;
+  offsetYParamId: string;
+  scaleParamId: string;
+  rotationParamId: string;
+}
+
+export type ParameterLayout =
+  | XYParameterLayout
+  | AudioBandParameterLayout
+  | ProjectionEditorParameterLayout;
 
 export interface OperatorExecution {
   visualPasses: number;

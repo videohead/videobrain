@@ -14,6 +14,7 @@ import {
   type OperatorParamDefinition,
 } from '../graph';
 import { FRAME_FRAGMENT_SHADERS, FULLSCREEN_VERTEX_SHADER } from './shaders';
+import { computeInverseProjectionMap } from './projection';
 import {
   evaluateAutoSelector,
   type AutoSelectorOrder,
@@ -1866,6 +1867,50 @@ export class WebGLRenderer {
           clamp(this.numberParam(compiledNode, 'pivotX'), 0, 1),
           clamp(this.numberParam(compiledNode, 'pivotY'), 0, 1),
         );
+        this.uniform1f(
+          program,
+          'uEdgeMode',
+          transformEdgeModeIndex(this.stringParam(compiledNode, 'edgeMode')),
+        );
+        break;
+      }
+      case 'projectorMapping': {
+        this.bindTexture(
+          program,
+          'uSource',
+          this.frameInput(compiledNode, 'source'),
+          0,
+        );
+        const projectionMap = computeInverseProjectionMap({
+          x0: this.numberParam(compiledNode, 'x0'),
+          y0: this.numberParam(compiledNode, 'y0'),
+          x1: this.numberParam(compiledNode, 'x1'),
+          y1: this.numberParam(compiledNode, 'y1'),
+          x2: this.numberParam(compiledNode, 'x2'),
+          y2: this.numberParam(compiledNode, 'y2'),
+          x3: this.numberParam(compiledNode, 'x3'),
+          y3: this.numberParam(compiledNode, 'y3'),
+          offsetX: clamp(
+            this.numberParam(compiledNode, 'offsetX'),
+            -0.5,
+            0.5,
+          ),
+          offsetY: clamp(
+            this.numberParam(compiledNode, 'offsetY'),
+            -0.5,
+            0.5,
+          ),
+          scale: clamp(this.numberParam(compiledNode, 'scale'), 0.1, 3),
+          rotation: clamp(
+            this.numberParam(compiledNode, 'rotation'),
+            -180,
+            180,
+          ),
+        });
+        const mapRows = projectionMap ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
+        this.uniform4f(program, 'uMapRow0', mapRows[0], mapRows[1], mapRows[2], 0);
+        this.uniform4f(program, 'uMapRow1', mapRows[3], mapRows[4], mapRows[5], 0);
+        this.uniform4f(program, 'uMapRow2', mapRows[6], mapRows[7], mapRows[8], 0);
         this.uniform1f(
           program,
           'uEdgeMode',
