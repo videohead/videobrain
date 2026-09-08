@@ -1908,9 +1908,9 @@ export class WebGLRenderer {
           ),
         });
         const mapRows = projectionMap ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
-        this.uniform4f(program, 'uMapRow0', mapRows[0], mapRows[1], mapRows[2], 0);
-        this.uniform4f(program, 'uMapRow1', mapRows[3], mapRows[4], mapRows[5], 0);
-        this.uniform4f(program, 'uMapRow2', mapRows[6], mapRows[7], mapRows[8], 0);
+        this.uniform4f(program, 'uMapRow0', mapRows[0] ?? 1, mapRows[1] ?? 0, mapRows[2] ?? 0, 0);
+        this.uniform4f(program, 'uMapRow1', mapRows[3] ?? 0, mapRows[4] ?? 1, mapRows[5] ?? 0, 0);
+        this.uniform4f(program, 'uMapRow2', mapRows[6] ?? 0, mapRows[7] ?? 0, mapRows[8] ?? 1, 0);
         this.uniform1f(
           program,
           'uEdgeMode',

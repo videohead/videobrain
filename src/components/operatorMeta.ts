@@ -92,5 +92,6 @@ export const OPERATOR_META: Record<NodeKind, OperatorMeta> = {
   strobe: { accent: '#ff72d5', icon: Zap, shortLabel: 'Strobe' },
   colorGrade: { accent: '#ff80bb', icon: Palette, shortLabel: 'Grade' },
   transform2d: { accent: '#7dcfff', icon: Move, shortLabel: 'Transform' },
+  projectorMapping: { accent: '#6fd4ff', icon: MonitorUp, shortLabel: 'Projector' },
   display: { accent: '#ff795c', icon: MonitorUp, shortLabel: 'Display' },
 };
