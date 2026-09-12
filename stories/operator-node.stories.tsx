@@ -270,12 +270,35 @@ export const MappingAndTransformNodes: Story = {
 
 export const CompositingAndRoutingNodes: Story = {
   args: {
-    kinds: ['solid', 'threshold', 'mask', 'composite', 'frameSwitch', 'blur'],
+    kinds: [
+      'solid',
+      'threshold',
+      'mask',
+      'composite',
+      'frameSwitch',
+      'sourceSelector',
+      'blur',
+    ],
   },
   parameters: {
     docs: {
       description: {
         story: 'The core compositing set with production ports and inline controls. Runnable lessons live in Mask & Composite Lab, Beat Switcher, and Audio Soft Focus.',
+      },
+    },
+  },
+};
+
+export const SourceSelectorNode: Story = {
+  args: {
+    kinds: ['sourceSelector'],
+    selectedKind: 'sourceSelector',
+    compact: true,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'A four-input frame router with colored A/B/C/D buttons for manual selection and an optional Trigger input that advances to the next source on each rising edge.',
       },
     },
   },

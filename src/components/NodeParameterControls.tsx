@@ -269,6 +269,98 @@ export function NodeParameterControls({
     );
   };
 
+  const sourceSelectorLayout =
+    layout?.type === 'source-selector' ? layout : undefined;
+
+  const renderSourceSelector = () => {
+    if (!sourceSelectorLayout) {
+      return null;
+    }
+
+    const indexParam = definition.params[sourceSelectorLayout.paramId];
+    if (indexParam?.type !== 'number') {
+      return null;
+    }
+
+    const stored = params[sourceSelectorLayout.paramId];
+    const selectedIndex =
+      typeof stored === 'number' ? stored : indexParam.defaultValue;
+    const sourceCount = sourceSelectorLayout.sources.length;
+    const helpId = `${nodeId}-source-help`;
+
+    const selectSource = (position: number) => {
+      onParamChange(
+        nodeId,
+        sourceSelectorLayout.paramId,
+        clamp(position, indexParam.min, indexParam.max),
+      );
+    };
+
+    return (
+      <div className="node-source-control">
+        <div className="node-source-heading">
+          <span>{sourceSelectorLayout.label}</span>
+          <output aria-live="polite">
+            {sourceSelectorLayout.sources[selectedIndex] ??
+              formatParameterNumber(selectedIndex, indexParam.step)}
+          </output>
+        </div>
+        <div
+          className="node-source-buttons"
+          role="radiogroup"
+          aria-label={`${definition.title} ${sourceSelectorLayout.label}`}
+          aria-describedby={helpId}
+        >
+          {sourceSelectorLayout.sources.map((source, position) => {
+            const selected = position === selectedIndex;
+            return (
+              <button
+                key={source}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={`${definition.title} source ${source}`}
+                className={`node-source-button is-${source} nodrag nopan nowheel${
+                  selected ? ' is-selected' : ''
+                }`}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  onSelect?.();
+                }}
+                onFocus={onSelect}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  selectSource(position);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    selectSource((position + 1) % sourceCount);
+                  } else if (
+                    event.key === 'ArrowLeft' ||
+                    event.key === 'ArrowUp'
+                  ) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    selectSource(
+                      (position - 1 + sourceCount) % sourceCount,
+                    );
+                  }
+                }}
+              >
+                {source.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+        <span className="sr-only" id={helpId}>
+          Use the arrow keys to move between sources.
+        </span>
+      </div>
+    );
+  };
+
   const bandLayout = layout?.type === 'audio-bands' ? layout : undefined;
 
   const bandEntries = bandLayout
@@ -535,8 +627,15 @@ export function NodeParameterControls({
       aria-label={`${definition.title} parameters`}
     >
       {renderXYPad()}
+      {renderSourceSelector()}
       {renderBandCurves()}
       {parameters.map(([paramId, parameter]) => {
+        if (
+          sourceSelectorLayout &&
+          paramId === sourceSelectorLayout.paramId
+        ) {
+          return null;
+        }
         const value = params[paramId] ?? parameter.defaultValue;
         if (parameter.type === 'text') {
           const textValue =

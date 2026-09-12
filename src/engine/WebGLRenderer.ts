@@ -95,6 +95,12 @@ interface SmoothControlState {
   time: number;
 }
 
+interface SourceSelectorState {
+  index: number;
+  lastTrigger: number;
+  lastParam: number;
+}
+
 type FrameStateCommit = () => void;
 
 const DEFAULT_POINTER: RenderPointer = Object.freeze({
@@ -369,6 +375,7 @@ export class WebGLRenderer {
   private smoothControlStates = new Map<string, SmoothControlState>();
   private audioOnsetStates = new Map<string, AudioOnsetState>();
   private audioBeatStates = new Map<string, AudioBeatState>();
+  private sourceSelectorStates = new Map<string, SourceSelectorState>();
   private vertexArray: WebGLVertexArrayObject | null = null;
   private blackTexture: WebGLTexture | null = null;
   private transparentTexture: WebGLTexture | null = null;
@@ -539,6 +546,11 @@ export class WebGLRenderer {
     }
     this.pruneNodeStates(this.audioOnsetStates, validatedGraph, 'audioTrigger');
     this.pruneNodeStates(this.audioBeatStates, validatedGraph, 'audioBeat');
+    this.pruneNodeStates(
+      this.sourceSelectorStates,
+      validatedGraph,
+      'sourceSelector',
+    );
   }
 
   private pruneNodeStates(
@@ -696,6 +708,7 @@ export class WebGLRenderer {
     this.smoothControlStates.clear();
     this.audioOnsetStates.clear();
     this.audioBeatStates.clear();
+    this.sourceSelectorStates.clear();
     this.outputTextures.clear();
     for (const resources of this.nodeResources.values()) {
       resources.nextTargetIndex = 0;
@@ -747,6 +760,7 @@ export class WebGLRenderer {
     this.smoothControlStates.clear();
     this.audioOnsetStates.clear();
     this.audioBeatStates.clear();
+    this.sourceSelectorStates.clear();
     this.blackTexture = null;
     this.transparentTexture = null;
     this.videoTexture = null;
@@ -773,6 +787,7 @@ export class WebGLRenderer {
     this.smoothControlStates.clear();
     this.audioOnsetStates.clear();
     this.audioBeatStates.clear();
+    this.sourceSelectorStates.clear();
     this.programs.clear();
     this.blackTexture = null;
     this.transparentTexture = null;
@@ -2126,6 +2141,56 @@ export class WebGLRenderer {
           ),
         );
         break;
+      case 'sourceSelector': {
+        this.bindTexture(
+          program,
+          'uA',
+          this.frameInput(compiledNode, 'a', true),
+          0,
+        );
+        this.bindTexture(
+          program,
+          'uB',
+          this.frameInput(compiledNode, 'b', true),
+          1,
+        );
+        this.bindTexture(
+          program,
+          'uC',
+          this.frameInput(compiledNode, 'c', true),
+          2,
+        );
+        this.bindTexture(
+          program,
+          'uD',
+          this.frameInput(compiledNode, 'd', true),
+          3,
+        );
+        const paramIndex = Math.round(
+          clamp(this.numberParam(compiledNode, 'index'), 0, 3),
+        );
+        const trigger = this.controlInput(compiledNode, 'trigger', 0);
+        const nodeId = compiledNode.node.id;
+        const previous = this.sourceSelectorStates.get(nodeId) ?? {
+          index: paramIndex,
+          lastTrigger: 0,
+          lastParam: paramIndex,
+        };
+        let index = previous.index;
+        if (paramIndex !== previous.lastParam) {
+          index = paramIndex;
+        }
+        if (previous.lastTrigger < 0.5 && trigger >= 0.5) {
+          index = (index + 1) % 4;
+        }
+        this.sourceSelectorStates.set(nodeId, {
+          index,
+          lastTrigger: trigger,
+          lastParam: paramIndex,
+        });
+        this.uniform1f(program, 'uIndex', index);
+        break;
+      }
       case 'blend':
         this.bindTexture(
           program,

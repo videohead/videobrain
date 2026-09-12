@@ -32,6 +32,7 @@ export const NODE_KINDS = [
   'mask',
   'composite',
   'frameSwitch',
+  'sourceSelector',
   'blend',
   'trails',
   'feedbackSpiral',
@@ -171,10 +172,18 @@ export interface ProjectionEditorParameterLayout {
   rotationParamId: string;
 }
 
+export interface SourceSelectorParameterLayout {
+  type: 'source-selector';
+  label: string;
+  paramId: string;
+  sources: readonly string[];
+}
+
 export type ParameterLayout =
   | XYParameterLayout
   | AudioBandParameterLayout
-  | ProjectionEditorParameterLayout;
+  | ProjectionEditorParameterLayout
+  | SourceSelectorParameterLayout;
 
 export interface OperatorExecution {
   visualPasses: number;

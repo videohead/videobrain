@@ -754,6 +754,7 @@ export const FRAME_FRAGMENT_SHADERS: Partial<Record<NodeKind, string>> = {
   mask,
   composite,
   frameSwitch,
+  sourceSelector: frameSwitch,
   blend,
   trails,
   feedbackSpiral,

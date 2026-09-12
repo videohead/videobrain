@@ -554,6 +554,63 @@ function createCompositingGraph(): GraphDocument {
   };
 }
 
+function createSourceSelectorGraph(
+  index = 0,
+  withTrigger = false,
+): GraphDocument {
+  const nodes = [
+    createGraphNode('solid', { x: 0, y: 0 }, {}, 'source-a'),
+    createGraphNode('plasma', { x: 0, y: 120 }, {}, 'source-b'),
+    createGraphNode('cells', { x: 0, y: 240 }, {}, 'source-c'),
+    createGraphNode('solid', { x: 0, y: 360 }, {}, 'source-d'),
+    createGraphNode(
+      'sourceSelector',
+      { x: 240, y: 180 },
+      { index },
+      'selector',
+    ),
+    createGraphNode('display', { x: 480, y: 180 }, {}, 'display'),
+  ];
+  const edges = [
+    {
+      id: 'a-selector',
+      source: { nodeId: 'source-a', portId: 'frame' },
+      target: { nodeId: 'selector', portId: 'a' },
+    },
+    {
+      id: 'b-selector',
+      source: { nodeId: 'source-b', portId: 'frame' },
+      target: { nodeId: 'selector', portId: 'b' },
+    },
+    {
+      id: 'c-selector',
+      source: { nodeId: 'source-c', portId: 'frame' },
+      target: { nodeId: 'selector', portId: 'c' },
+    },
+    {
+      id: 'd-selector',
+      source: { nodeId: 'source-d', portId: 'frame' },
+      target: { nodeId: 'selector', portId: 'd' },
+    },
+    {
+      id: 'selector-display',
+      source: { nodeId: 'selector', portId: 'frame' },
+      target: { nodeId: 'display', portId: 'source' },
+    },
+  ];
+  if (withTrigger) {
+    nodes.push(
+      createGraphNode('beatClock', { x: 0, y: 480 }, {}, 'trigger-clock'),
+    );
+    edges.push({
+      id: 'trigger-selector',
+      source: { nodeId: 'trigger-clock', portId: 'beat' },
+      target: { nodeId: 'selector', portId: 'trigger' },
+    });
+  }
+  return { schemaVersion: GRAPH_SCHEMA_VERSION, nodes, edges };
+}
+
 function createImageFrame(
   width: number,
   height: number,
@@ -1630,6 +1687,34 @@ describe('frame-node evaluation', () => {
           target === gl.TEXTURE_2D && texture === transparentTexture,
       ),
     ).toHaveLength(3);
+    renderer.dispose();
+  });
+
+  it('snaps the Source Selector to a new parameter value', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+
+    renderer.setGraph(createSourceSelectorGraph(0));
+    expect(renderer.render(0)).toMatchObject({ rendered: true });
+    expect(lastUniformValue(uniform1f, 'uIndex')).toBe(0);
+
+    // A button click snaps the selection to the new parameter value.
+    renderer.setGraph(createSourceSelectorGraph(3));
+    expect(renderer.render(1)).toMatchObject({ rendered: true });
+    expect(lastUniformValue(uniform1f, 'uIndex')).toBe(3);
+    renderer.dispose();
+  });
+
+  it('advances the Source Selector on a trigger rising edge', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+
+    renderer.setGraph(createSourceSelectorGraph(0, true));
+    // Beat clock is low at t=0.1, so no edge and the index holds.
+    expect(renderer.render(0.1)).toMatchObject({ rendered: true });
+    expect(lastUniformValue(uniform1f, 'uIndex')).toBe(0);
+
+    // Beat clock pulses high at t=0.5, advancing to the next source.
+    expect(renderer.render(0.5)).toMatchObject({ rendered: true });
+    expect(lastUniformValue(uniform1f, 'uIndex')).toBe(1);
     renderer.dispose();
   });
 });

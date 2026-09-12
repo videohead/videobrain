@@ -753,6 +753,31 @@ const definitions = [
     },
   },
   {
+    kind: 'sourceSelector',
+    title: 'Source Selector',
+    summary:
+      'Selects one of four frame inputs with colored buttons or a trigger.',
+    domain: 'frame',
+    category: 'compositing',
+    inputs: [
+      port('a', 'A', 'frame.rgba'),
+      port('b', 'B', 'frame.rgba', true),
+      port('c', 'C', 'frame.rgba', true),
+      port('d', 'D', 'frame.rgba', true),
+      port('trigger', 'Trigger', 'control.f32', true),
+    ],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      index: numberParam('Index', 0, 0, 3, 1),
+    },
+    parameterLayout: {
+      type: 'source-selector',
+      label: 'Source',
+      paramId: 'index',
+      sources: ['a', 'b', 'c', 'd'],
+    },
+  },
+  {
     kind: 'blend',
     title: 'Blend',
     summary: 'Combines two frame signals.',

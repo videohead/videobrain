@@ -9,13 +9,6 @@ with cycle rejection, procedural GPU sources and effects, audio mixing/FFT/
 trigger envelopes, transport and beat clocks, undo/redo, versioned autosave
 with JSON import/export, and a Storybook component catalog.
 
-On this host it also runs Docker services on `metis-network`:
-`videobrain-mcp` (MCP endpoint `127.0.0.1:8932`, registered as a metis-router
-upstream with the `videobrain:` tool namespace — repo readers, git status,
-operator/graph tooling) and `videobrain-control` (authenticated control API on
-`127.0.0.1:8933`, `X-Api-Key` protected). Both are published externally through
-Traefik.
-
 ## Tool execution rule
 
 All tool calls that invoke `python`, `node`, `vite`, or `php` MUST run inside

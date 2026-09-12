@@ -41,8 +41,12 @@ describe('NewPatchMenu', () => {
     const trigger = screen.getByRole('button', { name: 'New patch' });
     trigger.focus();
     await user.keyboard('{ArrowUp}');
+    const lastPreset = GRAPH_PRESETS[GRAPH_PRESETS.length - 1];
+    expect(lastPreset).toBeDefined();
     expect(
-      screen.getByRole('menuitem', { name: /Local File Preview/ }),
+      screen.getByRole('menuitem', {
+        name: new RegExp(lastPreset?.title ?? ''),
+      }),
     ).toHaveFocus();
 
     await user.keyboard('{Home}');

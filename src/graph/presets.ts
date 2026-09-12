@@ -101,6 +101,18 @@ export const GRAPH_PRESETS = [
     description:
       'Display a file from this browser session and warp it with its own bass content.',
   },
+  {
+    id: 'projection-mapping-lab',
+    title: 'Projection Mapping Lab',
+    description:
+      'Keystone and quad-warp procedural visuals onto target surfaces.',
+  },
+  {
+    id: 'live-source-select',
+    title: 'Live Source Selector',
+    description:
+      'Switch between multi-source visual feeds with tactile or trigger control.',
+  },
 ] as const;
 
 export type GraphPresetId = (typeof GRAPH_PRESETS)[number]['id'];
@@ -124,6 +136,8 @@ export const NODE_EXAMPLES = {
   mask: ['mask-composite-lab'],
   composite: ['mask-composite-lab'],
   frameSwitch: ['beat-switcher'],
+  sourceSelector: ['live-source-select'],
+  projectorMapping: ['projection-mapping-lab'],
   blur: ['audio-soft-focus'],
   feedbackSpiral: ['spiral-feedback-lab'],
   autoSelector: ['live-cut-lab'],
@@ -145,6 +159,8 @@ export const NODE_EXAMPLES = {
   | 'mask'
   | 'composite'
   | 'frameSwitch'
+  | 'sourceSelector'
+  | 'projectorMapping'
   | 'blur'
   | 'feedbackSpiral'
   | 'autoSelector'
@@ -1197,6 +1213,182 @@ function createPromptedPreviewGraph(): GraphDocument {
   );
 }
 
+function createProjectionMappingLabGraph(): GraphDocument {
+  return graph(
+    [
+      createGraphNode('time', { x: -620, y: -260 }, {}, 'projection-time'),
+      createGraphNode(
+        'cells',
+        { x: -360, y: -260 },
+        { scale: 8.5, contrast: 1.8 },
+        'projection-source',
+      ),
+      createGraphNode(
+        'projectorMapping',
+        { x: -40, y: -260 },
+        {
+          x0: 0.15,
+          y0: 0.18,
+          x1: 0.82,
+          y1: 0.24,
+          x2: 0.88,
+          y2: 0.82,
+          x3: 0.12,
+          y3: 0.78,
+          scale: 1,
+          edgeMode: 'clamp',
+        },
+        'projection-warp',
+      ),
+      createGraphNode(
+        'colorGrade',
+        { x: 260, y: -260 },
+        { saturation: 1.35, contrast: 1.15 },
+        'projection-grade',
+      ),
+      createGraphNode('display', { x: 540, y: -260 }, {}, 'projection-display'),
+    ],
+    [
+      edge(
+        'projection-time-source',
+        'projection-time',
+        'value',
+        'projection-source',
+        'time',
+      ),
+      edge(
+        'projection-source-warp',
+        'projection-source',
+        'frame',
+        'projection-warp',
+        'source',
+      ),
+      edge(
+        'projection-warp-grade',
+        'projection-warp',
+        'frame',
+        'projection-grade',
+        'source',
+      ),
+      edge(
+        'projection-grade-display',
+        'projection-grade',
+        'frame',
+        'projection-display',
+        'source',
+      ),
+    ],
+  );
+}
+
+function createLiveSourceSelectGraph(): GraphDocument {
+  return graph(
+    [
+      createGraphNode('time', { x: -740, y: -300 }, {}, 'source-select-time'),
+      createGraphNode(
+        'beatClock',
+        { x: -480, y: -400 },
+        { bpm: 120, pulseWidth: 0.2 },
+        'source-select-clock',
+      ),
+      createGraphNode(
+        'plasma',
+        { x: -480, y: -160 },
+        { scale: 4.8, speed: 0.24, hue: 0.12 },
+        'source-select-a',
+      ),
+      createGraphNode(
+        'cells',
+        { x: -480, y: 80 },
+        { scale: 6.2, contrast: 1.9 },
+        'source-select-b',
+      ),
+      createGraphNode(
+        'solid',
+        { x: -480, y: 320 },
+        { red: 0.88, green: 0.12, blue: 0.45, alpha: 1 },
+        'source-select-c',
+      ),
+      createGraphNode(
+        'sourceSelector',
+        { x: -140, y: -60 },
+        { index: 0 },
+        'source-select-router',
+      ),
+      createGraphNode(
+        'colorGrade',
+        { x: 180, y: -60 },
+        { contrast: 1.18, saturation: 1.25 },
+        'source-select-grade',
+      ),
+      createGraphNode(
+        'display',
+        { x: 460, y: -60 },
+        {},
+        'source-select-display',
+      ),
+    ],
+    [
+      edge(
+        'source-select-time-a',
+        'source-select-time',
+        'value',
+        'source-select-a',
+        'time',
+      ),
+      edge(
+        'source-select-time-b',
+        'source-select-time',
+        'value',
+        'source-select-b',
+        'time',
+      ),
+      edge(
+        'source-select-clock-trigger',
+        'source-select-clock',
+        'beat',
+        'source-select-router',
+        'trigger',
+      ),
+      edge(
+        'source-select-a-router',
+        'source-select-a',
+        'frame',
+        'source-select-router',
+        'a',
+      ),
+      edge(
+        'source-select-b-router',
+        'source-select-b',
+        'frame',
+        'source-select-router',
+        'b',
+      ),
+      edge(
+        'source-select-c-router',
+        'source-select-c',
+        'frame',
+        'source-select-router',
+        'c',
+      ),
+      edge(
+        'source-select-router-grade',
+        'source-select-router',
+        'frame',
+        'source-select-grade',
+        'source',
+      ),
+      edge(
+        'source-select-grade-display',
+        'source-select-grade',
+        'frame',
+        'source-select-display',
+        'source',
+      ),
+    ],
+  );
+}
+
 const PRESET_FACTORIES: Readonly<
   Record<GraphPresetId, () => GraphDocument>
 > = {
@@ -1218,6 +1410,8 @@ const PRESET_FACTORIES: Readonly<
   'camera-dream': createCameraDreamGraph,
   'prompted-preview': createPromptedPreviewGraph,
   'file-preview': createFilePreviewGraph,
+  'projection-mapping-lab': createProjectionMappingLabGraph,
+  'live-source-select': createLiveSourceSelectGraph,
 };
 
 export function getGraphPreset(id: GraphPresetId): GraphPreset {

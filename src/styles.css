@@ -1382,6 +1382,87 @@ textarea:focus-visible,
   outline-offset: 3px;
 }
 
+.node-source-control {
+  display: grid;
+  gap: 5px;
+}
+
+.node-source-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--muted);
+  font: 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.node-source-heading output {
+  color: var(--node-accent, var(--acid));
+  font: 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.node-source-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.node-source-button {
+  display: grid;
+  place-items: center;
+  min-height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--muted);
+  background: #0b0e13;
+  font: 700 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+}
+
+.node-source-button.is-a {
+  --source-color: #7dff9b;
+}
+
+.node-source-button.is-b {
+  --source-color: #6bd8ff;
+}
+
+.node-source-button.is-c {
+  --source-color: #ffd166;
+}
+
+.node-source-button.is-d {
+  --source-color: #ff7ad9;
+}
+
+.node-source-button.is-selected {
+  color: #0b0e13;
+  border-color: var(--source-color);
+  background: var(--source-color);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--source-color) 45%, transparent);
+}
+
+.node-source-button:not(.is-selected):hover {
+  color: var(--source-color);
+  border-color: color-mix(in srgb, var(--source-color) 55%, var(--line));
+}
+
+.node-source-button:focus-visible {
+  outline: 2px solid var(--node-accent, var(--acid));
+  outline-offset: 2px;
+}
+
 .monitor-rail {
   display: grid;
   grid-template-rows: minmax(250px, 46%) minmax(0, 54%);

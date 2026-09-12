@@ -673,6 +673,24 @@ describe('operator registry', () => {
       { id: 'index', label: 'Index', type: 'control.f32', optional: true },
     ]);
     expect(getDefaultParams('frameSwitch')).toEqual({ index: 0 });
+
+    expect(OPERATOR_REGISTRY.sourceSelector.inputs).toEqual([
+      { id: 'a', label: 'A', type: 'frame.rgba', optional: false },
+      { id: 'b', label: 'B', type: 'frame.rgba', optional: true },
+      { id: 'c', label: 'C', type: 'frame.rgba', optional: true },
+      { id: 'd', label: 'D', type: 'frame.rgba', optional: true },
+      { id: 'trigger', label: 'Trigger', type: 'control.f32', optional: true },
+    ]);
+    expect(OPERATOR_REGISTRY.sourceSelector.outputs).toEqual([
+      { id: 'frame', label: 'Frame', type: 'frame.rgba', optional: false },
+    ]);
+    expect(getDefaultParams('sourceSelector')).toEqual({ index: 0 });
+    expect(OPERATOR_REGISTRY.sourceSelector.parameterLayout).toEqual({
+      type: 'source-selector',
+      label: 'Source',
+      paramId: 'index',
+      sources: ['a', 'b', 'c', 'd'],
+    });
   });
 
   it('defines the XY pad as two normalized editable control outputs', () => {

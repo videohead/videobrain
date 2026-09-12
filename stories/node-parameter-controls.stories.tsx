@@ -105,6 +105,24 @@ export const TwoAxisPad: Story = {
   },
 };
 
+export const SourceSelectorButtons: Story = {
+  args: {
+    nodeId: 'source-selector-story',
+    definition: getOperatorDefinition('sourceSelector'),
+    params: {
+      ...getDefaultParams('sourceSelector'),
+      index: 1,
+    },
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'Four colored A/B/C/D buttons select the active frame source. The buttons are a radio group, so arrow keys move the selection and the value readout follows the node accent.',
+      },
+    },
+  },
+};
+
 export const BeatClockTiming: Story = {
   args: {
     nodeId: 'beat-clock-story',
