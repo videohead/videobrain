@@ -29,6 +29,43 @@ necessarily present on the running site.
 | Signal troubleshooting | Signal Number, Signal Text, Signal Edge, and Signal Bang: typed zero-pass demand roots, pass-through outputs, labeled readouts, edge/event counts, and manual bangs; see [Signal tests](SIGNAL_TESTS.md) |
 | Education/inspection | Registry-derived catalog and graph inspection, teaching presets, production-component stories, Help, and shared test fixtures |
 
+## WebGPU migration in progress
+
+The production preview still uses WebGL2. The new native WebGPU implementation
+is an isolated migration slice, not a selectable fallback or a completed runtime
+replacement. No operator capability label has been enabled on its account.
+
+- `WebGPUDevice` owns secure-context checks, adapter/device acquisition,
+  declared features/limits, cancellation cleanup, device-loss reporting, and
+  idempotent disposal. Unsupported systems fail without backend downgrade.
+- `WebGPUFrameRuntime` explicitly constructs the pinned Three.js 0.180.0
+  WebGPU backend with no fallback factory. Three.js scene textures, native WGSL
+  frame passes, bounded image/canvas/video uploads, and presentation share one
+  device. Scene output converts to the existing straight-alpha RGBA8 contract.
+- All ten stateless effects from `frameEffects` have native WGSL ports with
+  registry-driven defaults/options/bounds. They preserve the graph's upward
+  positive Y convention despite WebGPU's top-down texture coordinates.
+- Frame handles are runtime-owned, dimension/budget checked, and rejected after
+  release. Scene operations are serialized. Current byte counters describe
+  reserved graph color/depth targets, not total driver or Three.js memory.
+
+Validation: `npm run verify` passes lint, typechecking, 697 unit tests, and the
+production build. Two native browser tests pass in the Playwright 1.62.1 Linux
+container using Chromium's SwiftShader/Vulkan software GPU configuration. One
+prohibits all WebGL context requests while exercising opaque/translucent Three.js
+scenes, frame processing, readback, presentation, and allocation cleanup. The
+other compares 21 WGSL effect cases against separate legacy GLSL reference
+renders with a maximum tolerance of three RGBA8 channel values, and checks
+missing inputs, upload-size rejection, self-read rejection, and released handles.
+The reference renderer exists only in the parity test, not as a runtime fallback.
+Software-adapter validation is not hardware performance or browser certification.
+
+Still required: backend-neutral CPU scheduling extraction, complete graph
+execution and preview integration, remaining generators/processors/compositors,
+retained-frame clocks/reset, production media/text/SVG integration, projection,
+versioned custom-shader migration, compute particles, capability UI, and full
+device-recovery/replacement gates. The native source is not deployed.
+
 ## Scope boundaries
 
 - Timed Transition drives Crossfade and scalar parameters; Step Sequencer and

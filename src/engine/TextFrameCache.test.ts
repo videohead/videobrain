@@ -7,7 +7,7 @@ describe('text frame cache', () => {
 
   function setup() {
     const context = { font: '', textBaseline: '', textAlign: '', fillStyle: '', measureText: (text: string) => ({ width: text.length * 10 }), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), fillText: vi.fn<(text: string, x: number, y: number) => void>() };
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => context) as unknown as HTMLCanvasElement['getContext']);
     return { cache: new TextFrameCache(vi.fn()), context, params: getDefaultParams('text') };
   }
 

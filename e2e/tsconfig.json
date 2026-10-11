@@ -3,7 +3,7 @@
   "compilerOptions": {
     "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["node", "@playwright/test"]
+    "types": ["node", "@playwright/test", "vite/client"]
   },
   "include": ["./**/*.ts"]
 }

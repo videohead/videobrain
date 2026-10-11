@@ -21,6 +21,26 @@ Node accents communicate identity. Signal colors communicate compatibility:
 lime ports carry scalar controls, cyan ports carry frames, and coral identifies
 the display boundary.
 
+## Planned GPU capability indicators
+
+During the WebGPU-only migration, capability metadata will come from the
+operator registry rather than a separate UI-maintained list. A compact chip
+icon on a node card or library entry may identify validated WebGPU rendering
+or compute support. Give it an accessible name and a hover/focus tooltip;
+the Inspector provides text labels, required device features, and resource
+limits. Color alone must not communicate support or failure.
+
+Keep three concerns separate: implemented backend support, the node's declared
+requirements, and whether the current device satisfies them. Graph reachability
+and actual execution retain their own status. Do not label existing WebGL-only
+implementations as WebGPU-capable or imply automatic backend fallback. Controls
+and data processing remain CPU-domain unless their implementation says otherwise.
+
+When all visual nodes use WebGPU, show the common backend globally and use
+per-node indicators for compute or unusual requirements to avoid repetitive
+badges. Stories and inspection/catalog responses must expose the same metadata.
+This section defines planned behavior; the indicator UI is not implemented yet.
+
 ## Inline parameter contract
 
 Every numeric node parameter is available as a slider in the node itself. The

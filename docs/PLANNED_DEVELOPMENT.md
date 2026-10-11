@@ -25,6 +25,61 @@ their verification status are in [Current State](CURRENT_STATE.md), with exact
 contracts in [Events](EVENTS.md) and [3D Scene Foundation](SCENE_3D.md).
 A gateway requirement is a deployment constraint, not a completion mark.
 
+## P0: WebGPU-only runtime migration
+
+The target runtime requires a WebGPU-compatible browser and system. There is
+no WebGL fallback, automatic backend downgrade, or parallel legacy-renderer
+support requirement. The current WebGL2 implementation is migration source,
+not the target compatibility baseline. A native device/scene/frame-effect slice
+is implemented and tested, but the production graph runtime is not yet migrated;
+see [current migration status](CURRENT_STATE.md#webgpu-migration-in-progress).
+The table below remains the full P0 acceptance scope, not a completion checklist.
+
+| Deliverable | Required scope |
+| --- | --- |
+| Startup and capability checks | Require a secure context, `navigator.gpu`, successful adapter/device acquisition, and the features/limits required by the patch; API presence alone is insufficient |
+| Unsupported and failed states | Clear unsupported-system, initialization-failed, device-lost, and resource-limit messages; preserve project data and never silently switch to WebGL or CPU simulation |
+| GPU resource ownership | One WebGPU device/resource model for connected simulation, 3D, frame effects, and presentation; no implicit WebGPU-to-WebGL texture bridge |
+| Three.js integration | WebGPU backend only, explicit asynchronous initialization, supported node materials/TSL, and verification against the pinned library version; reject Three.js automatic WebGL backend selection |
+| Frame-pipeline migration | Port generators, processors, compositors, retained-frame effects, media uploads, text/SVG textures, and projection while preserving alpha/color and clock/reset contracts |
+| Custom shader compatibility | Define a versioned WGSL/TSL-compatible authoring contract and migration strategy for saved GLSL Shader Source nodes; never reinterpret GLSL as WGSL or silently discard it |
+| Compute and particles | GPU-resident particle buffers and compute updates with bounded work, explicit simulation clocks, deterministic initialization, and device-loss recovery; CPU remains responsible for graph/control scheduling |
+| Node capability indicators | Registry-backed WebGPU render/compute labels, optional compact chip icons in node cards and library listings, and Inspector details separating implementation support, required features/limits, and current device readiness |
+| Validation and observability | Report required and available limits, buffer/texture bytes, dispatch/draw costs, and initialization/device errors; test actual WebGPU execution, not a renderer-class name |
+
+Capability indicators are planned UI, not a claim that current WebGL nodes
+already support WebGPU. Add a WebGPU label only when the node has a validated
+WebGPU implementation. Distinguish rendering from compute and list any extra
+device features or limits in the Inspector. Runtime readiness is separate:
+supported implementation, unavailable device capability, inactive graph branch,
+and active execution must not be represented as the same state.
+
+Use a familiar chip icon with an accessible name and hover/focus tooltip; never
+rely on color alone. Derive the library, node, Inspector, Storybook, and protocol
+listing from the same registry metadata. Capability presentation must not change
+port compatibility or saved node IDs. Once WebGPU is universal for visual nodes,
+prefer a global backend indicator and reserve per-node icons for compute or
+additional requirements. CPU control/data nodes are not GPU nodes merely because
+their outputs eventually drive a GPU renderer. No indicator implies a fallback.
+
+Choose budgets from measured workloads and device limits, not a universal
+particle-count threshold. Unsupported features or excessive workloads produce
+actionable errors rather than silently reducing saved counts, changing physics,
+or selecting another backend. Device recovery recreates resources and resets
+state according to the documented contract; it is not a backend fallback.
+
+Acceptance: a native WebGPU 3D-to-frame-effect-to-Display path, compute-driven
+Particle Field Lab, representative frame-effect parity tests, bounded asset
+uploads, and initialization/device-loss tests. Verify no WebGL context is
+requested on the WebGPU path. Document the tested browser/OS/GPU requirements
+and preserve recoverable project state when those requirements are unmet.
+
+Until this migration is complete, describe the existing renderer honestly as
+WebGL2. Do not remove it prematurely from working builds or claim that changing
+a Three.js constructor alone ports the frame graph. Retire the legacy runtime
+when the complete WebGPU path passes its replacement gates; do not ship it as
+a fallback afterward.
+
 ## P0: Ordered show-command scheduler
 
 Build a transactional scheduler for patch, parameter, source, and output-layout
@@ -104,6 +159,10 @@ blackout, and disconnect. Real venue tests precede live-use claims.
 
 ## P1: Particles and richer 3D creation
 
+Implement this work against the WebGPU-only resource and compute contracts
+above. Keep serialized geometry, materials, emission, and simulation behavior
+independent of native GPU handles, but do not build a WebGL fallback backend.
+
 | Deliverable | Required scope |
 | --- | --- |
 | Merge | Combine compatible geometry with explicit attribute/topology rules |
@@ -153,8 +212,8 @@ Refer to Current State rather than copying implemented catalogs into this plan.
   generative architecture, volumetrics, and Gaussian splats.
 - Reaction diffusion, fluid simulation, cellular automata, advanced depth
   compositing, and neural effects with latency/provenance contracts.
-- WebGPU compute justified by profiling, offline render queues, XR, wide-color/
-  10-bit negotiation, and specialist native video gateways.
+- Advanced compute workloads beyond the P0 WebGPU runtime, offline render
+  queues, XR, wide-color/10-bit negotiation, and specialist native video gateways.
 - Pitch/spatial audio, DAW/plugin hosting, timecode/shared-tempo bridges, and
   specialist devices beyond the P1 OSC/lighting scope.
 - Worker-sandbox scripting, broader shader processors, third-party packages,
@@ -168,8 +227,9 @@ Refer to Current State rather than copying implemented catalogs into this plan.
 
 1. Keep the implemented baseline verified; deploy deliberately and complete
   physical browser/GPU/controller usability testing separately.
-2. Deliver the remaining P0 show-command scheduler using the existing graph
-  event/transition and 3D foundations.
+2. Deliver the P0 WebGPU-only runtime migration and ordered show-command
+  scheduler, preserving the existing graph/event contracts while replacing GPU
+  ownership and execution. WebGL fallback is not part of the target release.
 3. Complete P1 show/output/gateway workflows and P1 particles/assets. Test native
    protocols with controlled fixtures before real venue networks.
 4. Release this version when both tracks meet their acceptance criteria;
