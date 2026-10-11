@@ -270,6 +270,12 @@ export const ServerEvents: Story = { args: { kinds: ['serverEvents'], compact: t
 export const Storage: Story = { args: { kinds: ['dataStorage'], compact: true } };
 export const Inspect: Story = { args: { kinds: ['dataInspect'], compact: true } };
 
+export const ChromaticAberration: Story = { args: { kinds: ['chromaticAberration'], compact: true } };
+export const Bloom: Story = { args: { kinds: ['bloom'], compact: true } };
+export const Scanlines: Story = { args: { kinds: ['scanlines'], compact: true } };
+export const LiquidMorph: Story = { args: { kinds: ['liquidMorph'], compact: true } };
+export const LiquidMetaballs: Story = { args: { kinds: ['liquidMetaballs'], compact: true } };
+export const ParticleTransition: Story = { args: { kinds: ['particleTransition'], compact: true } };
 export const Levels: Story = { args: { kinds: ['levels'], compact: true } };
 export const HSVHSL: Story = { args: { kinds: ['hsv'], compact: true } };
 export const LumaKey: Story = { args: { kinds: ['lumaKey'], compact: true } };

@@ -202,6 +202,10 @@ type Story = StoryObj<typeof meta>;
 
 export const RunningPatch: Story = {};
 export const SignalTestLab: Story = { args: { presetId: 'signal-test-lab' } };
+export const PrismGlowLab: Story = { args: { presetId: 'prism-glow-lab' } };
+export const LiquidSurfaceLab: Story = { args: { presetId: 'liquid-surface-lab' } };
+export const ParticleTransitionLab: Story = { args: { presetId: 'particle-transition-lab' } };
+export const InfinityMirrorLab: Story = { args: { presetId: 'infinity-mirror-lab' } };
 export const CueLogicBasics: Story = { args: { presetId: 'cue-logic-basics' } };
 export const TimedTransitionLab: Story = { args: { presetId: 'timed-transition-lab' } };
 export const StepSequenceLab: Story = { args: { presetId: 'step-sequence-lab' } };

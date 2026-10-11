@@ -24,7 +24,7 @@ import {
 } from './types';
 
 export const GRAPH_PROTOCOL_VERSION = 1 as const;
-export const OPERATOR_CATALOG_VERSION = 20 as const;
+export const OPERATOR_CATALOG_VERSION = 21 as const;
 
 export interface OperatorCatalogPort extends PortDefinition {
   index: number;

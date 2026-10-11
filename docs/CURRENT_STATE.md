@@ -16,8 +16,9 @@ necessarily present on the running site.
 | Events/sequencing | Explicit `control.bool` and `event.trigger`, Control to Bool, Bool to Control, Compare, Logic, Trigger, Event to Control, Gate, Hold/Latch, Sample & Hold, Counter, Random, Timer, Envelope, Timed Transition, Step Sequencer, and Cue Scheduler; see [Events](EVENTS.md) |
 | Inputs | Opt-in Video Input; session-local File image/video/audio; Network Video HLS/DASH/WHEP receiving |
 | Generators | Solid Color, multi-stop Gradient, Shape, Vector Shape/static SVG, Text/embedded fonts, seeded Noise, constrained Shader Source, Flow Field, and Cells |
-| Frame effects | Transform 2D, Warp, Blur, Threshold, Color Grade, Levels, HSV/HSL, Edge, Pixelate, Tile/Kaleidoscope, Channel Shuffle, and Displace |
-| Composition | Blend, Mask, Composite, Frame Switch, Source Selector, Luma Key, Chroma Key, and control-driven Crossfade |
+| Frame effects | Transform 2D, Warp, Blur, Threshold, Color Grade, Levels, HSV/HSL, Edge, Pixelate, Tile/Kaleidoscope, Channel Shuffle, Displace, Chromatic Aberration, Bloom / Glow, and Scanlines |
+| Composition | Blend, Mask, Composite, Frame Switch, Source Selector, Luma Key, Chroma Key, Crossfade, Liquid Morph, and instanced Particle Transition |
+| Liquid physics | Liquid Metaballs: up to 32 colliding Matter.js bodies with pointer attraction and WebGL2 refraction/masking; see [effect contracts](ARCHITECTURE.md#extended-webgl2-frame-effects) |
 | Temporal effects | Trails, Spiral Feedback, and Strobe with their specialized state/clock contracts |
 | Projection | Projector Mapping: four-corner planar warp, movement, scale, rotation, and edge modes |
 | 3D foundation | Vector 2/3/4 and Split Vector nodes, Primitive 3D, Grid / Line 3D, Transform 3D, Camera 3D, Light 3D, PBR Material, and shared-context Three.js Render 3D; see [3D contracts](SCENE_3D.md) |
@@ -29,11 +30,14 @@ necessarily present on the running site.
 | Signal troubleshooting | Signal Number, Signal Text, Signal Edge, and Signal Bang: typed zero-pass demand roots, pass-through outputs, labeled readouts, edge/event counts, and manual bangs; see [Signal tests](SIGNAL_TESTS.md) |
 | Education/inspection | Registry-derived catalog and graph inspection, teaching presets, production-component stories, Help, and shared test fixtures |
 
-## WebGPU migration in progress
+## Experimental WebGPU foundation
 
-The production preview still uses WebGL2. The new native WebGPU implementation
-is an isolated migration slice, not a selectable fallback or a completed runtime
-replacement. No operator capability label has been enabled on its account.
+WebGL2 remains the supported production renderer. The native WebGPU implementation
+is isolated experimental groundwork, not a production hybrid runtime, selectable
+fallback, or completed replacement. Full migration is deferred to
+[P3](PLANNED_DEVELOPMENT.md#p3-webgpu-only-runtime-migration); feature-specific
+integration stays with the feature that needs it. No operator capability label
+has been enabled on account of this groundwork.
 
 - `WebGPUDevice` owns secure-context checks, adapter/device acquisition,
   declared features/limits, cancellation cleanup, device-loss reporting, and
@@ -42,15 +46,15 @@ replacement. No operator capability label has been enabled on its account.
   WebGPU backend with no fallback factory. Three.js scene textures, native WGSL
   frame passes, bounded image/canvas/video uploads, and presentation share one
   device. Scene output converts to the existing straight-alpha RGBA8 contract.
-- All ten stateless effects from `frameEffects` have native WGSL ports with
+- The original ten stateless effects have native WGSL ports with
   registry-driven defaults/options/bounds. They preserve the graph's upward
   positive Y convention despite WebGPU's top-down texture coordinates.
 - Frame handles are runtime-owned, dimension/budget checked, and rejected after
   release. Scene operations are serialized. Current byte counters describe
   reserved graph color/depth targets, not total driver or Three.js memory.
 
-Validation: `npm run verify` passes lint, typechecking, 697 unit tests, and the
-production build. Two native browser tests pass in the Playwright 1.62.1 Linux
+Foundation validation passed `npm run verify` with 697 unit tests and the
+production build before the later WebGL2 additions. Two native browser tests pass in the Playwright 1.62.1 Linux
 container using Chromium's SwiftShader/Vulkan software GPU configuration. One
 prohibits all WebGL context requests while exercising opaque/translucent Three.js
 scenes, frame processing, readback, presentation, and allocation cleanup. The
@@ -60,11 +64,13 @@ missing inputs, upload-size rejection, self-read rejection, and released handles
 The reference renderer exists only in the parity test, not as a runtime fallback.
 Software-adapter validation is not hardware performance or browser certification.
 
-Still required: backend-neutral CPU scheduling extraction, complete graph
+Remaining for a full replacement: backend-neutral CPU scheduling extraction, complete graph
 execution and preview integration, remaining generators/processors/compositors,
 retained-frame clocks/reset, production media/text/SVG integration, projection,
-versioned custom-shader migration, compute particles, capability UI, and full
-device-recovery/replacement gates. The native source is not deployed.
+versioned custom-shader migration, and full device-recovery/replacement gates.
+Compute particles remain P1, with the end-to-end GPU integration, capability UI,
+and lifecycle handling needed to ship that feature. The native source is not
+deployed; deferring universal migration does not mark these requirements complete.
 
 ## Scope boundaries
 
@@ -76,8 +82,10 @@ device-recovery/replacement gates. The native source is not deployed.
 - Projector Mapping is corner pinning, not named multi-display layouts, mesh
   warping, venue edge blending, or lighting output mapping.
 - Shape/Vector Shape remain 2D. The separate typed 3D foundation renders one
-  mesh and one point/line stream per Render 3D. Instancing, particles, imported
-  assets, general scene hierarchies, and public depth output remain planned.
+  mesh and one point/line stream per Render 3D. General 3D instancing, GPU particle
+  simulation, imported assets, scene hierarchies, and public depth output remain
+  planned. The implemented 2D Particle Transition uses instanced textured quads;
+  Liquid Metaballs uses bounded CPU physics, not WebGPU compute or a fluid solver.
 - File is session-local. Durable media assets, relinking, screen capture,
   dedicated Crop/Fit, Resize, and Test Card remain unfinished.
 - Audio analysis exposes scalars, not public spectrum wires or sample-critical
@@ -90,6 +98,18 @@ device-recovery/replacement gates. The native source is not deployed.
   relative encoders, and portable mappings are not part of basic controller support.
 
 ## Verification and release status
+
+Six additional WebGL2 operators have registry controls, serialization checks,
+individual stories, and four complete patches: Prism & Glow Lab, Liquid Surface
+Lab, Particle Transition Lab, and Infinity Mirror Lab. Infinity Mirror reuses
+Tile / Kaleidoscope and retained Spiral Feedback; it is not a new portal-scene
+renderer. The new operators have no WebGPU capability claim.
+
+Focused browser checks exercise neutral filters, morph/transition alpha endpoints,
+10,000-instance draws, visible filter changes, liquid motion/pause/reset, nonblank
+patches, and forced WebGL context recovery. Screenshots were captured at desktop
+and mobile sizes; visual review and hardware performance certification remain
+separate. These source additions are not deployed.
 
 The P0 3D foundation has thirteen nodes, two complete teaching patches,
 individual operator stories, serialization/compiler/descriptor tests, catalog
@@ -108,11 +128,18 @@ fixtures exercise quoting, joins, pointers, malformed input, and exact limits.
 Its node stories are included in the current catalog build; detailed data-node
 contract documentation and release close-out remain separate follow-up work.
 
-The latest validation passes `npm run verify`: lint, typechecking, 677 tests,
-and production build. Storybook build and its 140-entry artifact check also
+The latest validation passes `npm run verify`: lint, typechecking, 734 tests,
+and production build. Storybook build and its 155-entry artifact check also
 pass. The event foundation includes three complete teaching patches, individual
 node stories, serialization/type tests, timing-state tests, and two focused
 browser workflows for transitions/reset and teaching-patch rendering.
+
+The latest focused browser run passes the WebGL2 effects/lifecycle test and both
+experimental WebGPU tests. The editor smoke test also passes for all eight
+effect teaching patches, checking nonblank output, separated nodes, and no camera
+permission requests. Native GPU execution in browser fixtures is not a hardware
+performance guarantee. The dependency installation reports three high-severity
+audit findings; those have not been investigated as part of this effect work.
 
 The earlier lint blockers are resolved. Existing non-failing test `act(...)`
 warnings and bundle-size warnings remain visible. Physical GPU/controller tests

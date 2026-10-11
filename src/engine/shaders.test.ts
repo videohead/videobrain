@@ -4,6 +4,7 @@ import { parse } from '@shaderfrog/glsl-parser';
 import { OPERATOR_DEFINITIONS, type NodeKind } from '../graph';
 import { FRAME_EFFECT_SHADERS } from './frameEffects';
 import { FRAME_FRAGMENT_SHADERS } from './shaders';
+import { PARTICLE_VERTEX, PARTICLE_FRAGMENT } from './ParticleTransition';
 
 function shaderFor(kind: NodeKind): string {
   const shader = FRAME_FRAGMENT_SHADERS[kind];
@@ -12,6 +13,13 @@ function shaderFor(kind: NodeKind): string {
 }
 
 describe('frame shader alpha contracts', () => {
+  it('parses the bounded metaball and instanced particle shaders', () => {
+    for (const shader of [shaderFor('liquidMetaballs'), shaderFor('particleTransition'), PARTICLE_VERTEX, PARTICLE_FRAGMENT]) {
+      expect(() => parse(shader, { quiet: true })).not.toThrow();
+    }
+    expect(PARTICLE_VERTEX).toContain('gl_InstanceID');
+    expect(shaderFor('liquidMetaballs')).toContain('index < 32');
+  });
   it.each(Object.entries(FRAME_EFFECT_SHADERS))('parses the %s single-pass shader', (_kind, shader) => {
     expect(() => parse(shader, { quiet: true })).not.toThrow();
     expect(shader).not.toMatch(/uPrevious|uTime|while\s*\(/);

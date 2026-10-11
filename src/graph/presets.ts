@@ -2,6 +2,7 @@ import { createDefaultGraph } from './defaultGraph';
 import { DATA_PRESETS, DATA_PRESET_FACTORIES } from './dataPresets';
 import { SCENE_3D_PRESETS, SCENE_3D_PRESET_FACTORIES } from './scene3dPresets';
 import { EVENT_PRESETS, EVENT_PRESET_FACTORIES } from './eventPresets';
+import { FRAME_EFFECT_PRESETS, FRAME_EFFECT_PRESET_FACTORIES } from './frameEffectPresets';
 import { createGraphNode } from './model';
 import {
   GRAPH_SCHEMA_VERSION,
@@ -24,6 +25,7 @@ export const GRAPH_PRESETS = [
   ...DATA_PRESETS,
   ...SCENE_3D_PRESETS,
   ...EVENT_PRESETS,
+  ...FRAME_EFFECT_PRESETS,
   { id: 'color-channel-lab', title: 'Color & Channel Lab', description: 'Remap levels, adjust HSV/HSL, shuffle channels, and key luminance over a background.' },
   { id: 'keyed-camera', title: 'Keyed Camera', description: 'Key a procedural green screen first, then explicitly switch to an opt-in camera.' },
   { id: 'displacement-map-lab', title: 'Displacement Map Lab', description: 'Use a seeded red/green noise field to displace a gradient before extracting edges.' },
@@ -171,6 +173,12 @@ export const FOUNDATION_NODE_EXAMPLES = {
 
 export const NODE_EXAMPLES = {
   ...FOUNDATION_NODE_EXAMPLES,
+  chromaticAberration: ['prism-glow-lab', 'infinity-mirror-lab'],
+  bloom: ['prism-glow-lab'],
+  scanlines: ['prism-glow-lab'],
+  liquidMorph: ['liquid-surface-lab'],
+  liquidMetaballs: ['liquid-surface-lab'],
+  particleTransition: ['particle-transition-lab'],
   levels: ['color-channel-lab'],
   hsv: ['color-channel-lab'],
   channelShuffle: ['color-channel-lab'],
@@ -205,6 +213,7 @@ export const NODE_EXAMPLES = {
   audioTrigger: ['audio-beat-pulse'],
   audioBeat: ['audio-beat-pulse'],
 } as const satisfies Record<
+  | 'chromaticAberration' | 'bloom' | 'scanlines' | 'liquidMorph' | 'liquidMetaballs' | 'particleTransition'
   | 'levels' | 'hsv' | 'channelShuffle' | 'lumaKey' | 'chromaKey'
   | 'displace' | 'edge' | 'pixelate' | 'kaleidoscope' | 'crossfade'
   | 'constant'
@@ -1458,6 +1467,7 @@ const PRESET_FACTORIES: Readonly<
 > = {
   ...DATA_PRESET_FACTORIES,
   ...SCENE_3D_PRESET_FACTORIES,
+  ...FRAME_EFFECT_PRESET_FACTORIES,
   ...EVENT_PRESET_FACTORIES,
   'color-channel-lab': () => graph(
     [

@@ -222,7 +222,7 @@ for (const { kind, title, parameter, value } of [
 test('P1 effect teaching presets render with separated nodes and no permissions', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   page.on('dialog', (dialog) => void dialog.accept());
-  for (const title of ['Color & Channel Lab', 'Keyed Camera', 'Displacement Map Lab', 'Pattern & Mix Lab']) {
+  for (const title of ['Color & Channel Lab', 'Keyed Camera', 'Displacement Map Lab', 'Pattern & Mix Lab', 'Prism & Glow Lab', 'Liquid Surface Lab', 'Particle Transition Lab', 'Infinity Mirror Lab']) {
     await page.getByRole('button', { name: 'New patch', exact: true }).click();
     await page.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
     await expect(page.getByText('Graph healthy')).toBeVisible();

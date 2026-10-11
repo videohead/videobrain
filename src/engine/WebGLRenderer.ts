@@ -18,6 +18,8 @@ import { DataEvaluator, isDataNode, type DataValue } from './DataEvaluator';
 import { dataSessions } from './DataSessions';
 import { evaluateScene3D, isScene3DNode } from './Scene3DEvaluator';
 import { Scene3DRenderer } from './Scene3DRenderer';
+import { LiquidSimulation } from './LiquidSimulation';
+import { ParticleTransition } from './ParticleTransition';
 import { EventEvaluator, isEventNode, type EventValue } from './EventEvaluator';
 import { EMPTY_EVENTS } from './eventTiming';
 import { signalTests } from './SignalTests';
@@ -431,6 +433,8 @@ export class WebGLRenderer {
   private eventValues = new Map<string, EventValue>();
   private eventEvaluator = new EventEvaluator();
   private sceneRenderer: Scene3DRenderer | null = null;
+  private liquidSimulations = new Map<string, LiquidSimulation>();
+  private particleTransition: ParticleTransition | null = null;
   private smoothControlStates = new Map<string, SmoothControlState>();
   private audioOnsetStates = new Map<string, AudioOnsetState>();
   private audioBeatStates = new Map<string, AudioBeatState>();
@@ -623,6 +627,9 @@ export class WebGLRenderer {
     }
     this.pruneNodeStates(this.audioOnsetStates, validatedGraph, 'audioTrigger');
     this.pruneNodeStates(this.audioBeatStates, validatedGraph, 'audioBeat');
+    const liquidIds = new Set(validatedGraph.frameNodes.filter(({ node }) => node.kind === 'liquidMetaballs').map(({ node }) => node.id));
+    for (const [id, simulation] of this.liquidSimulations) if (!liquidIds.has(id)) { simulation.reset(); this.liquidSimulations.delete(id); }
+    if (!validatedGraph.frameNodes.some(({ node }) => node.kind === 'particleTransition')) { this.particleTransition?.dispose(); this.particleTransition = null; }
     this.pruneNodeStates(
       this.sourceSelectorStates,
       validatedGraph,
@@ -786,6 +793,7 @@ export class WebGLRenderer {
   }
 
   reset(): void {
+    for (const simulation of this.liquidSimulations.values()) simulation.reset();
     signalTests.reset();
     this.eventEvaluator.clear();
     this.eventValues.clear();
@@ -818,6 +826,9 @@ export class WebGLRenderer {
   }
 
   dispose(): void {
+    for (const simulation of this.liquidSimulations.values()) simulation.reset();
+    this.liquidSimulations.clear();
+    this.particleTransition?.dispose(); this.particleTransition = null;
     signalTests.reset();
     this.eventEvaluator.clear();
     this.eventValues.clear();
@@ -887,6 +898,9 @@ export class WebGLRenderer {
       return;
     }
     this.contextLost = true;
+    for (const simulation of this.liquidSimulations.values()) simulation.reset();
+    this.liquidSimulations.clear();
+    this.particleTransition?.dispose(); this.particleTransition = null;
     signalTests.reset();
     this.eventEvaluator.clear();
     this.eventValues.clear();
@@ -1721,6 +1735,28 @@ export class WebGLRenderer {
       );
     }
 
+    if (compiledNode.node.kind === 'particleTransition') {
+      const target = resources.targets[0];
+      const intermediate = resources.targets[1];
+      if (!target || !intermediate) throw new RendererError('Particle Transition requires two targets.');
+      const value = (id: string) => {
+        const parameter = compiledNode.definition.params[id];
+        if (parameter?.type !== 'number') throw new RendererError('Invalid particle parameter.');
+        return clamp(this.controlInput(compiledNode, id, this.numberParam(compiledNode, id)), parameter.min, parameter.max);
+      };
+      const background = this.beginPass('particleTransition', intermediate);
+      this.bindTexture(background, 'uSource', this.frameInput(compiledNode, 'map', true), 0);
+      this.uniform1f(background, 'uMix', value('mix'));
+      this.draw(background);
+      this.particleTransition ??= new ParticleTransition(this.gl);
+      this.particleTransition.render(this.frameInput(compiledNode, 'source', true), value('mix'), value('density'), value('scatter'), value('seed'));
+      const conversion = this.beginPass('render3d', target);
+      this.bindTexture(conversion, 'uSource', intermediate.texture, 0);
+      this.draw(conversion);
+      this.outputTextures.set(compiledNode.node.id, target.texture);
+      return null;
+    }
+
     if (compiledNode.node.kind === 'render3d') {
       const target = resources.targets[0];
       const intermediate = resources.targets[1];
@@ -1892,6 +1928,27 @@ export class WebGLRenderer {
     const program = this.beginPass(kind, target, kind === 'shaderSource' ? this.customShaderProgram(compiledNode) : undefined);
 
     switch (kind) {
+      case 'liquidMetaballs': {
+        const values: Record<string, number> = {};
+        for (const [id, parameter] of Object.entries(compiledNode.definition.params)) {
+          if (parameter.type !== 'number') continue;
+          const value = clamp(this.controlInput(compiledNode, id, this.numberParam(compiledNode, id)), parameter.min, parameter.max);
+          values[id] = value;
+          this.uniform1f(program, `u${id.charAt(0).toUpperCase()}${id.slice(1)}`, value);
+        }
+        let simulation = this.liquidSimulations.get(compiledNode.node.id);
+        if (!simulation) { simulation = new LiquidSimulation(); this.liquidSimulations.set(compiledNode.node.id, simulation); }
+        const positions = simulation.update(time, {
+          count: values.count!, seed: values.seed!, radius: values.radius!, attraction: values.attraction!, pointerX: values.pointerX!, pointerY: values.pointerY!,
+        });
+        this.gl.uniform2fv(this.uniformLocation(program, 'uPositions[0]'), positions);
+        this.bindTexture(program, 'uSource', this.frameInput(compiledNode, 'source', true), 0);
+        break;
+      }
+      case 'chromaticAberration':
+      case 'liquidMorph':
+      case 'bloom':
+      case 'scanlines':
       case 'levels':
       case 'hsv':
       case 'lumaKey':

@@ -47,6 +47,11 @@ interface HelpDialogProps {
 
 const recipes = [
   {
+    title: 'Prism, glow, liquid, and particle transitions',
+    path: 'Frame → Chromatic Aberration → Bloom / Glow → Scanlines → Display; A/B → Liquid Morph or Particle Transition',
+    note: 'Open Prism & Glow Lab, Liquid Surface Lab, Particle Transition Lab, or Infinity Mirror Lab. Liquid Metaballs uses up to 32 colliding CPU physics bodies: patch Pointer X/Y to attract them over a source frame. Pause freezes physics; reset, backward seek, or a gap over 250 ms reseeds it. Particle Transition uses up to 10,000 instanced texture tiles, with Mix scrubbing seeded scatter trajectories rather than a free-running simulation. Liquid Morph is a separate UV displacement transition. Both transitions return A at Mix 0 and B at Mix 1. Infinity Mirror combines mirrored tiling with existing retained Spiral Feedback. Bloom is a bounded working-RGB glow, not HDR tone mapping. These nodes use WebGL2 and need no permissions.',
+  },
+  {
     title: 'Signal troubleshooting',
     path: 'Math → Map Range → Smooth → Signal Number; Control to Bool → Signal Edge → Trigger → Signal Bang',
     note: 'Open Signal Test Lab. Signal Number shows the actual scalar plus a configurable-range meter; Signal Text shows literal text. Signal Edge shows HIGH/LOW and rising/falling counts, seeding the initial state without counting it. Signal Bang flashes and forwards incoming events; click its circle or press Enter/Space to fire manually, including while paused. All four are demand roots and work without Display, with typed pass-through outputs for chaining and branching. Flash duration changes only the visual indicator. Label probes to identify MIDI or external data paths; the monitors do not open device sessions or implement an OSC gateway. See docs/SIGNAL_TESTS.md for limits and examples.',

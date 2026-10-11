@@ -169,6 +169,52 @@ apply. GPU programs and targets use the existing cleanup and context-recovery
 path. Teaching presets are Color & Channel Lab, Keyed Camera (procedural A,
 opt-in camera B), Displacement Map Lab, and Pattern & Mix Lab.
 
+## Extended WebGL2 frame effects
+
+Catalog 21 adds six kinds without changing schema 1 or existing port IDs.
+All use the production WebGL2 runtime and straight-alpha RGBA8 working values,
+not a new color-managed or HDR pipeline. Numeric inputs override and clamp to
+registry bounds without replacing saved literals. Missing frames are transparent;
+the two-input transitions accept either frame disconnected. Other effects retain
+the normal required-source diagnostic. Ordinary graph cycles remain invalid.
+
+| Kind | Contract | Cost per output-sized node |
+| --- | --- | --- |
+| `chromaticAberration` | Radial red/blue offsets around Center X/Y plus signed lens distortion; transparent/clamp/repeat/mirror borders. Split 0 and Distortion 0 are neutral. Output alpha is the maximum sampled channel coverage and RGB is reconstructed from alpha-weighted channels. | One pass/target, three samples |
+| `liquidMorph` | A/B transition with a bounded sinusoidal UV field, patchable Mix, Phase, center, scale, and displacement. Mix 0/1 returns exact A/B; interpolates premultiplied color and alpha before returning straight alpha. No internal clock or physics. | One pass/target, two samples |
+| `bloom` | Thresholded alpha-weighted luminance with a fixed 5x5 weighted kernel, Radius 0..64 output pixels, Strength 0..4, optional Glow only. Adds bounded glow and expands coverage, clamping working RGB; not multiscale/HDR bloom. Strength 0 with Glow only off is neutral. | One pass/target, 25 kernel samples plus source |
+| `scanlines` | Pixel-spaced horizontal cosine modulation and optional three-column RGB phosphor pattern; patchable Phase. Preserves alpha. Amount 0 and Phosphor 0 are neutral. No internal animation. | One pass/target, one sample |
+| `liquidMetaballs` | Actual colliding Matter.js 0.20.0 bodies with pointer attraction/repulsion drive an inverse-square metaball field that refracts and masks the source. Bodies 1..32; Seed 0..65535; Radius 0.01..0.1 normalized units; Softness 0.01..0.5. | One pass/target, at most 32 field contributions per pixel; bounded CPU physics |
+| `particleTransition` | WebGL2 instanced quads sample tiles of A, shrink/fade and scatter along deterministic seeded trajectories as B appears. Mix 0/1 returns A/B. Grid side 2..100 is floored, giving 4..10,000 instances; no per-particle GPU buffers or readback. This is a scrubbed transition, not free-running particle dynamics. | Three draws, two targets; six vertices per instance |
+
+Particle Transition first renders premultiplied B into its intermediate target,
+blends instanced premultiplied A tiles over it, then converts once to straight
+alpha. It shares the graph context, restores blend/vertex-array state, and releases
+its program/VAO when unused or disposed. Counts are bounded parameters, not
+performance promises. Compiler pass/target budgets include all three draws and
+both textures. Existing total frame-node and pixel budgets remain in force.
+
+Liquid physics runs in a 1000-by-1000 normalized world with static boundary walls,
+zero gravity, drag, restitution, and mutual collision response. The renderer
+uploads at most 32 position pairs per tick. This world stretches with output
+aspect ratio; it is not a physical fluid solver and does not collide with image
+contours. Text, shapes, and other frames can feed its source texture.
+
+The simulation steps at 120 Hz with an accumulator, at most 30 steps per frame.
+Equal visual timestamps do not advance it. Backward seeks, time gaps over 250 ms,
+and changes to count/seed/radius reinitialize the seeded bodies at the current
+timestamp. This bounded policy does not reconstruct skipped physical history.
+Reset, branch removal, disposal, and context loss clear the simulation. Restored
+contexts recreate GPU resources and seeded initial state. Pointer forces require
+explicit Pointer X/Y connections; there is no hidden pointer event listener.
+
+Prism & Glow Lab, Liquid Surface Lab, Particle Transition Lab, and Infinity Mirror
+Lab teach these contracts. The last composes mirrored tiling with existing
+two-target Spiral Feedback, retaining its per-second rotation/zoom/decay and
+read/commit boundaries; it is a real feedback loop, not arbitrary graph cycles
+or recursive 3D portal rendering. These effects require no WebGPU device, network,
+or permissions. Their WebGL2 implementations are not automatic fallback backends.
+
 ## Project and state ownership
 
 The implemented [3D Scene Foundation](SCENE_3D.md) uses typed plain descriptors

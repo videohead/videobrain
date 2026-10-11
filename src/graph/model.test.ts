@@ -26,7 +26,7 @@ describe('graph document model', () => {
       expect(() => parseGraphDocument({ ...document, nodes: [{ ...node, params: { ...node.params, [id]: invalid } }] })).toThrow();
     }
   });
-  it.each(OPERATOR_DEFINITIONS.filter(({ kind }) => ['levels', 'hsv', 'lumaKey', 'chromaKey', 'crossfade', 'displace', 'edge', 'pixelate', 'kaleidoscope', 'channelShuffle'].includes(kind)))(
+  it.each(OPERATOR_DEFINITIONS.filter(({ kind }) => ['chromaticAberration', 'liquidMorph', 'bloom', 'scanlines', 'liquidMetaballs', 'particleTransition', 'levels', 'hsv', 'lumaKey', 'chromaKey', 'crossfade', 'displace', 'edge', 'pixelate', 'kaleidoscope', 'channelShuffle'].includes(kind)))(
     'round-trips $kind and rejects malformed parameters', ({ kind, params }) => {
       const node = createGraphNode(kind, { x: 0, y: 0 }, {}, 'effect');
       const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION, nodes: [node], edges: [] };

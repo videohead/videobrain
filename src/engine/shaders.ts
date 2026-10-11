@@ -2,6 +2,47 @@ import type { NodeKind } from '../graph';
 import { NOISE_FRAGMENT_SHADER } from './noiseShader';
 import { FRAME_EFFECT_SHADERS } from './frameEffects';
 
+const liquidMetaballs = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D uSource;
+uniform vec2 uPositions[32];
+uniform float uCount;
+uniform float uRadius;
+uniform float uSoftness;
+uniform float uRefraction;
+void main() {
+  float field = 0.0;
+  vec2 gradient = vec2(0.0);
+  for (int index = 0; index < 32; index++) {
+    if (float(index) >= floor(uCount)) break;
+    vec2 delta = vUv - uPositions[index];
+    float distanceSquared = max(dot(delta, delta), 0.0001);
+    float contribution = uRadius * uRadius / distanceSquared;
+    field += contribution;
+    gradient += delta * contribution / distanceSquared;
+  }
+  float matte = smoothstep(1.0 - uSoftness, 1.0 + uSoftness, field);
+  vec2 bend = gradient / max(length(gradient), 1.0) * uRefraction;
+  vec4 color = texture(uSource, clamp(vUv + bend * matte, 0.0, 1.0));
+  outColor = vec4(color.rgb, color.a * matte);
+}
+`;
+
+const particleBackground = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D uSource;
+uniform float uMix;
+void main() {
+  vec4 color = texture(uSource, vUv);
+  float alpha = color.a * smoothstep(0.0, 1.0, uMix);
+  outColor = vec4(color.rgb * alpha, alpha);
+}
+`;
+
 export const FULLSCREEN_VERTEX_SHADER = `#version 300 es
 precision highp float;
 
@@ -837,6 +878,8 @@ void main() {
 `;
 
 export const FRAME_FRAGMENT_SHADERS: Partial<Record<NodeKind, string>> = {
+  liquidMetaballs,
+  particleTransition: particleBackground,
   render3d: `#version 300 es
 precision highp float;
 in vec2 vUv;

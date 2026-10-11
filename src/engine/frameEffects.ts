@@ -28,6 +28,90 @@ vec4 sampleSource(vec2 uv, float mode) {
 `;
 
 export const FRAME_EFFECT_SHADERS = {
+  chromaticAberration: `${header}
+uniform float uAmount;
+uniform float uDistortion;
+uniform float uCenterX;
+uniform float uCenterY;
+uniform float uEdgeMode;
+void main() {
+  vec2 delta = vUv - vec2(uCenterX, uCenterY);
+  vec2 radial = delta * vec2(uResolution.x / max(uResolution.y, 1.0), 1.0);
+  float radius = dot(radial, radial);
+  vec2 uv = vUv + delta * radius * uDistortion;
+  vec2 split = delta * uAmount * (0.25 + radius);
+  vec4 red = sampleSource(uv + split, uEdgeMode);
+  vec4 green = sampleSource(uv, uEdgeMode);
+  vec4 blue = sampleSource(uv - split, uEdgeMode);
+  float alpha = max(red.a, max(green.a, blue.a));
+  outColor = straightColor(vec3(red.r * red.a, green.g * green.a, blue.b * blue.a), alpha);
+}
+`,
+  liquidMorph: `${header}
+uniform float uMix;
+uniform float uAmount;
+uniform float uScale;
+uniform float uPhase;
+uniform float uCenterX;
+uniform float uCenterY;
+uniform float uEdgeMode;
+void main() {
+  float amount = clamp(uMix, 0.0, 1.0);
+  vec2 point = vUv - vec2(uCenterX, uCenterY);
+  vec2 field = vec2(sin(point.y * uScale + uPhase), cos(point.x * uScale - uPhase));
+  field += 0.5 * vec2(cos((point.x + point.y) * uScale * 0.7 - uPhase), sin(length(point) * uScale + uPhase));
+  vec2 shift = field * uAmount * sin(amount * 3.14159265359);
+  vec4 source = sampleSource(vUv + shift * amount, uEdgeMode);
+  vec2 targetUv = vUv - shift * (1.0 - amount);
+  vec4 target = texture(uMap, edgeUv(targetUv, uEdgeMode));
+  if (uEdgeMode < 0.5 && (any(lessThan(targetUv, vec2(0.0))) || any(greaterThan(targetUv, vec2(1.0))))) target = vec4(0.0);
+  outColor = straightColor(mix(source.rgb * source.a, target.rgb * target.a, amount), mix(source.a, target.a, amount));
+}
+`,
+  bloom: `${header}
+uniform float uThreshold;
+uniform float uRadius;
+uniform float uStrength;
+uniform float uGlowOnly;
+void main() {
+  vec4 source = texture(uSource, vUv);
+  vec3 glow = vec3(0.0);
+  float coverage = 0.0;
+  float weightSum = 0.0;
+  for (int row = -2; row <= 2; row++) {
+    for (int column = -2; column <= 2; column++) {
+      vec2 offset = vec2(float(column), float(row));
+      float weight = exp(-dot(offset, offset) * 0.5);
+      vec4 sampleColor = sampleSource(vUv + offset * uRadius / (2.0 * uResolution), 0.0);
+      float bright = max(luminance(sampleColor.rgb) - uThreshold, 0.0) / max(1.0 - uThreshold, 0.0001);
+      glow += sampleColor.rgb * sampleColor.a * bright * weight;
+      coverage += sampleColor.a * bright * weight;
+      weightSum += weight;
+    }
+  }
+  glow = clamp(glow * uStrength / weightSum, 0.0, 1.0);
+  float glowAlpha = clamp(coverage * uStrength / weightSum, 0.0, 1.0);
+  vec4 base = uGlowOnly > 0.5 ? vec4(0.0) : source;
+  float alpha = max(base.a, glowAlpha);
+  outColor = straightColor(min(base.rgb * base.a + glow, vec3(alpha)), alpha);
+}
+`,
+  scanlines: `${header}
+uniform float uAmount;
+uniform float uSpacing;
+uniform float uPhase;
+uniform float uChroma;
+void main() {
+  vec4 source = texture(uSource, vUv);
+  float wave = 0.5 + 0.5 * cos(6.28318530718 * (vUv.y * uResolution.y / uSpacing + uPhase));
+  float stripe = 1.0 - uAmount * wave;
+  float column = mod(floor(vUv.x * uResolution.x), 3.0);
+  vec3 phosphor = vec3(column < 0.5 ? 1.0 : 1.0 - uChroma,
+    column > 0.5 && column < 1.5 ? 1.0 : 1.0 - uChroma,
+    column > 1.5 ? 1.0 : 1.0 - uChroma);
+  outColor = vec4(source.rgb * stripe * phosphor, source.a);
+}
+`,
   levels: `${header}
 uniform float uBlack;
 uniform float uWhite;

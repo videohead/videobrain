@@ -20,6 +20,10 @@ The proof of concept opens into a working composition and runs locally without a
 - Single-pass Levels, HSV/HSL, Luma/Chroma Key, Displace, Edge, Pixelate,
   Tile/Kaleidoscope, Channel Shuffle, and alpha-correct control-driven Crossfade,
   with four complete teaching patches
+- Chromatic Aberration, Bloom / Glow, Scanlines, Liquid Morph, pointer-driven
+  Liquid Metaballs with bounded collision physics, and instanced Particle
+  Transition; Prism & Glow, Liquid Surface, Particle Transition, and Infinity
+  Mirror labs demonstrate the [WebGL2 effect contracts](docs/ARCHITECTURE.md#extended-webgl2-frame-effects)
 - Shape primitives and a Vector Shape drawing editor with SVG import/export
 - Text with local font import, alignment, wrapping, and live string input; multiline text and AI Chat drafts commit with Apply
 - Seeded value, simplex, cellular, curl, and fractal Noise, with Poster Maker and Noise Lab starters
