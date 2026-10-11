@@ -25,6 +25,11 @@ their verification status are in [Current State](CURRENT_STATE.md), with exact
 contracts in [Events](EVENTS.md) and [3D Scene Foundation](SCENE_3D.md).
 A gateway requirement is a deployment constraint, not a completion mark.
 
+Execution handoff for the three P0 tracks is in the
+[P0 Agent Handoff](p0/README.md), with [shared contracts](p0/CONTRACTS.md) and
+[assignable task cards](p0/TASKS.md). Baseline milestones are staged proposals;
+they do not mark the full P0 scope complete or authorize agent dispatch/deployment.
+
 WebGL2 remains the supported production renderer. Retain the tested native
 WebGPU foundation as experimental groundwork, not a production hybrid runtime.
 The full WebGPU-only replacement is deferred to P3 and is not a prerequisite
@@ -35,7 +40,7 @@ capabilities rather than silently switching to WebGL or CPU simulation.
 
 ## P0: 3D File import
 
-Import 3D files that are easily compatible with WebGL2 and WebGPU rendering and then instance them in the 3d Scene where lights and cameras can be applied = GLB / glTF, USD / USDZ, OBJ, FBX, STL / 3MF, 3ds.
+Import 3D files that are easily compatible with WebGL2 and WebGPU rendering and then instance them in the 3d Scene where lights and cameras can be applied = GLB / glTF, USD / USDZ, OBJ, FBX, STL / 3MF, 3ds
 
 ## P0: Connect to external video and image generators via API
 
@@ -44,7 +49,22 @@ Send text, image, and video to these models and retrieve generated assets from t
 
 ## P0: Enhanced Projector Mapping tools
 
-Mesh Warping for precise alignment on irregular surfaces, Bezier Masking for cutting, trimming, and shaping content, FreeDraw (canvas for drawing on for mapping), 3D Calibration to match virtual 3D models with real‑world objects, Video Wall Setup for multiplanar support and breaking a generation up among multiple canvasses
+Mesh Warping for precise alignment on irregular surfaces, Bezier Masking for cutting, trimming, and shaping content, FreeDraw (canvas for drawing on for mapping), 3D Calibration to match virtual 3D models with real‑world objects, Video Wall Setup for multiplanar support and breaking a generation up among multiple canvasses, soft edge blending between overlapping canvasses.
+See https://github.com/RosaErick/projmap
+https://github.com/vitalyu/ProjectorVideoMappingWeb
+https://mapshroom.dev/
+
+## P1: Enhanced video post-processing with videos with alpha-channel
+
+Provide playback of videos including HAP codec, codecs that support alpha-channel directly in the browser using WebGPU
+https://deepwiki.com/webgpu/webgpufundamentals/5.2-transparency-and-blending
+https://sachinsharma.dev/blogs/webgpu-realtime-video-processing-shaders
+https://github.com/unfoundbox/webgpu-video-processor
+
+## P1: WebRTC enhanced support
+
+Enhance WebRTC I/O in order to provide features for users to share generated content with other users
+https://sachinsharma.dev/blogs/av1-video-codec-rtp-packetization-webrtc-svc-2026
 
 ## P1: Particles and richer 3D creation
 

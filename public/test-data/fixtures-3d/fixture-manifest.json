@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-10-11T19:07:56.397Z",
+  "version": "fixture-draft-2",
+  "environment": {
+    "node": "v22.23.2",
+    "platform": "linux"
+  },
+  "files": [
+    {
+      "path": "fixtures-3d/single-mesh.glb",
+      "size": 1552,
+      "hash": "da2d9baa6bd784b7a56afdc13337191ed447342ff7d79547ffdebd1c0bfa35d6",
+      "expectedResult": "valid-single-mesh"
+    },
+    {
+      "path": "fixtures-3d/multi-mesh.glb",
+      "size": 1620,
+      "hash": "72c077edfd340e4c87fabe7d4bc3b50515e4036d5ee83181a586de015d5d9377",
+      "expectedResult": "valid-multi-mesh"
+    },
+    {
+      "path": "fixtures-3d/corrupt.glb",
+      "size": 1512,
+      "hash": "2648604d82ec9d92ab1ea0e2a1fafd4a3115c9eec2252252b31f1d1b0b548e1a",
+      "expectedResult": "truncated-error"
+    },
+    {
+      "path": "fixtures-3d/oversized.glb",
+      "size": 176,
+      "hash": "b57348220a482cba350c5ade96d6136aa9ab17b66813c18c292ee72cb8a59319",
+      "expectedResult": "over-budget-reject"
+    },
+    {
+      "path": "fixtures-3d/comfy-minimal-workflow.json",
+      "size": 97,
+      "hash": "baa943ccdea463ee1e29f085c2bc9d7c8dbea63502548ced1843091aa156a708",
+      "expectedResult": "valid-prompt"
+    },
+    {
+      "path": "fixtures-mapping/checker-16x16.rgba",
+      "size": 1024,
+      "hash": "3272fa6833a6cd4618dbcecce846d32afd916bbed557b1f42b4d3ae749316055",
+      "expectedResult": "pixels-precise"
+    },
+    {
+      "path": "fixtures-mapping/tris-mask.json",
+      "size": 187,
+      "hash": "78a6149ba59a013edfb65c5d89f8cb12d54b61a8c23c03123874b268533d53f2",
+      "expectedResult": "valid-paths"
+    }
+  ],
+  "licenses": {
+    "default": "CC0-1.0",
+    "source": "generated-by-script",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  }
+}
