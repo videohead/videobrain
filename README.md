@@ -74,6 +74,12 @@ Build the complete deployable site, including the catalog, with
 
 ## Controls
 
+The **Controllers** toolbar dialog maps MIDI notes/CC or Stream Deck through
+Bitfocus Companion to parameters, frame-source select/advance, and visual
+transport. MIDI access and remote control are opt-in and start disarmed.
+See [MIDI and Stream Deck setup](docs/CONTROLLERS.md) for permissions, mapping,
+Companion request examples, bridge security, and current limitations.
+
 | Action | Shortcut |
 | --- | --- |
 | Undo | `Ctrl/Cmd + Z` |

@@ -208,6 +208,11 @@ reveals every matching group so a collapsed category never hides a result.
 
 ### Implemented application modules
 
+- ✅ Browser-local controller mappings for MIDI notes/CC and an authenticated
+   Bitfocus Companion bridge: parameter absolute/set/toggle/momentary actions,
+   frame-source select/advance, and visual transport. Explicit arm, MIDI Learn,
+   and disconnect release; see [Controllers](CONTROLLERS.md). Hardware testing,
+   MIDI feedback, pickup/relative encoders, clock, and portable mappings remain.
 - ✅ Searchable operator library and keyboard command palette.
 - ✅ Pan, zoom, select, move, connect, rewire, disconnect, duplicate, and delete.
 - ✅ Typed `control.f32`, `text.utf8`, and `frame.rgba` ports.
@@ -719,7 +724,8 @@ Automation should use a typed command protocol—create node, connect ports, set
 | Local media | Image, video, audio, font, 3D asset | Direct, stable | ✅ File image/video/audio selection and embedded Text fonts. 🚧 Durable media asset records, portable media collection, and 3D assets; object URLs remain session-only. |
 | Game controller | Gamepad, joystick, some wheels | Direct, stable | 🚧 Usually requires a user interaction before data is exposed; mappings vary. |
 | Device motion/orientation | Phone rotation, acceleration | Direct with platform variance | 🧭 Permission/user-gesture requirements differ; sensor access may be unavailable in embedded contexts. |
-| MIDI | Notes, CC, clock, MTC, surfaces | Direct but limited | 🧭 Web MIDI support/permissions vary. SysEx needs stronger permission; always learn/map by stable user choice. |
+| MIDI | Notes, CC, clock, MTC, surfaces | Direct but limited | ✅ Opt-in Web MIDI notes/7-bit CC with Learn and browser-local action mappings. 🧭 Clock/MTC, feedback, pickup, and relative encoders. No SysEx requested; browser support and Permissions-Policy apply. |
+| Stream Deck / Companion | Buttons, parameter values, transport | MIDI plugin or gateway | ✅ Shared mappings via a MIDI plugin/virtual port or authenticated Companion HTTP-to-WebSocket bridge. No native Stream Deck plugin; physical-device/Companion setup is external. See [Controllers](CONTROLLERS.md). |
 | Serial | Arduino, Teensy, microcontroller sensors | Direct but limited | 🧭 Web Serial is chiefly available in Chromium-family desktop environments and requires a chooser. |
 | USB | Custom control devices | Direct but limited | 🧭 WebUSB requires compatible device/driver policy, filters, chooser, and protocol implementation. |
 | HID | Button decks, custom controllers | Direct but limited | 🧭 WebHID support is limited; protected device classes remain unavailable. |

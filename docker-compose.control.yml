@@ -12,3 +12,4 @@ services:
       # Set a real secret before running; external POST/GET calls must send it
       # back as the X-Api-Key header.
       - CONTROL_API_KEY=${VIDEOBRAIN_CONTROL_API_KEY:?set VIDEOBRAIN_CONTROL_API_KEY}
+      - CONTROL_ALLOWED_ORIGINS=${VIDEOBRAIN_CONTROL_ALLOWED_ORIGINS:-https://videohead.duckdns.org}

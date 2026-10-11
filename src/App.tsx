@@ -11,6 +11,7 @@ import {
   RotateCw,
   SkipBack,
   Upload,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import {
@@ -27,6 +28,8 @@ import type { AudioAnalysisFrame, AudioAnalysisSnapshot, RenderResult } from './
 import { CommandPalette } from './components/CommandPalette';
 import { GraphEditor } from './components/GraphEditor';
 import { HelpDialog } from './components/HelpDialog';
+import { ControllerDialog } from './components/ControllerDialog';
+import { controller } from './control/controller';
 import type { OperatorFlowNode } from './components/OperatorNode';
 import { Inspector } from './components/Inspector';
 import { NewPatchMenu } from './components/NewPatchMenu';
@@ -67,6 +70,7 @@ export function App() {
 }
 
 function Studio() {
+  const [controllersOpen, setControllersOpen] = useState(false);
   const graphDocument = useGraphDocument();
   const selectedNodeId = useSelectedNodeId();
   const playing = usePlaying();
@@ -395,6 +399,8 @@ function Studio() {
     notify('Playback returned to frame zero.');
   }, [notify]);
 
+  useEffect(() => controller.initialize(resetRuntime), [resetRuntime]);
+
   const startPreset = useCallback(
     (presetId: GraphPresetId) => {
       const preset = getGraphPreset(presetId);
@@ -412,6 +418,7 @@ function Studio() {
       disableCamera();
       disableMicrophone();
       resetVideoModels();
+      controller.arm(false);
       const result = importProject(createGraphPreset(presetId));
       if (!result.ok) {
         notify(result.error ?? 'The starter graph could not be loaded.', 'error');
@@ -456,7 +463,9 @@ function Studio() {
         );
         return;
       }
-      const result = importProject(await file.text());
+      const contents = await file.text();
+      controller.arm(false);
+      const result = importProject(contents);
       if (result.ok) {
         setResetToken((token) => token + 1);
         notify('Project imported.');
@@ -469,7 +478,7 @@ function Studio() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (helpOpen) {
+      if (helpOpen || controllersOpen) {
         return;
       }
       const target = event.target;
@@ -498,7 +507,7 @@ function Studio() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [commandOpen, helpOpen, redo, togglePlaying, undo]);
+  }, [commandOpen, helpOpen, controllersOpen, redo, togglePlaying, undo]);
 
   const selectedNode =
     graphDocument.nodes.find((node) => node.id === selectedNodeId) ?? null;
@@ -520,6 +529,7 @@ function Studio() {
         onNew={startPreset}
         onImport={() => fileInputRef.current?.click()}
         onExport={downloadProject}
+        onControllers={() => { setCommandOpen(false); setHelpOpen(false); setControllersOpen(true); }}
         onHelp={() => {
           setCommandOpen(false);
           setHelpOpen(true);
@@ -617,6 +627,7 @@ function Studio() {
         />
       ) : null}
       {helpOpen ? <HelpDialog onClose={() => setHelpOpen(false)} /> : null}
+      {controllersOpen ? <ControllerDialog onClose={() => setControllersOpen(false)} /> : null}
       <div className="toast-region" aria-live="polite" aria-atomic="true">
         {toast ? <Toast key={toast.id} toast={toast} /> : null}
       </div>
@@ -638,6 +649,7 @@ interface TopbarProps {
   onImport: () => void;
   onExport: () => void;
   onHelp: () => void;
+  onControllers: () => void;
 }
 
 function Topbar({
@@ -654,6 +666,7 @@ function Topbar({
   onImport,
   onExport,
   onHelp,
+  onControllers,
 }: TopbarProps) {
   return (
     <header className="topbar">
@@ -721,6 +734,7 @@ function Topbar({
         <button type="button" className="primary-button" onClick={onAdd}>
           <Plus size={14} /> Add node
         </button>
+        <button type="button" className="icon-button controllers-action" onClick={onControllers} title="Controllers" aria-haspopup="dialog"><SlidersHorizontal size={15} /><span className="sr-only">Controllers</span></button>
         <button
           type="button"
           className="icon-button help-action"

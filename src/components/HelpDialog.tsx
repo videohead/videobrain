@@ -47,6 +47,11 @@ interface HelpDialogProps {
 
 const recipes = [
   {
+    title: 'MIDI and Stream Deck controllers',
+    path: 'MIDI notes/CC or Companion → saved mapping → parameter, frame source, or transport',
+    note: 'Open Controllers in the toolbar. Save a mapping ID and choose Parameter, Frame source, or Transport. Enable MIDI, use Learn, then Arm. Absolute numeric mappings use CC; notes or button CC support set, toggle, and momentary behavior. Disconnect graph inputs that already drive the target. Stream Deck works through a MIDI plugin/virtual port or Bitfocus Companion HTTP commands through the authenticated control bridge. Mappings stay in this browser, keys remain in memory, and reload starts disarmed. Keep the studio focused: leaving its window disarms and releases held parameters. Holds time out after ten seconds. Web MIDI requires HTTPS, permission, and a supported browser; no SysEx is requested. See docs/CONTROLLERS.md in the repository for bridge setup and press/release request examples.',
+  },
+  {
     title: 'Color, channels, and luminance keys',
     path: 'Gradient → Levels → HSV / HSL → Channel Shuffle → Luma Key → Composite → Display',
     note: 'Open Color & Channel Lab. Levels normalizes black/white points, applies inverse gamma, then gain and lift, and clamps RGB. White at or below black becomes a near-hard cutoff. HSV / HSL changes hue in turns, multiplies saturation, and offsets value or lightness. Channel Shuffle routes RGBA, luminance, zero, or one into each channel. Luma Key multiplies existing alpha, and Invert keeps the opposite luminance range. All numeric inputs override saved sliders without discarding them. Each effect uses one pass and no history, permissions, or network.',

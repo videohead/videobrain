@@ -1,3 +1,29 @@
+:root .controller-dialog {
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid #485057;
+  border-radius: 8px;
+  background: #171b1e;
+  color: #e7edef;
+}
+.controller-dialog::backdrop { background: rgb(0 0 0 / 65%); }
+.controller-dialog h2 { font-size: 20px; margin: 0; }
+.controller-dialog h3 { font-size: 14px; margin: 0 0 12px; }
+.controller-content { padding: 20px; }
+.controller-content section { padding: 20px 0; border-top: 1px solid #394147; }
+.controller-status { display: flex; flex-wrap: wrap; gap: 16px; padding-bottom: 20px; font-size: 12px; }
+.controller-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.controller-form label { display: flex; flex-direction: column; gap: 5px; min-width: 0; font-size: 12px; }
+.controller-form input, .controller-form select { width: 100%; min-width: 0; background: #242b30; color: #e7edef; border: 1px solid #56636b; border-radius: 4px; padding: 8px; }
+.controller-form input[type='checkbox'] { width: 18px; height: 18px; }
+.controller-mapping { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #394147; }
+.controller-mapping > div { flex: 1; min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; font-size: 12px; }
+.controller-mapping code { color: #a8e6c5; }
+@media (max-width: 600px) {
+  .controller-form { grid-template-columns: minmax(0, 1fr); }
+  .controller-content { padding: 12px; }
+}
 .text-parameter-editor { min-width: 0; width: 100%; }
 .text-parameter-editor .shader-code-editor {
   font-family: 'IBM Plex Mono', monospace;
@@ -2733,7 +2759,7 @@ textarea:focus-visible,
 
   .transport .icon-button:not(.playing):first-child,
   .topbar-actions .text-button,
-  .topbar-actions .icon-button:not(:last-child) {
+  .topbar-actions .icon-button:not(:last-child):not(.controllers-action) {
     display: none;
   }
 

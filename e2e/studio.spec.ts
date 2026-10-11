@@ -147,7 +147,7 @@ async function installEffectGraph(page: Page, kind: NodeKind, params: GraphParam
       createGraphNode('display', { x: 680, y: 0 }, {}, 'effect-output'),
     ],
     edges: [
-      { id: 'source', source: { nodeId: 'effect-source', portId: 'frame' }, target: { nodeId: 'effect', portId: 'source' } },
+      { id: 'source', source: { nodeId: 'effect-source', portId: 'frame' }, target: { nodeId: 'effect', portId: kind === 'sourceSelector' ? 'a' : 'source' } },
       { id: 'output', source: { nodeId: 'effect', portId: 'frame' }, target: { nodeId: 'effect-output', portId: 'source' } },
     ],
   };
@@ -267,6 +267,113 @@ test('P1 effect spatial controls change GPU output and persist on desktop and mo
   await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
   await page.screenshot({ path: 'test-results/p1-effects-mobile.png' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('controllers learn MIDI, scale CC, restore momentary values and persist disarmed', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.addInitScript(() => {
+    const input = { id: 'test-midi', name: 'Test MIDI', state: 'connected', onmidimessage: null as ((event: { data: Uint8Array }) => void) | null, close: () => Promise.resolve() };
+    Object.defineProperty(navigator, 'requestMIDIAccess', { configurable: true, value: () => Promise.resolve({ inputs: new Map([['test-midi', input]]), onstatechange: null }) });
+    Reflect.set(window, 'sendTestMidi', (bytes: number[]) => input.onmidimessage?.({ data: new Uint8Array(bytes) }));
+  });
+  await installEffectGraph(page, 'crossfade');
+  await page.getByRole('button', { name: 'Controllers', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Controllers', exact: true });
+  await dialog.getByLabel('Mapping ID', { exact: true }).fill('mix-knob');
+  await dialog.getByLabel('Name', { exact: true }).fill('Mix knob');
+  await dialog.getByRole('combobox', { name: 'Target node', exact: true }).selectOption('effect');
+  await dialog.getByRole('combobox', { name: 'Parameter', exact: true }).selectOption('mix');
+  await dialog.getByRole('button', { name: 'Save mapping' }).click();
+  await dialog.getByRole('button', { name: 'Enable MIDI' }).click();
+  await expect(dialog.getByText('Test MIDI', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Learn', exact: true }).click();
+  const send = (bytes: number[]) => page.evaluate((bytes) => {
+    const callback: unknown = Reflect.get(window, 'sendTestMidi');
+    if (typeof callback === 'function') callback(bytes);
+  }, bytes);
+  await send([0xb0, 7, 100]);
+  await expect(dialog.getByText(/Ch 1 · CC 7/)).toBeVisible();
+  await dialog.getByLabel('Armed', { exact: true }).check();
+  await send([0xb0, 7, 127]);
+  const savedMix = () => page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('videobrain.project') ?? '{}') as { document?: GraphDocument };
+    return stored.document?.nodes.find(({ id }) => id === 'effect')?.params.mix;
+  });
+  await expect.poll(savedMix).toBe(1);
+  await dialog.getByLabel('Mapping ID', { exact: true }).fill('mix-hold');
+  await dialog.getByLabel('Name', { exact: true }).fill('Mix hold');
+  await dialog.getByRole('combobox', { name: 'Behavior', exact: true }).selectOption('momentary');
+  await dialog.getByLabel('High / on', { exact: true }).fill('0');
+  await dialog.getByRole('button', { name: 'Save mapping' }).click();
+  await dialog.locator('.controller-mapping').filter({ hasText: 'Mix hold' }).getByRole('button', { name: 'Learn', exact: true }).click();
+  await send([0x90, 60, 127]);
+  await dialog.getByLabel('Armed', { exact: true }).check();
+  await send([0x90, 60, 127]);
+  await expect.poll(savedMix).toBe(0);
+  await send([0x90, 60, 0]);
+  await expect.poll(savedMix).toBe(1);
+  await send([0x90, 60, 127]);
+  await expect.poll(savedMix).toBe(0);
+  await dialog.getByRole('button', { name: 'Disable MIDI' }).click();
+  await expect.poll(savedMix).toBe(1);
+  await page.screenshot({ path: 'test-results/controllers-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/controllers-mobile.png' });
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.reload();
+  await page.getByRole('button', { name: 'Controllers', exact: true }).click();
+  await expect(dialog.getByLabel('Armed', { exact: true })).not.toBeChecked();
+  await expect(dialog.locator('.controller-mapping')).toHaveCount(2);
+});
+
+test('Companion controls source and transport by mapping ID without persisting credentials', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const mappings = [
+    { id: 'next', name: 'Next', action: { type: 'source', nodeId: 'effect', mode: 'advance', index: 0 } },
+    { id: 'play', name: 'Play', action: { type: 'transport', command: 'play' } },
+    { id: 'pause', name: 'Pause', action: { type: 'transport', command: 'pause' } },
+    { id: 'reset', name: 'Reset', action: { type: 'transport', command: 'reset' } },
+  ];
+  await page.addInitScript((mappings) => localStorage.setItem('videobrain.controllers.v1', JSON.stringify({ version: 1, mappings })), mappings);
+  const acknowledgements: { requestId: string; ok: boolean }[] = [];
+  let send: ((message: string) => void) | undefined;
+  await page.routeWebSocket('wss://bridge.test/control-ws', (socket) => {
+    send = (message) => socket.send(message);
+    socket.onMessage((raw) => {
+      const message = JSON.parse(String(raw)) as { type: string; requestId: string; ok: boolean };
+      if (message.type === 'authenticate') socket.send(JSON.stringify({ type: 'ready' }));
+      if (message.type === 'ack') acknowledgements.push(message);
+    });
+  });
+  await installEffectGraph(page, 'sourceSelector');
+  await page.getByRole('button', { name: 'Controllers', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Controllers', exact: true });
+  await dialog.getByLabel('Bridge URL').fill('wss://bridge.test/control-ws');
+  await dialog.getByLabel('Bridge key').fill('fixture-key-not-a-real-secret');
+  await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(dialog.getByText(/Companion: Connected/)).toBeVisible();
+  const command = async (mappingId: string, type: 'press' | 'release', requestId: string) => {
+    if (!send) throw new Error('Mock bridge is not connected');
+    send(JSON.stringify({ type: 'control', mappingId, event: { type }, requestId }));
+    await expect.poll(() => acknowledgements.find((message) => message.requestId === requestId)).toBeDefined();
+    return acknowledgements.find((message) => message.requestId === requestId)?.ok;
+  };
+  expect(await command('next', 'press', 'disarmed')).toBe(false);
+  await dialog.getByLabel('Armed', { exact: true }).check();
+  expect(await command('next', 'press', 'advance')).toBe(true);
+  expect(await command('next', 'press', 'repeat')).toBe(true);
+  await command('next', 'release', 'release');
+  await command('next', 'press', 'advance-again');
+  await expect.poll(() => page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('videobrain.project') ?? '{}') as { document?: GraphDocument };
+    return saved.document?.nodes.find(({ id }) => id === 'effect')?.params.index;
+  })).toBe(2);
+  await command('play', 'press', 'play');
+  await command('pause', 'press', 'pause');
+  await command('reset', 'press', 'reset');
+  expect(await page.evaluate(() => JSON.stringify(localStorage).includes('fixture-key-not-a-real-secret'))).toBe(false);
+  await dialog.getByRole('button', { name: 'Close controllers' }).click();
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 });
 
 test('Shader Source applies bounded GLSL with live uniforms and compile recovery', async ({ page }) => {

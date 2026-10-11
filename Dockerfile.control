@@ -12,6 +12,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY server/control-server.mjs ./server/control-server.mjs
+COPY server/companion-control.mjs ./server/companion-control.mjs
 
 EXPOSE 8933
 

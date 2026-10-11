@@ -4,6 +4,7 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer } from 'ws';
+import { attachCompanionControl } from './companion-control.mjs';
 
 const PORT = Number(process.env.CONTROL_PORT ?? 8933);
 const HOST = process.env.CONTROL_HOST ?? '0.0.0.0';
@@ -87,6 +88,7 @@ function applyToBrowser(payload) {
 }
 
 const server = createServer(async (req, res) => {
+  if (await companion.handle(req, res)) return;
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -139,7 +141,16 @@ const server = createServer(async (req, res) => {
   sendJson(res, 404, { error: 'Not found.' });
 });
 
-const wss = new WebSocketServer({ server, path: '/ws' });
+const companion = attachCompanionControl(server, {
+  apiKey: API_KEY,
+  allowedOrigins: (process.env.CONTROL_ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
+});
+const wss = new WebSocketServer({ noServer: true });
+server.on('upgrade', (request, socket, head) => {
+  if (request.url === '/control-ws') return;
+  if (request.url !== '/ws' || process.env.CONTROL_ENABLE_LEGACY_GRAPH_BRIDGE !== 'true') { socket.destroy(); return; }
+  wss.handleUpgrade(request, socket, head, (connection) => wss.emit('connection', connection, request));
+});
 
 wss.on('connection', (socket) => {
   // Single-tab bridge: the most recently connected tab wins.
