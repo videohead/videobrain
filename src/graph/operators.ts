@@ -1,5 +1,6 @@
 import { DEFAULT_VECTOR_ARTWORK, MAX_VECTOR_BYTES } from './vectorArtwork';
 import { DATA_DEFINITIONS } from './dataOperators';
+import { SCENE_3D_DEFINITIONS } from './scene3dOperators';
 import { GRADIENT_STOP_IDS } from './gradient';
 import { MAX_FONT_DATA_LENGTH } from './fontAsset';
 import { DEFAULT_SHADER_SOURCE, MAX_SHADER_SOURCE_LENGTH } from './shaderSource';
@@ -1159,6 +1160,7 @@ const definitions = [
     alpha: selectParam('Alpha from', 'alpha', ['red', 'green', 'blue', 'alpha', 'luma', 'zero', 'one']),
   }),
   ...DATA_DEFINITIONS,
+  ...SCENE_3D_DEFINITIONS,
   {
     kind: 'display',
     title: 'Display',

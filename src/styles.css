@@ -1,3 +1,7 @@
+.vb-handle.control-vec2, .vb-handle.control-vec3, .vb-handle.control-vec4 { background: #c3df85; }
+.vb-handle.geometry-mesh, .vb-handle.geometry-points { background: #7de5c1; }
+.vb-handle.material-pbr { background: #e6a1ba; }
+.vb-handle.scene-camera, .vb-handle.scene-light { background: #ecc888; }
 .vb-handle.data-json { background: #85dfb5; }
 .vb-handle.data-table { background: #e8ba80; }
 .data-node-controls { padding: 8px 12px; font-size: 11px; }

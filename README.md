@@ -34,6 +34,8 @@ The proof of concept opens into a working composition and runs locally without a
   control through Companion or a MIDI plugin
 - Opt-in live camera frames with facing, fit, and mirror controls
 - Transform 2D with translation, scale, rotation, pivot, and edge modes
+- Typed vector/geometry/material/camera/light nodes and Three.js Render 3D,
+  with 3D Primitive Lab and Vector & Grid Lab; see [3D Scene Foundation](docs/SCENE_3D.md)
 - AI Chat prompt text and a Video Model node with a permission-free built-in
   visual preview plus compatible user-run local/API adapter modes
 - Live WebGL2 output with play, pause, reset, fullscreen, and selectable
@@ -248,16 +250,16 @@ work while keeping playback time synchronized. Fixed modes skip render slots on
 the same animation-frame scheduler, so delayed callbacks do not accumulate timer
 drift. The FPS readout is a rolling measurement of monitor renders.
 
-## Planning and unbuilt modules
+## Current state and planned development
 
-Read the [future-development catalog](docs/FUTURE_DEVELOPMENT.md) for the full
-planning document. Its [quick unbuilt index](docs/FUTURE_DEVELOPMENT.md#quick-index-what-is-not-built-yet)
-summarizes the next control/mapping, media, compositing, audio, device/network,
-vision, 3D, show-control, and output modules. The detailed tables below that
-index mark every item as implemented, next, planned, exploratory, bridge-backed,
-or outside the direct browser boundary. The document also includes an I/O
-matrix, dozens of example patches, delivery phases, security constraints, and a
-contribution checklist.
+[Current State](docs/CURRENT_STATE.md) records implemented capabilities and
+distinguishes source implementation, verification, and deployment.
+[Planned Development](docs/PLANNED_DEVELOPMENT.md) defines the two remaining
+version goals: **transitions/events/sequencing** and
+**geometry/particles/materials/rendering**. Their foundations are P0 and their
+complete show/3D workflows are P1. Other unfinished work is explicitly P2/P3,
+not a competing release requirement. Implemented nodes are not repeated as
+future tasks.
 
 ## Project structure
 
@@ -272,7 +274,7 @@ infra/           CloudFormation for the production static site
 scripts/         Infrastructure bootstrap and manual deployment helpers
 ```
 
-The editor never owns GPU resources, and the renderer never mutates the project. See [the architecture](docs/ARCHITECTURE.md), [the graph protocol strategy](docs/GRAPH_PROTOCOL_STRATEGY.md), [the MVP decision](docs/MVP.md), the [model connector protocol](docs/MODEL_CONNECTORS.md), and the comprehensive [future-development catalog](docs/FUTURE_DEVELOPMENT.md) for the reasoning, compatibility rules, node roadmap, I/O options, adapter boundary, and example patches.
+The editor never owns GPU resources, and the renderer never mutates the project. See [Architecture](docs/ARCHITECTURE.md), [Graph Protocol Strategy](docs/GRAPH_PROTOCOL_STRATEGY.md), [the MVP decision](docs/MVP.md), [Model Connectors](docs/MODEL_CONNECTORS.md), [Current State](docs/CURRENT_STATE.md), and [Planned Development](docs/PLANNED_DEVELOPMENT.md) for runtime contracts, implementation boundaries, and delivery priorities.
 
 Use the question-mark button in the app for a quick start, signal concepts, current nodes, starter recipes, device guidance, and direct contribution links.
 

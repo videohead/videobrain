@@ -837,6 +837,16 @@ void main() {
 `;
 
 export const FRAME_FRAGMENT_SHADERS: Partial<Record<NodeKind, string>> = {
+  render3d: `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D uSource;
+void main() {
+  vec4 source = texture(uSource, vUv);
+  outColor = vec4(source.a > 0.00001 ? source.rgb / source.a : vec3(0.0), source.a);
+}
+`,
   ...FRAME_EFFECT_SHADERS,
   shaderSource: `#version 300 es
 precision highp float;

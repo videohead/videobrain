@@ -16,6 +16,9 @@ import {
 import { FRAME_FRAGMENT_SHADERS, FULLSCREEN_VERTEX_SHADER } from './shaders';
 import { DataEvaluator, isDataNode, type DataValue } from './DataEvaluator';
 import { dataSessions } from './DataSessions';
+import { evaluateScene3D, isScene3DNode } from './Scene3DEvaluator';
+import { Scene3DRenderer } from './Scene3DRenderer';
+import type { Scene3DValue, Geometry3DValue, Material3DValue, Camera3DValue, Light3DValue } from '../graph/scene3d';
 import { getGradientStops } from '../graph/gradient';
 import { buildShaderSource, DEFAULT_SHADER_SOURCE } from '../graph/shaderSource';
 import { computeInverseProjectionMap } from './projection';
@@ -420,6 +423,8 @@ export class WebGLRenderer {
   private controlValues = new Map<string, number>();
   private dataValues = new Map<string, DataValue>();
   private dataEvaluator = new DataEvaluator();
+  private sceneValues = new Map<string, Scene3DValue>();
+  private sceneRenderer: Scene3DRenderer | null = null;
   private smoothControlStates = new Map<string, SmoothControlState>();
   private audioOnsetStates = new Map<string, AudioOnsetState>();
   private audioBeatStates = new Map<string, AudioBeatState>();
@@ -716,6 +721,7 @@ export class WebGLRenderer {
       this.controlValues.clear();
       this.textValues.clear();
       this.dataValues.clear();
+      this.sceneValues.clear();
       this.outputTextures.clear();
       for (const node of this.plan?.controlNodes ?? []) {
         this.evaluateControlNode(node, time, audio, safePointer);
@@ -800,6 +806,9 @@ export class WebGLRenderer {
   }
 
   dispose(): void {
+    this.sceneRenderer?.dispose();
+    this.sceneRenderer = null;
+    this.sceneValues.clear();
     dataSessions.dispose();
     this.dataEvaluator.clear();
     this.dataValues.clear();
@@ -863,6 +872,9 @@ export class WebGLRenderer {
       return;
     }
     this.contextLost = true;
+    this.sceneRenderer?.dispose();
+    this.sceneRenderer = null;
+    this.sceneValues.clear();
     this.vectorFrames.clear();
     this.textFrames.clear();
     this.textValues.clear();
@@ -1202,6 +1214,9 @@ export class WebGLRenderer {
   }
 
   private reconcileNodeResources(): void {
+    const render3dIds = new Set(this.plan?.frameNodes.filter(({ node }) => node.kind === 'render3d').map(({ node }) => node.id));
+    this.sceneRenderer?.retain(render3dIds);
+    if (render3dIds.size === 0 && this.sceneRenderer) { this.sceneRenderer.dispose(); this.sceneRenderer = null; }
     const activeShaders = new Set(this.plan?.frameNodes.filter(({ node }) => node.kind === 'shaderSource').map(({ node }) => node.id));
     for (const [nodeId, entry] of this.shaderPrograms) {
       if (!activeShaders.has(nodeId)) {
@@ -1218,7 +1233,7 @@ export class WebGLRenderer {
     try {
       for (const compiledNode of this.plan.frameNodes) {
         const node = compiledNode.node;
-        const targetCount = getOperatorExecution(node.kind).renderTargets;
+        const targetCount = node.kind === 'render3d' ? 2 : getOperatorExecution(node.kind).renderTargets;
         const existing = previous.get(node.id);
         const canReuse =
           existing?.kind === node.kind &&
@@ -1341,6 +1356,19 @@ export class WebGLRenderer {
     pointer: RenderPointer,
   ): void {
     const node = compiledNode.node;
+    if (isScene3DNode(node.kind)) {
+      const inputs: Record<string, Scene3DValue | number> = {};
+      for (const [id, binding] of Object.entries(compiledNode.inputs)) {
+        const key = this.controlKey(binding.sourceNodeId, binding.sourcePortId);
+        inputs[id] = binding.type === 'control.f32' ? this.controlValues.get(key) ?? 0 : this.sceneValues.get(key) ?? null;
+      }
+      const values = evaluateScene3D(compiledNode, inputs);
+      for (const [id, value] of Object.entries(values)) {
+        if (typeof value === 'number') this.setControl(node.id, id, value);
+        else this.sceneValues.set(this.controlKey(node.id, id), value);
+      }
+      return;
+    }
     if (isDataNode(node.kind)) {
       const inputs: Record<string, DataValue> = {};
       for (const [id, binding] of Object.entries(compiledNode.inputs)) {
@@ -1635,6 +1663,32 @@ export class WebGLRenderer {
       throw new RendererError(
         `No offscreen frame exists for node "${compiledNode.node.id}".`,
       );
+    }
+
+    if (compiledNode.node.kind === 'render3d') {
+      const target = resources.targets[0];
+      const intermediate = resources.targets[1];
+      if (!target || !intermediate) throw new RendererError('Render 3D requires color and conversion targets.');
+      const input = (id: string): Scene3DValue => {
+        const binding = compiledNode.inputs[id];
+        return binding ? this.sceneValues.get(this.controlKey(binding.sourceNodeId, binding.sourcePortId)) ?? null : null;
+      };
+      const textureBinding = compiledNode.inputs.texture;
+      const texture = textureBinding ? this.outputTextures.get(textureBinding.sourceNodeId) : undefined;
+      const sourceTarget = textureBinding ? this.nodeResources.get(textureBinding.sourceNodeId)?.targets.find((candidate) => candidate.texture === texture) : undefined;
+      this.sceneRenderer ??= new Scene3DRenderer(this.gl, this.canvas);
+      this.sceneRenderer.render(compiledNode.node.id, {
+        geometry: input('geometry') as Geometry3DValue | null,
+        points: input('points') as Geometry3DValue | null,
+        material: input('material') as Material3DValue | undefined ?? undefined,
+        camera: input('camera') as Camera3DValue | undefined ?? undefined,
+        lights: [input('light'), input('light2')].filter((value) => value !== null) as Light3DValue[],
+      }, this.renderWidth, this.renderHeight, intermediate.framebuffer, sourceTarget?.framebuffer);
+      const program = this.beginPass('render3d', target);
+      this.bindTexture(program, 'uSource', intermediate.texture, 0);
+      this.draw(program);
+      this.outputTextures.set(compiledNode.node.id, target.texture);
+      return null;
     }
 
     if (compiledNode.node.kind === 'feedbackSpiral') {

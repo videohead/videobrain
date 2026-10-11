@@ -59,6 +59,8 @@ export const NODE_KINDS = [
   'jsonParse', 'jsonSelect', 'jsonStringify', 'csvParse', 'csvStringify',
   'tableTransform', 'tableSelect', 'tableJoin',
   'httpFetch', 'dataSocket', 'serverEvents', 'dataStorage', 'dataInspect',
+  'vector2', 'vector3', 'vector4', 'splitVector2', 'splitVector3', 'splitVector4',
+  'primitive3d', 'grid3d', 'transform3d', 'camera3d', 'light3d', 'material3d', 'render3d',
   'display',
 ] as const;
 
@@ -74,11 +76,13 @@ export const OPERATOR_CATEGORY_IDS = [
   'compositing',
   'output',
   'data-text',
+  'scene-3d',
 ] as const;
 
 export type OperatorCategoryId = (typeof OPERATOR_CATEGORY_IDS)[number];
 
-export type PortType = 'frame.rgba' | 'control.f32' | 'text.utf8' | 'audio.block' | 'data.json' | 'data.table';
+export type PortType = 'frame.rgba' | 'control.f32' | 'text.utf8' | 'audio.block' | 'data.json' | 'data.table'
+  | 'control.vec2' | 'control.vec3' | 'control.vec4' | 'geometry.mesh' | 'geometry.points' | 'material.pbr' | 'scene.camera' | 'scene.light';
 
 export type OperatorDomain = 'control' | 'frame' | 'audio' | 'display';
 

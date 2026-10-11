@@ -124,7 +124,7 @@ describe('HelpDialog', () => {
       screen.getByRole('link', { name: /comprehensive node and module plan/ }),
     ).toHaveAttribute(
       'href',
-      'https://github.com/blechdom/videobrain/blob/main/docs/FUTURE_DEVELOPMENT.md',
+      'https://github.com/blechdom/videobrain/blob/main/docs/PLANNED_DEVELOPMENT.md',
     );
     expect(screen.getByText(/Display sync follows/)).toBeVisible();
     expect(
@@ -135,7 +135,7 @@ describe('HelpDialog', () => {
     );
     expect(screen.getByRole('link', { name: /Full roadmap/ })).toHaveAttribute(
       'href',
-      'https://github.com/blechdom/videobrain/blob/main/docs/FUTURE_DEVELOPMENT.md',
+      'https://github.com/blechdom/videobrain/blob/main/docs/PLANNED_DEVELOPMENT.md',
     );
     expect(
       screen.getByRole('link', { name: /Component catalog/ }),

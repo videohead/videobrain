@@ -25,7 +25,7 @@ function settingsFor(node: GraphNode): StreamInputSettings {
 
 export function useNetworkVideo(document: GraphDocument): NetworkVideoRuntime {
   const sessions = useRef(new Map<string, { session: StreamInputSession; key: string }>());
-  const [statuses, setStatuses] = useState<ReadonlyMap<string, NetworkVideoStatus>>(new Map());
+  const [statuses, setStatuses] = useState<ReadonlyMap<string, NetworkVideoStatus & { video: HTMLVideoElement | null }>>(new Map());
   const activeNodes = useMemo(() => new Map(
     compileGraph(document).frameNodes.filter(({ node }) => node.kind === 'networkVideo').map(({ node }) => [node.id, node]),
   ), [document]);
@@ -47,7 +47,7 @@ export function useNetworkVideo(document: GraphDocument): NetworkVideoRuntime {
     const settings = settingsFor(node);
     const session = new StreamInputSession(settings, (state, error) => {
       if (sessions.current.get(nodeId)?.session !== session) return;
-      setStatuses((previous) => new Map(previous).set(nodeId, { state, error }));
+      setStatuses((previous) => new Map(previous).set(nodeId, { state, error, video: session.video }));
     });
     sessions.current.set(nodeId, { session, key: JSON.stringify(settings) });
     void session.start();
@@ -71,7 +71,7 @@ export function useNetworkVideo(document: GraphDocument): NetworkVideoRuntime {
   const sources = useMemo(() => {
     const next = new Map<string, HTMLVideoElement>();
     for (const [nodeId, status] of statuses) {
-      const video = sessions.current.get(nodeId)?.session.video;
+      const video = status.video;
       if (video && (status.state === 'live' || status.state === 'buffering')) next.set(nodeId, video);
     }
     return next;
@@ -79,7 +79,10 @@ export function useNetworkVideo(document: GraphDocument): NetworkVideoRuntime {
 
   return {
     sources,
-    getStatus: (nodeId) => statuses.get(nodeId) ?? { state: 'idle', error: null },
+    getStatus: (nodeId) => {
+      const status = statuses.get(nodeId);
+      return status ? { state: status.state, error: status.error } : { state: 'idle', error: null };
+    },
     canConnect: (nodeId) => activeNodes.has(nodeId),
     connect,
     disconnect,

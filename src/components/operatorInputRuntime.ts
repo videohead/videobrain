@@ -4,11 +4,12 @@ import type {
   VideoFacingMode,
   VideoInputState,
 } from '../hooks/useVideoInput';
-import type { FileInputController } from '../hooks/useFileInput';
+import type { AudioMixerConfig, FileInputController } from '../hooks/useFileInput';
+import type { NetworkVideoRuntime } from '../hooks/useNetworkVideo';
 
 export interface OperatorInputRuntime {
-  networkVideo?: import('../hooks/useNetworkVideo').NetworkVideoRuntime;
-  mixerConfig?: import('../hooks/useFileInput').AudioMixerConfig | null;
+  networkVideo?: NetworkVideoRuntime;
+  mixerConfig?: AudioMixerConfig | null;
   audioRouteConnected?: boolean;
   audio: {
     inputState: AudioInputState;

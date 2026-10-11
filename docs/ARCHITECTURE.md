@@ -171,6 +171,12 @@ opt-in camera B), Displacement Map Lab, and Pattern & Mix Lab.
 
 ## Project and state ownership
 
+The implemented [3D Scene Foundation](SCENE_3D.md) uses typed plain descriptors
+on the CPU and a lazy Three.js renderer sharing the frame renderer's WebGL2
+context. That contract defines world units, binding precedence, GPU copies,
+straight-alpha conversion, conservative resource reservations, and cleanup.
+Runtime Three.js objects never enter the serialized graph.
+
 VideoBrain has three kinds of state:
 
 1. **Project state** is deterministic and serializable. The POC contains nodes, edges, and a document schema version; settings, asset references, and output selection can extend that document later.

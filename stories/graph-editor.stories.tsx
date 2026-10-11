@@ -201,6 +201,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const RunningPatch: Story = {};
+export const Primitive3DLab: Story = { args: { presetId: 'primitive-3d-lab' } };
+export const VectorGridLab: Story = { args: { presetId: 'vector-grid-lab' } };
 export const JSONTextLab: Story = { args: { presetId: 'json-text-lab' } };
 export const CSVTableLab: Story = { args: { presetId: 'csv-table-lab' } };
 export const NetworkDataLab: Story = { args: { presetId: 'network-data-lab' } };

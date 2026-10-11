@@ -23,7 +23,7 @@ import {
 } from './types';
 
 export const GRAPH_PROTOCOL_VERSION = 1 as const;
-export const OPERATOR_CATALOG_VERSION = 16 as const;
+export const OPERATOR_CATALOG_VERSION = 17 as const;
 
 export interface OperatorCatalogPort extends PortDefinition {
   index: number;
@@ -96,6 +96,7 @@ export interface GraphInspection {
   frameOrder: readonly string[];
   displayNodeIds: readonly string[];
   dataOutputNodeIds: readonly string[];
+  scene3dBudgets: { nodeId: string; maxTriangles: number; maxPoints: number; maxDrawCalls: number; textureSlots: number; resourcePixelUnits: number }[];
   inactiveNodeIds: readonly string[];
   resources: GraphInspectionResources;
   nodes: readonly GraphInspectionNode[];
@@ -140,7 +141,7 @@ export function getOperatorCatalog(): OperatorCatalogSnapshot {
     protocolVersion: GRAPH_PROTOCOL_VERSION,
     graphSchemaVersion: GRAPH_SCHEMA_VERSION,
     catalogVersion: OPERATOR_CATALOG_VERSION,
-    portTypes: ['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table'],
+    portTypes: ['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table', 'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light'],
     categories: [...OPERATOR_CATEGORY_IDS],
     limits: {
       graphNodes: MAX_GRAPH_NODES,
@@ -169,6 +170,7 @@ export function inspectGraph(document: GraphDocument): GraphInspection {
       frameOrder: [],
       displayNodeIds: [],
       dataOutputNodeIds: [],
+      scene3dBudgets: [],
       inactiveNodeIds: document.nodes.map(({ id }) => id).sort(),
       resources: {
         visualPasses: 0,
@@ -253,6 +255,7 @@ export function inspectGraph(document: GraphDocument): GraphInspection {
     frameOrder: graph.frameNodes.map(({ node }) => node.id),
     displayNodeIds: graph.displayNodes.map(({ node }) => node.id),
     dataOutputNodeIds: graph.controlNodes.filter(({ node }) => node.kind === 'dataInspect').map(({ node }) => node.id),
+    scene3dBudgets: graph.frameNodes.filter(({ node }) => node.kind === 'render3d').map(({ node }) => ({ nodeId: node.id, maxTriangles: 8192, maxPoints: 4096, maxDrawCalls: 4, textureSlots: 1, resourcePixelUnits: 5 })),
     inactiveNodeIds: graph.document.nodes
       .filter(({ id }) => !graph.reachableNodeIds.has(id))
       .map(({ id }) => id)

@@ -1,4 +1,5 @@
 import { cloneGraphDocument } from './model';
+import { MAX_3D_TRANSFORMS } from './scene3d';
 import {
   MAX_GPU_RENDER_PASSES,
   MAX_GPU_RENDER_TARGETS,
@@ -381,6 +382,20 @@ export function compileGraph(document: GraphDocument): CompiledGraph {
         inputs: Object.freeze({ ...(inputBindings.get(id) ?? {}) }),
       };
     });
+
+  const transformDepth = new Map<string, number>();
+  for (const compiled of orderedNodes) {
+    if (compiled.node.kind !== 'transform3d') continue;
+    const depth = 1 + Math.max(0, ...['geometry', 'points'].map((id) => {
+      const binding = compiled.inputs[id];
+      return binding ? transformDepth.get(binding.sourceNodeId) ?? 0 : 0;
+    }));
+    if (depth > MAX_3D_TRANSFORMS) throw new GraphCompileError([{
+      code: 'gpu-resource-limit', nodeId: compiled.node.id,
+      message: `3D transform chains are limited to ${MAX_3D_TRANSFORMS} levels.`,
+    }]);
+    transformDepth.set(compiled.node.id, depth);
+  }
 
   const frameNodes = orderedNodes.filter(
     ({ definition }) => definition.domain === 'frame',

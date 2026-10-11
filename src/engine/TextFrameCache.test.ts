@@ -6,7 +6,7 @@ describe('text frame cache', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deleteProperty(document, 'fonts'); });
 
   function setup() {
-    const context = { font: '', textBaseline: '', textAlign: '', fillStyle: '', measureText: (text: string) => ({ width: text.length * 10 }), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), fillText: vi.fn() };
+    const context = { font: '', textBaseline: '', textAlign: '', fillStyle: '', measureText: (text: string) => ({ width: text.length * 10 }), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), fillText: vi.fn<(text: string, x: number, y: number) => void>() };
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
     return { cache: new TextFrameCache(vi.fn()), context, params: getDefaultParams('text') };
   }

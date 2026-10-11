@@ -41,6 +41,21 @@ const requiredStories = [
   'workspace-graph-editor--keyed-camera',
   'workspace-graph-editor--displacement-map-lab',
   'workspace-graph-editor--pattern-mix-lab',
+  'nodes-operator-node--vector-2',
+  'nodes-operator-node--vector-3',
+  'nodes-operator-node--vector-4',
+  'nodes-operator-node--split-vector-2',
+  'nodes-operator-node--split-vector-3',
+  'nodes-operator-node--split-vector-4',
+  'nodes-operator-node--primitive-3-d',
+  'nodes-operator-node--grid-line-3-d',
+  'nodes-operator-node--transform-3-d',
+  'nodes-operator-node--camera-3-d',
+  'nodes-operator-node--light-3-d',
+  'nodes-operator-node--pbr-material',
+  'nodes-operator-node--render-3-d',
+  'workspace-graph-editor--primitive-3-d-lab',
+  'workspace-graph-editor--vector-grid-lab',
 ];
 
 for (const file of requiredFiles) {

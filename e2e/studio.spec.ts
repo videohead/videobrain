@@ -455,6 +455,78 @@ test('Server Events node receives bounded default messages and stops explicitly'
   await expect(page.locator('article[aria-label="Server Events node"]').getByRole('button', { name: 'Connect data', exact: true })).toBeEnabled();
 });
 
+test('3D foundation renders textured geometry through frame effects and camera controls', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  page.on('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'New patch', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^3D Primitive Lab/ }).click();
+  await expect(page.locator('article[aria-label="Render 3D node"]')).toBeVisible();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(40);
+  const moving = await sourceFrameStats(page);
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(moving.hash);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.getByRole('button', { name: 'Return to frame zero', exact: true }).click();
+  const reset = await sourceFrameStats(page);
+  await page.getByRole('button', { name: 'Return to frame zero', exact: true }).click();
+  expect((await sourceFrameStats(page)).hash).toBe(reset.hash);
+  const overlaps = await page.locator('.react-flow__node').evaluateAll((nodes) => {
+    const rectangles = nodes.map((node) => ({ id: node.getAttribute('data-id'), bounds: node.getBoundingClientRect() }));
+    return rectangles.flatMap((node, index) => rectangles.slice(index + 1).filter((other) => Math.min(node.bounds.right, other.bounds.right) > Math.max(node.bounds.left, other.bounds.left) + 1 && Math.min(node.bounds.bottom, other.bounds.bottom) > Math.max(node.bounds.top, other.bounds.top) + 1).map((other) => `${node.id}/${other.id}`));
+  });
+  expect(overlaps).toEqual([]);
+  const original = await sourceFrameStats(page);
+  expect(original.visible).toBeGreaterThan(100);
+  expect(original.visible).toBeLessThan(original.pixelCount);
+  const camera = page.locator('article[aria-label="Camera 3D node"]');
+  await camera.getByRole('combobox', { name: 'Camera 3D Projection', exact: true }).selectOption('orthographic');
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(original.hash);
+  const material = page.locator('article[aria-label="PBR Material node"]');
+  await material.getByRole('slider', { name: 'PBR Material Opacity', exact: true }).fill('0.5');
+  await expect.poll(async () => (await sourceFrameStats(page)).maxAlpha).toBeLessThan(255);
+  await page.screenshot({ path: 'test-results/scene3d-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(40);
+  await page.screenshot({ path: 'test-results/scene3d-mobile.png' });
+  await page.locator('canvas.preview-canvas').evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const extension = canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context');
+    if (!extension) throw new Error('Context-loss test extension unavailable');
+    Reflect.set(canvas, 'restoreTestContext', () => extension.restoreContext());
+    extension.loseContext();
+  });
+  await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'false');
+  await page.locator('canvas.preview-canvas').evaluate((canvas) => {
+    const restore: unknown = Reflect.get(canvas, 'restoreTestContext');
+    if (typeof restore === 'function') (restore as () => void)();
+  });
+  await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(40);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.getByRole('button', { name: 'New patch', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Beat-Synced Color/ }).click();
+  await expect(page.locator('article[aria-label="Render 3D node"]')).toHaveCount(0);
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(40);
+});
+
+test('3D vector grid renders points and connected lines without device access', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  page.on('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'New patch', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Vector & Grid Lab/ }).click();
+  await expect(page.locator('article[aria-label="Grid / Line 3D node"]')).toBeVisible();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(40);
+  const points = await sourceFrameStats(page);
+  await page.locator('article[aria-label="Grid / Line 3D node"]').getByRole('combobox', { name: 'Grid / Line 3D Mode', exact: true }).selectOption('line');
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(points.hash);
+  expect(await cameraRequestCount(page)).toBe(0);
+});
+
 test('Shader Source applies bounded GLSL with live uniforms and compile recovery', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.getByRole('button', { name: 'New patch', exact: true }).click();

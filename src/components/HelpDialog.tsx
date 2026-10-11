@@ -4,7 +4,7 @@ import { GRAPH_PRESETS, OPERATOR_DEFINITIONS } from '../graph';
 import { DOMAIN_LABELS } from './operatorMeta';
 
 const REPOSITORY_URL = 'https://github.com/blechdom/videobrain';
-const ROADMAP_URL = `${REPOSITORY_URL}/blob/main/docs/FUTURE_DEVELOPMENT.md`;
+const ROADMAP_URL = `${REPOSITORY_URL}/blob/main/docs/PLANNED_DEVELOPMENT.md`;
 const MODEL_CONNECTORS_URL = `${REPOSITORY_URL}/blob/main/docs/MODEL_CONNECTORS.md`;
 const COMPONENT_CATALOG_URL = 'https://videobrain.org/storybook/';
 
@@ -46,6 +46,16 @@ interface HelpDialogProps {
 }
 
 const recipes = [
+  {
+    title: '3D primitives and materials',
+    path: 'Primitive 3D → Transform 3D → Render 3D → Color Grade → Display; Camera / Light / PBR Material → Render 3D',
+    note: 'Open 3D Primitive Lab. Choose a box, sphere, plane, or cylinder; move/rotate/scale it and compare perspective with orthographic camera projection. World coordinates are right-handed with Y up; rotations use degrees in XYZ order. Gradient feeds the optional Render 3D texture input. Two lights and a material control the mesh. Missing geometry is transparent; missing camera/material/light use documented defaults. Pause freezes the control-driven motion and Return to frame zero reproduces it. One mesh and one point/line stream are supported per renderer, with bounded detail and 16 transform levels. No permissions or assets are required. Instancing, particles, imported glTF, environment maps, and public depth wires remain planned.',
+  },
+  {
+    title: 'Vectors and point grids',
+    path: 'Vector 2/3/4 → Split Vector → scalar parameters; Grid / Line 3D → Transform 3D → Render 3D → Display',
+    note: 'Open Vector & Grid Lab. Compose and split explicit vector types, then use a vec3 to position a grid. Vector inputs override matching scalar inputs and saved values. Grid renders at most 4096 unlit points; Line connects points along X. PBR Material supplies their base color, opacity, and point size; lighting applies only to meshes. Existing frame effects can process the Render 3D output. See docs/SCENE_3D.md for exact defaults, budgets, and color-space behavior.',
+  },
   {
     title: 'MIDI and Stream Deck controllers',
     path: 'MIDI notes/CC or Companion → saved mapping → parameter, frame source, or transport',
@@ -589,10 +599,11 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           <section id="help-roadmap" className="help-section">
             <h2>Not built yet</h2>
             <p className="help-intro">
-              These are planned or exploratory areas, not features in the current
-              release. The planning document contains the complete prioritized
-              node catalog, browser/bridge I/O matrix, example patches, and delivery
-              phases.
+              Planned Development prioritizes two remaining version goals:
+              transitions, events, and sequencing; and geometry, particles,
+              materials, and rendering. Foundations are P0 and complete workflows
+              are P1. Other unfinished areas below are deferred to P2/P3.
+              Implemented capabilities are documented separately in Current State.
             </p>
             <div className="help-recipe-list">
               {plannedAreas.map((area) => (

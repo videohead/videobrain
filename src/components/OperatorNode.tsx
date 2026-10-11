@@ -121,7 +121,7 @@ function OperatorNodeView({ id, data, selected, isConnectable }: NodeProps<Opera
       />
       {data.kind === 'file' ? (
         <input
-          ref={fileRuntime.inputRef}
+          ref={(element) => { fileRuntime.attachInput?.(element); }}
           type="file"
           accept="image/*,video/*,audio/*"
           className="sr-only"

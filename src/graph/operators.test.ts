@@ -123,7 +123,7 @@ describe('operator registry', () => {
     });
   });
 
-  it('keeps all public signals within the six exact port types', () => {
+  it('keeps all public signals within the declared exact port types', () => {
     const signalTypes = new Set(
       OPERATOR_DEFINITIONS.flatMap((definition) => [
         ...definition.inputs.map(({ type }) => type),
@@ -132,7 +132,7 @@ describe('operator registry', () => {
     );
 
     expect(signalTypes).toEqual(
-      new Set(['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table']),
+      new Set(['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table', 'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light']),
     );
   });
 

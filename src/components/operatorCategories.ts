@@ -68,4 +68,5 @@ export const OPERATOR_CATEGORIES = [
     icon: MonitorUp,
   },
   { id: 'data-text', label: 'Data & Text', summary: 'JSON, CSV, tables, formatting, and explicit network inputs.', icon: Calculator },
+  { id: 'scene-3d', label: '3D Scene', summary: 'Vectors, geometry, materials, cameras, lights, and rendering.', icon: Layers2 },
 ] as const satisfies readonly OperatorCategoryDefinition[];

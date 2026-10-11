@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
 import {
@@ -20,6 +20,7 @@ export interface AudioMixerConfig {
 
 export interface FileInputController {
   inputRef?: RefObject<HTMLInputElement | null>;
+  attachInput?: (element: HTMLInputElement | null) => void;
   source: FileInputSource | null;
   frameSource: HTMLVideoElement | HTMLImageElement | null;
   name: string | null;
@@ -74,6 +75,9 @@ export function useFileInput(
   mixerConfig: AudioMixerConfig | null = null,
 ): FileInputController {
   const inputRef = useRef<HTMLInputElement>(null);
+  const attachInput = useCallback((element: HTMLInputElement | null) => {
+    inputRef.current = element;
+  }, []);
   const urlRef = useRef<string | null>(null);
   const sourceRef = useRef<FileInputSource | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -95,7 +99,6 @@ export function useFileInput(
   const [audioError, setAudioError] = useState<string | null>(null);
   const [meterLevel, setMeterLevel] = useState(0);
   const [meterDecibels, setMeterDecibels] = useState(-60);
-  const registeredControllerRef = useRef<FileInputController | null>(null);
 
   const stopMeter = useCallback(() => {
     if (meterFrameRef.current !== null) {
@@ -146,7 +149,7 @@ export function useFileInput(
       sourceRef.current.muted = true;
     }
     setAudioEnabled(false);
-  }, []);
+  }, [stopMeter]);
 
   const clear = useCallback(() => {
     disableAudio();
@@ -378,8 +381,9 @@ export function useFileInput(
     ? source
     : null;
 
-  const controller = {
+  const controller = useMemo<FileInputController>(() => ({
     inputRef,
+    attachInput,
     source,
     frameSource,
     name,
@@ -404,39 +408,21 @@ export function useFileInput(
     disableAudio,
     sampleAudio,
     handleChange,
-  };
-
-  const registeredController = registeredControllerRef.current ?? controller;
-  if (!registeredControllerRef.current) {
-    registeredControllerRef.current = registeredController;
-  } else {
-    Object.assign(registeredController, controller);
-  }
+  }), [attachInput, source, frameSource, name, errorMessage, isVideo, isAudio, isPlaying,
+    currentTime, duration, audioEnabled, audioAvailable, audioError, meterLevel,
+    meterDecibels, choose, clear, play, pause, stop, seek, enableAudio,
+    disableAudio, sampleAudio, handleChange]);
 
   useEffect(() => {
-    fileControllers.set(nodeId, registeredController);
+    fileControllers.set(nodeId, controller);
     notifyFileControllers();
     return () => {
-      if (fileControllers.get(nodeId) === registeredController) {
+      if (fileControllers.get(nodeId) === controller) {
         fileControllers.delete(nodeId);
         notifyFileControllers();
       }
     };
-  }, [nodeId, registeredController]);
-
-  useEffect(() => {
-    if (fileControllers.get(nodeId) === registeredController) {
-      notifyFileControllers();
-    }
-  }, [
-    audioAvailable,
-    audioEnabled,
-    errorMessage,
-    source,
-    name,
-    nodeId,
-    registeredController,
-  ]);
+  }, [nodeId, controller]);
 
   return controller;
 }
