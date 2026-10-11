@@ -147,6 +147,8 @@ export function GraphEditor({
             ? '#d8ff5f'
             : sourcePort?.type === 'text.utf8'
               ? '#ffcf6a'
+              : sourcePort?.type === 'data.json' ? '#85dfb5'
+              : sourcePort?.type === 'data.table' ? '#e8ba80'
               : '#65ddff';
         return {
           id: edge.id,

@@ -23,7 +23,7 @@ import {
 } from './types';
 
 export const GRAPH_PROTOCOL_VERSION = 1 as const;
-export const OPERATOR_CATALOG_VERSION = 15 as const;
+export const OPERATOR_CATALOG_VERSION = 16 as const;
 
 export interface OperatorCatalogPort extends PortDefinition {
   index: number;
@@ -95,6 +95,7 @@ export interface GraphInspection {
   controlOrder: readonly string[];
   frameOrder: readonly string[];
   displayNodeIds: readonly string[];
+  dataOutputNodeIds: readonly string[];
   inactiveNodeIds: readonly string[];
   resources: GraphInspectionResources;
   nodes: readonly GraphInspectionNode[];
@@ -139,7 +140,7 @@ export function getOperatorCatalog(): OperatorCatalogSnapshot {
     protocolVersion: GRAPH_PROTOCOL_VERSION,
     graphSchemaVersion: GRAPH_SCHEMA_VERSION,
     catalogVersion: OPERATOR_CATALOG_VERSION,
-    portTypes: ['frame.rgba', 'control.f32', 'text.utf8', 'audio.block'],
+    portTypes: ['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table'],
     categories: [...OPERATOR_CATEGORY_IDS],
     limits: {
       graphNodes: MAX_GRAPH_NODES,
@@ -167,6 +168,7 @@ export function inspectGraph(document: GraphDocument): GraphInspection {
       controlOrder: [],
       frameOrder: [],
       displayNodeIds: [],
+      dataOutputNodeIds: [],
       inactiveNodeIds: document.nodes.map(({ id }) => id).sort(),
       resources: {
         visualPasses: 0,
@@ -250,6 +252,7 @@ export function inspectGraph(document: GraphDocument): GraphInspection {
     controlOrder: graph.controlNodes.map(({ node }) => node.id),
     frameOrder: graph.frameNodes.map(({ node }) => node.id),
     displayNodeIds: graph.displayNodes.map(({ node }) => node.id),
+    dataOutputNodeIds: graph.controlNodes.filter(({ node }) => node.kind === 'dataInspect').map(({ node }) => node.id),
     inactiveNodeIds: graph.document.nodes
       .filter(({ id }) => !graph.reachableNodeIds.has(id))
       .map(({ id }) => id)

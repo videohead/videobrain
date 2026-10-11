@@ -67,4 +67,5 @@ export const OPERATOR_CATEGORIES = [
     summary: 'Present frames and route audio to the browser tab.',
     icon: MonitorUp,
   },
+  { id: 'data-text', label: 'Data & Text', summary: 'JSON, CSV, tables, formatting, and explicit network inputs.', icon: Calculator },
 ] as const satisfies readonly OperatorCategoryDefinition[];

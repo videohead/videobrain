@@ -1,0 +1,5 @@
+id,mix,hue,enabled
+intro,0,0.1,true
+main,0.75,0.5,true
+main,1,0.8,false
+outro,0.25,-0.1,true

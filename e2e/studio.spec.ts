@@ -289,7 +289,7 @@ test('controllers learn MIDI, scale CC, restore momentary values and persist dis
   await dialog.getByRole('button', { name: 'Learn', exact: true }).click();
   const send = (bytes: number[]) => page.evaluate((bytes) => {
     const callback: unknown = Reflect.get(window, 'sendTestMidi');
-    if (typeof callback === 'function') callback(bytes);
+    if (typeof callback === 'function') (callback as (bytes: number[]) => void)(bytes);
   }, bytes);
   await send([0xb0, 7, 100]);
   await expect(dialog.getByText(/Ch 1 · CC 7/)).toBeVisible();
@@ -374,6 +374,85 @@ test('Companion controls source and transport by mapping ID without persisting c
   expect(await page.evaluate(() => JSON.stringify(localStorage).includes('fixture-key-not-a-real-secret'))).toBe(false);
   await dialog.getByRole('button', { name: 'Close controllers' }).click();
   await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+});
+
+test('data nodes parse JSON and CSV through complete teaching graphs', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  page.on('dialog', (dialog) => void dialog.accept());
+  for (const title of ['JSON & Text Lab', 'CSV & Table Lab']) {
+    await page.getByRole('button', { name: 'New patch', exact: true }).click();
+    await page.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
+    await expect(page.getByText('Graph healthy')).toBeVisible();
+    const pause = page.getByRole('button', { name: 'Pause', exact: true });
+    if (await pause.count()) await pause.click();
+    await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(50);
+    await expect(page.getByLabel('Data inspection', { exact: true })).toContainText(title.startsWith('JSON') ? 'Signal' : 'Beta');
+  }
+});
+
+test('data-only network nodes require explicit actions and update Inspect while paused', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  let fetches = 0;
+  await page.route('https://data.test/value', async (route) => { fetches++; await route.fulfill({ body: '{"message":"received"}', contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' } }); });
+  const document: GraphDocument = {
+    schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [createGraphNode('httpFetch', { x: 0, y: 0 }, { url: 'https://data.test/value' }, 'fetch'), createGraphNode('dataInspect', { x: 360, y: 0 }, {}, 'inspect')],
+    edges: [{ id: 'data', source: { nodeId: 'fetch', portId: 'text' }, target: { nodeId: 'inspect', portId: 'text' } }],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  expect(fetches).toBe(0);
+  await page.getByRole('button', { name: 'Fetch data', exact: true }).click();
+  await expect(page.getByLabel('Data inspection', { exact: true })).toContainText('received');
+  expect(fetches).toBe(1);
+  await page.screenshot({ path: 'test-results/data-nodes-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByLabel('Data inspection', { exact: true })).toContainText('received');
+  await page.screenshot({ path: 'test-results/data-nodes-mobile.png' });
+});
+
+test('Storage node writes only on explicit action and leaves project storage separate', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  page.on('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'New patch', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Storage & Text Lab/ }).click();
+  expect(await page.evaluate(() => localStorage.getItem('videobrain.data.v1.teaching-text'))).toBeNull();
+  await page.getByRole('button', { name: 'Write stored text', exact: true }).click();
+  await expect(page.getByLabel('Data inspection', { exact: true })).toContainText('A saved signal');
+  expect(await page.evaluate(() => localStorage.getItem('videobrain.data.v1.teaching-text'))).toBe('A saved signal');
+});
+
+test('WebSocket node receives text only after explicit connection', async ({ page }) => {
+  let connections = 0;
+  await page.routeWebSocket('wss://data.test/socket', (socket) => { connections++; socket.send('socket fixture'); });
+  const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [createGraphNode('dataSocket', { x: 0, y: 0 }, { url: 'wss://data.test/socket' }, 'socket'), createGraphNode('dataInspect', { x: 360, y: 0 }, {}, 'inspect')],
+    edges: [{ id: 'data', source: { nodeId: 'socket', portId: 'text' }, target: { nodeId: 'inspect', portId: 'text' } }],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  expect(connections).toBe(0);
+  await page.getByRole('button', { name: 'Connect data', exact: true }).click();
+  await expect(page.getByLabel('Data inspection', { exact: true })).toContainText('socket fixture');
+  await page.locator('article[aria-label="WebSocket node"]').getByRole('button', { name: 'Stop data connection', exact: true }).click();
+  await expect(page.locator('article[aria-label="WebSocket node"]').getByRole('button', { name: 'Connect data', exact: true })).toBeEnabled();
+});
+
+test('Server Events node receives bounded default messages and stops explicitly', async ({ page }) => {
+  await page.route('https://data.test/events', async (route) => { await route.fulfill({ body: 'data: event fixture\n\n', contentType: 'text/event-stream', headers: { 'Access-Control-Allow-Origin': '*' } }); });
+  const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [createGraphNode('serverEvents', { x: 0, y: 0 }, { url: 'https://data.test/events' }, 'events'), createGraphNode('dataInspect', { x: 360, y: 0 }, {}, 'inspect')],
+    edges: [{ id: 'data', source: { nodeId: 'events', portId: 'text' }, target: { nodeId: 'inspect', portId: 'text' } }],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await page.getByRole('button', { name: 'Connect data', exact: true }).click();
+  await expect(page.locator('article[aria-label="Server Events node"]')).toContainText('Reconnect explicitly');
+  await expect(page.locator('article[aria-label="Server Events node"]').getByRole('button', { name: 'Connect data', exact: true })).toBeEnabled();
 });
 
 test('Shader Source applies bounded GLSL with live uniforms and compile recovery', async ({ page }) => {

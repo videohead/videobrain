@@ -11,6 +11,8 @@ import {
   type NodeKind,
 } from '../graph';
 import { NodeParameterControls } from './NodeParameterControls';
+import { DataNodeControls } from './DataNodeControls';
+import { DATA_NODE_KINDS } from '../graph/dataOperators';
 import { NodeMediaControls } from './NodeMediaControls';
 import { DOMAIN_LABELS, OPERATOR_META } from './operatorMeta';
 import { useContext } from 'react';
@@ -139,6 +141,7 @@ function OperatorNodeView({ id, data, selected, isConnectable }: NodeProps<Opera
         onGestureEnd={data.onGestureEnd}
         onSelect={data.onSelect}
       />
+      {DATA_NODE_KINDS.includes(data.kind) ? <DataNodeControls nodeId={id} kind={data.kind} /> : null}
 
       {Object.keys(definition.params).length === 0 ? (
         <footer className="node-param-summary">

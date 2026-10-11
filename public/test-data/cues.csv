@@ -1,0 +1,6 @@
+id,name,group,note
+intro,Opening,warm,"Red, amber and gold"
+main,Main Scene,cool,"Say ""hello"""
+outro,Closing,warm,"Line one
+Line two"
+unused,Unmatched,neutral,

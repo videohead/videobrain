@@ -1,0 +1,29 @@
+{
+  "fixtureVersion": 1,
+  "json": [
+    {"name": "trailing comma", "input": "{\"value\":1,}", "valid": false},
+    {"name": "unquoted key", "input": "{value:1}", "valid": false},
+    {"name": "nonfinite number", "input": "1e999", "valid": false},
+    {"name": "null value", "input": "null", "valid": true}
+  ],
+  "csv": [
+    {"name": "duplicate headers", "input": "id,id\n1,2", "valid": false},
+    {"name": "missing cell", "input": "id,value\n1", "valid": false},
+    {"name": "empty header", "input": "id,\n1,2", "valid": false},
+    {"name": "unterminated quote", "input": "id,note\n1,\"unfinished", "valid": false},
+    {"name": "formula escaping", "input": "value\n=1+1\n+2\n-3\n@name", "valid": true},
+    {"name": "empty table", "input": "", "valid": true}
+  ],
+  "numbers": [
+    {"input": "0", "expected": 0},
+    {"input": " 0.75 ", "expected": 0.75},
+    {"input": "-1.25e2", "expected": -125},
+    {"input": ".5", "expected": 0.5},
+    {"input": "1000000000", "expected": 1000000000},
+    {"input": "", "expected": null},
+    {"input": "12px", "expected": null},
+    {"input": "0xff", "expected": null},
+    {"input": "Infinity", "expected": null},
+    {"input": "1e10", "expected": null}
+  ]
+}

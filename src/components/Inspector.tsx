@@ -23,6 +23,8 @@ import { TextParameterEditor } from './TextParameterEditor';
 import { GradientStopControls } from './GradientStopControls';
 import { FontAssetControl } from './FontAssetControl';
 import { NodeMediaControls, type OperatorInputRuntime } from './NodeMediaControls';
+import { DataNodeControls } from './DataNodeControls';
+import { DATA_NODE_KINDS } from '../graph/dataOperators';
 
 interface InspectorProps {
   inputRuntime?: OperatorInputRuntime;
@@ -131,6 +133,7 @@ export function Inspector({
       {node.kind === 'networkVideo' ? (
         <NodeMediaControls nodeId={node.id} kind={node.kind} params={node.params} runtime={inputRuntime} onSelect={() => undefined} />
       ) : null}
+      {DATA_NODE_KINDS.includes(node.kind) ? <DataNodeControls nodeId={node.id} kind={node.kind} /> : null}
 
       {Object.keys(definition.params).length > 0 ? (
         <section className="inspector-section">

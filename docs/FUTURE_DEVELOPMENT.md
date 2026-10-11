@@ -471,21 +471,21 @@ effect is inexpensive to implement.
 | P1 | ✅ Projector Mapping | Four-corner planar projection with editable quad, move, scale, rotation, and edge modes |
 | P1 | ✅ Spiral Feedback | Rotate and zoom an internally retained prior output around a movable center, then blend in the live source |
 | P1 | ✅ Strobe | Partially gate a frame to black, white, transparent, or invert from an internally capped clock or external phase |
-| P1 | 🚧 Frame Delay / Feedback | Explicit previous-tick read/commit boundary with deterministic initialization and reset |
-| P1 | 🚧 Frame Hold | Retain or release a frame from an explicit event/control input without creating an ordinary graph cycle |
-| P1 | 🚧 Crop / Fit | Dedicated frame processor with explicit crop and safe-area guides; Video Input and Network Video already provide cover/contain/stretch fit |
-| P1 | 🚧 Resize | Explicit resolution and filtering boundary |
 | P1 | ✅ Levels | Black/white points, inverse gamma, lift, gain, and clamped output |
 | P1 | ✅ HSV / HSL | Hue turns, saturation multiplier, and value/lightness offset with source alpha |
 | P1 | ✅ Luma Key | Soft or hard luminance key multiplied into source alpha, with inversion |
 | P1 | ✅ Chroma Key | Basic chrominance-distance key with soft alpha and transition-region spill suppression |
 | P1 | ✅ Crossfade | Premultiplied interpolation from control-driven Mix with linear, smooth, ease-in, or ease-out curves |
-| P1 | 🚧 Timed Transition | Event-triggered progression and retrigger rules; separate Wave 3 control work using stateless Crossfade |
 | P1 | ✅ Displace | Map red/green UV displacement with neutral disconnected map and transparent/clamp/repeat/mirror edges |
 | P1 | ✅ Edge | Bounded 3x3 Sobel luminance edges with strength, inversion, and source alpha |
 | P1 | ✅ Pixelate | Square output-pixel blocks without changing render-target resolution |
 | P1 | ✅ Tile / Kaleidoscope | Repeat, mirror, and aspect-correct polar symmetry with center, rotation, and repeats |
 | P1 | ✅ Channel Shuffle | Independently route RGBA, luminance, zero, or one into each output channel |
+| P1 | 🚧 Timed Transition | Event-triggered progression and retrigger rules; separate Wave 3 control work using stateless Crossfade |
+| P1 | 🚧 Frame Delay / Feedback | Explicit previous-tick read/commit boundary with deterministic initialization and reset |
+| P1 | 🚧 Frame Hold | Retain or release a frame from an explicit event/control input without creating an ordinary graph cycle |
+| P1 | 🚧 Crop / Fit | Dedicated frame processor with explicit crop and safe-area guides; Video Input and Network Video already provide cover/contain/stretch fit |
+| P1 | 🚧 Resize | Explicit resolution and filtering boundary |
 | P2 | 🧭 Bloom / Glow | Multi-resolution highlight glow |
 | P2 | 🧭 Sharpen | Controlled high-frequency enhancement |
 | P2 | 🧭 LUT | 1D/3D color lookup with asset validation |
@@ -566,7 +566,6 @@ downsampled analysis values.
 | P1 | ✅ Audio Spectrum (FFT / Band Energy) | Reads patched audio FFT data and exposes scalar Level/Bass/Mid/Treble outputs with per-band frequency and Q; no standalone Band Energy node or spectrum wire |
 | P1 | ✅ Audio Trigger (Onset / Envelope) | Scalar trigger and decaying envelope from a band's rolling average, with Hold and Decay; not a sample-accurate ADSR or general envelope follower |
 | P1 | ✅ Audio Beat Clock (Tempo Estimate) | Infers BPM, phase, bar, and confidence from scalar trigger spacing |
-| P1 | 🚧 Pitch | Fundamental estimate plus confidence |
 | P1 | 🚧 Waveform | Time-domain block for scope and geometry conversion |
 | P2 | 🧭 Gain / Pan | Audio-rate amplitude and stereo placement |
 | P2 | 🧭 Mixer extensions | Multi-channel mute, solo, and independent metering beyond the shipped gain/EQ path |
@@ -579,6 +578,7 @@ downsampled analysis values.
 | P3 | 🔬 Spatial Audio | Listener/source graph and multi-channel layouts |
 | P3 | 🧩 DAW Bridge | Transport, tracks, parameters, and audio routing through a companion |
 | P3 | 🧩 Plug-in Host | Native-only plug-in hosting exposed through a constrained bridge |
+| P3 | 🚧 Pitch | Fundamental estimate plus confidence |
 
 ### Data, text, and networking nodes
 
@@ -598,44 +598,14 @@ downsampled analysis values.
 | P2 | 🧭 MQTT over WebSocket | Sensor/venue messaging through a browser-compatible broker |
 | P2 | 🧭 WebRTC Data | Peer-to-peer control/events with ordering options |
 | P2 | 🧭 WebTransport | Low-latency client/server data where infrastructure supports it |
-| P2 | 🧭 QR / Barcode | Decode camera frames into text/events |
 | P2 | 🧭 Log / Inspect | Bounded live data viewer with sampling and redaction |
 | P2 | 🧭 Record / Replay | Capture timestamped control/data streams for deterministic tests |
+| P1 | 🧭 Show JSON / Player / Recorder | After the data-node batch: import/export one versioned timestamped show format for patch snapshots, parameter edits, source routing, and output-layout changes; record applied commands into that same format |
 | P3 | 🔬 Sandbox Script | Capability-limited worker code with time/memory quotas |
 | P3 | 🔬 Database Query | Read-only, parameterized query through an authenticated service |
-| P3 | 🧩 OSC Gateway | Typed OSC messages over authenticated WebSocket to UDP gateway |
-| P3 | 🧩 Lighting Gateway | Art-Net/sACN/DMX frames through an allowlisted venue bridge |
+| P2 | 🧩 OSC Gateway | Bidirectional typed OSC messages through an authenticated browser-to-UDP gateway; allowlisted addresses, argument types, destinations, and bounded rates |
+| P2 | 🧩 Lighting Gateway | Bidirectional Art-Net and sACN: receive universe/channel values as controls and send explicitly armed DMX output through an allowlisted native gateway |
 | P3 | 🧩 Shared Tempo / DJ Bridge | Capability-declared tempo, beat phase, transport, track metadata, confidence, and authority exchange |
-
-### Computer vision, tracking, and ML
-
-| Priority | Node/module | Purpose |
-| --- | --- | --- |
-| P0 | ✅ Video Model | Safe procedural preview plus latest-frame handoff from a compatible local/API adapter |
-| P1 | 🚧 Grayscale / Normalize | Predictable pre-processing for vision nodes |
-| P1 | 🚧 Frame Difference | Motion regions without a large model |
-| P1 | 🚧 Background Model | Foreground mask for fixed-camera installations |
-| P1 | 🚧 Morphology | Erode, dilate, open, and close masks; the existing Blur already supplies basic denoising |
-| P1 | 🚧 Contours / Blobs | Regions, centroids, area, bounds, and tracking IDs |
-| P2 | 🧭 Optical Flow | Dense or sparse motion vectors |
-| P2 | 🧭 Face Landmarks | Face pose and expression features |
-| P2 | 🧭 Hand Landmarks | Multi-hand points, handedness, pinch, and gesture signals |
-| P2 | 🧭 Body Pose | Skeleton joints, confidence, and derived angles |
-| P2 | 🧭 Person Segmentation | Foreground alpha and confidence |
-| P2 | 🧭 Tracking | Associate detections across frames with stable IDs |
-| P2 | 🧭 Zones | Presence, entry/exit, dwell, direction, and occupancy |
-| P2 | 🧭 Spatial Buttons | Trigger virtual controls from tracked body/hand regions |
-| P2 | 🧭 Marker Tracking | QR, ArUco-like, AprilTag-like, and calibrated transforms |
-| P2 | 🧭 Object Detection | Bounded local model with labels and confidence |
-| P2 | 🧭 Monocular Depth | Estimated depth from a normal camera frame |
-| P2 | 🧭 Depth Unproject | Calibrated depth image to 3D points |
-| P2 | 🧭 Point-cloud Filter | Crop, decimate, denoise, colorize, and transform points |
-| P3 | 🔬 Gesture Classifier | User-trainable sequences over landmarks |
-| P3 | 🔬 Style / Image Transform | Local model effect with explicit frame queue and fallback |
-| P3 | 🔬 Generative Model | Remote/local generation with cancellation, seed, and provenance |
-| P3 | 🔬 Gaussian Splat Viewer | Stream and render captured volumetric scenes |
-
-ML nodes must expose model download size, warmup status, execution provider, latency, and whether any frame leaves the device. They must drop stale work rather than building an unbounded queue.
 
 ### Geometry, particles, materials, and rendering
 
@@ -662,7 +632,94 @@ ML nodes must expose model download size, warmup status, execution provider, lat
 | P3 | 🔬 Generative Architecture | Rule, repeat, scatter, facade, and instancing tools |
 | P3 | 🔬 Volumetric Render | Raymarching for fields, fog, and depth volumes |
 
+### Computer vision, tracking, and ML
+
+| Priority | Node/module | Purpose |
+| --- | --- | --- |
+| P0 | ✅ Video Model | Safe procedural preview plus latest-frame handoff from a compatible local/API adapter |
+| P2 | 🧭 QR / Barcode | Decode camera frames into text/events |
+| P1 | 🚧 Grayscale / Normalize | Predictable pre-processing for vision nodes |
+| P1 | 🚧 Frame Difference | Motion regions without a large model |
+| P1 | 🚧 Background Model | Foreground mask for fixed-camera installations |
+| P1 | 🚧 Morphology | Erode, dilate, open, and close masks; the existing Blur already supplies basic denoising |
+| P1 | 🚧 Contours / Blobs | Regions, centroids, area, bounds, and tracking IDs |
+| P2 | 🧭 Optical Flow | Dense or sparse motion vectors |
+| P2 | 🧭 Face Landmarks | Face pose and expression features |
+| P2 | 🧭 Hand Landmarks | Multi-hand points, handedness, pinch, and gesture signals |
+| P2 | 🧭 Body Pose | Skeleton joints, confidence, and derived angles |
+| P2 | 🧭 Person Segmentation | Foreground alpha and confidence |
+| P2 | 🧭 Tracking | Associate detections across frames with stable IDs |
+| P2 | 🧭 Zones | Presence, entry/exit, dwell, direction, and occupancy |
+| P2 | 🧭 Spatial Buttons | Trigger virtual controls from tracked body/hand regions |
+| P2 | 🧭 Marker Tracking | QR, ArUco-like, AprilTag-like, and calibrated transforms |
+| P2 | 🧭 Object Detection | Bounded local model with labels and confidence |
+| P2 | 🧭 Monocular Depth | Estimated depth from a normal camera frame |
+| P2 | 🧭 Depth Unproject | Calibrated depth image to 3D points |
+| P2 | 🧭 Point-cloud Filter | Crop, decimate, denoise, colorize, and transform points |
+| P3 | 🔬 Gesture Classifier | User-trainable sequences over landmarks |
+| P3 | 🔬 Style / Image Transform | Local model effect with explicit frame queue and fallback |
+| P3 | 🔬 Generative Model | Remote/local generation with cancellation, seed, and provenance |
+| P3 | 🔬 Gaussian Splat Viewer | Stream and render captured volumetric scenes |
+
+ML nodes must expose model download size, warmup status, execution provider, latency, and whether any frame leaves the device. They must drop stale work rather than building an unbounded queue.
+
+
 ### Components, UI, reuse, and show control
+
+#### Show playback and recording contract
+
+Delivery order: finish the local data and browser-networking nodes, then
+implement show playback/recording and bidirectional OSC, Art-Net, and sACN.
+These are planned capabilities, not consequences of accepting arbitrary JSON.
+
+The show format must have its own version, initial validated patch snapshot,
+asset references, versioned named output-layout resources, and bounded ordered
+events. Events carry integer show-relative timestamps, stable IDs, and an
+explicit sequence for equal timestamps. Typed commands load a patch snapshot,
+set a parameter, select a source, or activate an output mapping; no arbitrary
+code, property paths, live handles, or credentials belong in a show file.
+Import validates the entire timeline and its targets before replacing anything.
+
+The player owns a monotonic show clock with play, pause, stop, seek, reset, and
+explicit late-event behavior. Reconstruct state from the initial snapshot and
+ordered events when seeking; do not retransmit historical OSC triggers or
+lighting commands while scrubbing. Numeric interpolation must be explicitly
+declared, while discrete operations remain ordered steps. Patch replacement
+defines a new node-ID scope and resource lifecycle. Clock sync and physical
+frame lock are separate capabilities, not guarantees of browser timestamps.
+
+The Show Recorder captures successfully applied UI, MIDI, Companion, and
+accepted gateway commands with show-relative time, including momentary release
+events. It records semantic edits rather than every rendered frame or raw
+device packet, bounds/coalesces continuous parameter samples, and excludes
+commands generated by its own playback to prevent recursive recording.
+Recorded JSON must play through the same validated command path as imported
+shows. Define live-control override policy and keep recording/export bounded.
+
+Output mapping includes all three requested layers: existing Projector Mapping
+corners/transforms and frame routing; named screens/projector layouts; and
+Art-Net/sACN universe/channel assignments. Named layouts need a first-class
+versioned resource model; they cannot be represented honestly by the existing
+single Display alone. Save logical route IDs and assignments, while physical
+network interfaces, destinations, and credentials remain gateway/session
+configuration. OSC routes likewise declare addresses and typed arguments.
+
+Normal browser pages cannot open the UDP sockets used by OSC, Art-Net, or
+sACN. A native/local gateway handles send and receive, validates protocol
+universe/channel ranges, distinguishes Art-Net addressing from sACN universe
+numbering, and owns sequence, sACN priority/source identity, stream termination,
+merge/source selection, and unicast/multicast policy. Incoming channels may map
+to visual controls; outgoing universes require explicit arming, master dimmer,
+blackout, rate limits, and a configured disconnect/watchdog policy enforced by
+the gateway. Loading, recording, seeking, or replaying a show never grants
+device permission or arms venue output. OSC receive-to-send routes must avoid
+echo loops and reject unmapped messages.
+
+Teaching/verification: a permission-free JSON Show Lab with record/replay and
+seek equivalence; a named output-layout fixture; and simulated OSC, Art-Net,
+and sACN gateway fixtures covering receive mappings, timestamp order, output
+arming, blackout, packet loss, malformed messages, and disconnect behavior.
+Real venue-network and fixture tests remain required before live use.
 
 | Priority | Node/module | Purpose |
 | --- | --- | --- |
@@ -674,6 +731,7 @@ ML nodes must expose model download size, warmup status, execution provider, lat
 | P1 | 🚧 Bypass / Mute | Compare or disable an operator predictably |
 | P1 | 🚧 Favorites / Recent | Faster node creation for live work |
 | P1 | 🚧 Asset Bin | See ownership, type, missing state, and memory estimate |
+| P1 | 🧭 Show Player / Show Recorder | Shared JSON timeline contract above; includes patch, parameter, source, and versioned output-layout events rather than duplicate recording formats |
 | P2 | 🧭 Preset Morph | Interpolate compatible preset parameters over time |
 | P2 | 🧭 Scene / Bank | Organize patches into live-performance scenes |
 | P2 | 🧭 Launch Grid | Quantized normal/toggle/momentary slots with persistence and per-slot override inheritance |
@@ -708,7 +766,7 @@ Automation should use a typed command protocol—create node, connect ports, set
 | P2 | 🧭 LED Output | Pixel map preview, fixture mapping, gamma, dimmer, and channel packing |
 | P2 | 🧭 Stream Encoder | Browser-supported encode feeding a service/gateway |
 | P2 | 🧩 Broadcast Gateway | RTMP/SRT/RTSP/SDI output through an authenticated process |
-| P2 | 🧩 Lighting Output | Art-Net, sACN, or USB-DMX through a venue gateway |
+| P2 | 🧩 Lighting Output | Armed Art-Net/sACN output through the bidirectional Lighting Gateway; logical universe/channel routes, dimmer, blackout, and gateway watchdog. USB-DMX is a separate adapter. |
 | P3 | 🔬 XR Output | Immersive WebXR scene/view layers |
 | P3 | 🔬 Laser Gateway | Calibrated point output with mandatory safety interlocks and venue operator control |
 | P3 | 🔬 Render Queue | Deterministic offline/high-quality export, locally or remotely |

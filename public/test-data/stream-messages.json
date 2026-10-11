@@ -1,0 +1,11 @@
+{
+  "fixtureVersion": 1,
+  "description": "Each message is sent as a separate WebSocket text message or default SSE data event. This file is a fixture envelope, not a live endpoint or playable show.",
+  "messages": [
+    {"sequence": 0, "timestampMs": 0, "source": "fixture", "value": 0, "caption": "Opening"},
+    {"sequence": 1, "timestampMs": 250, "source": "fixture", "value": 0.25, "caption": "Build"},
+    {"sequence": 2, "timestampMs": 500, "source": "fixture", "value": 0.75, "caption": "Main Scene"},
+    {"sequence": 3, "timestampMs": 750, "source": "fixture", "value": 1, "caption": "Peak"},
+    {"sequence": 4, "timestampMs": 1000, "source": "fixture", "value": 0, "caption": "Closing"}
+  ]
+}

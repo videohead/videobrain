@@ -201,6 +201,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const RunningPatch: Story = {};
+export const JSONTextLab: Story = { args: { presetId: 'json-text-lab' } };
+export const CSVTableLab: Story = { args: { presetId: 'csv-table-lab' } };
+export const NetworkDataLab: Story = { args: { presetId: 'network-data-lab' } };
+export const StorageTextLab: Story = { args: { presetId: 'storage-text-lab' } };
 
 export const ColorChannelLab: Story = { args: { presetId: 'color-channel-lab' } };
 export const KeyedCamera: Story = { args: { presetId: 'keyed-camera' } };

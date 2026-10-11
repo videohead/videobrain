@@ -200,7 +200,7 @@ function reachableFromOutputs(
 
   const reachable = new Set<string>();
   const pending = nodes
-    .filter((node) => node.kind === 'display' || node.kind === 'audioOutput')
+    .filter((node) => node.kind === 'display' || node.kind === 'audioOutput' || node.kind === 'dataInspect')
     .map((node) => node.id)
     .sort()
     .reverse();

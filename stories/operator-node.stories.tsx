@@ -219,6 +219,23 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const AllNodeKinds: Story = {};
+export const TextSource: Story = { args: { kinds: ['textSource'], compact: true } };
+export const TextFormat: Story = { args: { kinds: ['textFormat'], compact: true } };
+export const NumberToText: Story = { args: { kinds: ['numberToText'], compact: true } };
+export const TextToNumber: Story = { args: { kinds: ['textToNumber'], compact: true } };
+export const JSONParse: Story = { args: { kinds: ['jsonParse'], compact: true } };
+export const JSONSelect: Story = { args: { kinds: ['jsonSelect'], compact: true } };
+export const JSONToText: Story = { args: { kinds: ['jsonStringify'], compact: true } };
+export const CSVParse: Story = { args: { kinds: ['csvParse'], compact: true } };
+export const TableToCSV: Story = { args: { kinds: ['csvStringify'], compact: true } };
+export const TableTransform: Story = { args: { kinds: ['tableTransform'], compact: true } };
+export const TableCell: Story = { args: { kinds: ['tableSelect'], compact: true } };
+export const TableJoin: Story = { args: { kinds: ['tableJoin'], compact: true } };
+export const Fetch: Story = { args: { kinds: ['httpFetch'], compact: true } };
+export const WebSocket: Story = { args: { kinds: ['dataSocket'], compact: true } };
+export const ServerEvents: Story = { args: { kinds: ['serverEvents'], compact: true } };
+export const Storage: Story = { args: { kinds: ['dataStorage'], compact: true } };
+export const Inspect: Story = { args: { kinds: ['dataInspect'], compact: true } };
 
 export const Levels: Story = { args: { kinds: ['levels'], compact: true } };
 export const HSVHSL: Story = { args: { kinds: ['hsv'], compact: true } };

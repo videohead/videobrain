@@ -1,4 +1,5 @@
 import { DEFAULT_VECTOR_ARTWORK, MAX_VECTOR_BYTES } from './vectorArtwork';
+import { DATA_DEFINITIONS } from './dataOperators';
 import { GRADIENT_STOP_IDS } from './gradient';
 import { MAX_FONT_DATA_LENGTH } from './fontAsset';
 import { DEFAULT_SHADER_SOURCE, MAX_SHADER_SOURCE_LENGTH } from './shaderSource';
@@ -1157,6 +1158,7 @@ const definitions = [
     blue: selectParam('Blue from', 'blue', ['red', 'green', 'blue', 'alpha', 'luma', 'zero', 'one']),
     alpha: selectParam('Alpha from', 'alpha', ['red', 'green', 'blue', 'alpha', 'luma', 'zero', 'one']),
   }),
+  ...DATA_DEFINITIONS,
   {
     kind: 'display',
     title: 'Display',

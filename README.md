@@ -77,6 +77,11 @@ Build the complete deployable site, including the catalog, with
 
 ## Controls
 
+Reusable JSON, CSV, stream-message samples, and malformed-input cases are in
+[public/test-data/README.md](public/test-data/README.md), with expected values
+and recipes for the data controls. They are served under the app's
+`test-data/` URL after deployment.
+
 The **Controllers** toolbar dialog maps MIDI notes/CC or Stream Deck through
 Bitfocus Companion to parameters, frame-source select/advance, and visual
 transport. MIDI access and remote control are opt-in and start disarmed.

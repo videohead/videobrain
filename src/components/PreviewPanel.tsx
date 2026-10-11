@@ -208,11 +208,13 @@ export function PreviewPanel({
     canvas.addEventListener('webglcontextrestored', renderHeldContextChange);
     canvas.addEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
     canvas.addEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
+    window.addEventListener('videobrain:data-ready', renderHeldContextChange);
     return () => {
       canvas.removeEventListener('webglcontextlost', renderHeldContextChange);
       canvas.removeEventListener('webglcontextrestored', renderHeldContextChange);
       canvas.removeEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
       canvas.removeEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
+      window.removeEventListener('videobrain:data-ready', renderHeldContextChange);
     };
   }, [renderIfHeld]);
 

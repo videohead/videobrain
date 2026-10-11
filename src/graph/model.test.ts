@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DATA_DEFINITIONS } from './dataOperators';
 import {
   GRAPH_SCHEMA_VERSION,
   GraphDocumentError,
@@ -16,6 +17,15 @@ import {
 } from './index';
 
 describe('graph document model', () => {
+  it.each(DATA_DEFINITIONS)('round-trips $kind data parameters and rejects malformed literals', ({ kind, params }) => {
+    const node = createGraphNode(kind, { x: 0, y: 0 }, {}, 'data');
+    const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION, nodes: [node], edges: [] };
+    expect(parseGraphDocument(serializeGraphDocument(document))).toEqual(document);
+    for (const [id, parameter] of Object.entries(params)) {
+      const invalid = parameter.type === 'text' ? 'x'.repeat(parameter.maxLength + 1) : parameter.type === 'number' ? parameter.max + 1 : 'bad-option';
+      expect(() => parseGraphDocument({ ...document, nodes: [{ ...node, params: { ...node.params, [id]: invalid } }] })).toThrow();
+    }
+  });
   it.each(OPERATOR_DEFINITIONS.filter(({ kind }) => ['levels', 'hsv', 'lumaKey', 'chromaKey', 'crossfade', 'displace', 'edge', 'pixelate', 'kaleidoscope', 'channelShuffle'].includes(kind)))(
     'round-trips $kind and rejects malformed parameters', ({ kind, params }) => {
       const node = createGraphNode(kind, { x: 0, y: 0 }, {}, 'effect');

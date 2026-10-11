@@ -13,7 +13,7 @@ import {
 
 describe('graph presets', () => {
   it('provides unique, discoverable preset metadata', () => {
-    expect(GRAPH_PRESETS).toHaveLength(30);
+    expect(GRAPH_PRESETS).toHaveLength(34);
     expect(new Set(GRAPH_PRESETS.map(({ id }) => id)).size).toBe(
       GRAPH_PRESETS.length,
     );

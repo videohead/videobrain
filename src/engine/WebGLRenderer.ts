@@ -14,6 +14,8 @@ import {
   type OperatorParamDefinition,
 } from '../graph';
 import { FRAME_FRAGMENT_SHADERS, FULLSCREEN_VERTEX_SHADER } from './shaders';
+import { DataEvaluator, isDataNode, type DataValue } from './DataEvaluator';
+import { dataSessions } from './DataSessions';
 import { getGradientStops } from '../graph/gradient';
 import { buildShaderSource, DEFAULT_SHADER_SOURCE } from '../graph/shaderSource';
 import { computeInverseProjectionMap } from './projection';
@@ -416,6 +418,8 @@ export class WebGLRenderer {
   private nodeResources = new Map<string, NodeResources>();
   private outputTextures = new Map<string, WebGLTexture>();
   private controlValues = new Map<string, number>();
+  private dataValues = new Map<string, DataValue>();
+  private dataEvaluator = new DataEvaluator();
   private smoothControlStates = new Map<string, SmoothControlState>();
   private audioOnsetStates = new Map<string, AudioOnsetState>();
   private audioBeatStates = new Map<string, AudioBeatState>();
@@ -630,6 +634,8 @@ export class WebGLRenderer {
         states.delete(nodeId);
       }
     }
+    dataSessions.reconcile(this.plan);
+    this.dataEvaluator.clear();
   }
 
   resize(width: number, height: number, pixelRatio = 1): void {
@@ -709,7 +715,11 @@ export class WebGLRenderer {
 
       this.controlValues.clear();
       this.textValues.clear();
+      this.dataValues.clear();
       this.outputTextures.clear();
+      for (const node of this.plan?.controlNodes ?? []) {
+        this.evaluateControlNode(node, time, audio, safePointer);
+      }
       if (!this.plan || this.plan.displayNodes.length === 0) {
         this.clearDisplay();
         this.lastPassCount = 0;
@@ -721,9 +731,6 @@ export class WebGLRenderer {
         return this.result(true, null);
       }
 
-      for (const node of this.plan.controlNodes) {
-        this.evaluateControlNode(node, time, audio, safePointer);
-      }
       if (this.plan.frameNodes.some(({ node }) => node.kind === 'videoInput' || node.kind === 'file')) {
         this.uploadVideoFrame();
       }
@@ -793,6 +800,9 @@ export class WebGLRenderer {
   }
 
   dispose(): void {
+    dataSessions.dispose();
+    this.dataEvaluator.clear();
+    this.dataValues.clear();
     if (this.disposed) {
       return;
     }
@@ -1331,6 +1341,23 @@ export class WebGLRenderer {
     pointer: RenderPointer,
   ): void {
     const node = compiledNode.node;
+    if (isDataNode(node.kind)) {
+      const inputs: Record<string, DataValue> = {};
+      for (const [id, binding] of Object.entries(compiledNode.inputs)) {
+        const key = this.controlKey(binding.sourceNodeId, binding.sourcePortId);
+        inputs[id] = binding.type === 'text.utf8' ? this.textValues.get(key) ?? ''
+          : binding.type === 'control.f32' ? this.controlValues.get(key) ?? 0 : this.dataValues.get(key) ?? null;
+      }
+      const outputs = this.dataEvaluator.evaluate(compiledNode, inputs);
+      for (const port of compiledNode.definition.outputs) {
+        const key = this.controlKey(node.id, port.id);
+        const value = outputs[port.id];
+        if (port.type === 'text.utf8') this.textValues.set(key, typeof value === 'string' ? value : '');
+        else if (port.type === 'control.f32') this.setControl(node.id, port.id, typeof value === 'number' ? value : 0);
+        else this.dataValues.set(key, value ?? null);
+      }
+      return;
+    }
     switch (node.kind) {
       case 'aiPrompt':
         this.textValues.set(this.controlKey(node.id, 'prompt'), this.textParam(compiledNode, 'text'));

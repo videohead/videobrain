@@ -55,6 +55,10 @@ export const NODE_KINDS = [
   'pixelate',
   'kaleidoscope',
   'channelShuffle',
+  'textSource', 'textFormat', 'numberToText', 'textToNumber',
+  'jsonParse', 'jsonSelect', 'jsonStringify', 'csvParse', 'csvStringify',
+  'tableTransform', 'tableSelect', 'tableJoin',
+  'httpFetch', 'dataSocket', 'serverEvents', 'dataStorage', 'dataInspect',
   'display',
 ] as const;
 
@@ -69,11 +73,12 @@ export const OPERATOR_CATEGORY_IDS = [
   'image-processing',
   'compositing',
   'output',
+  'data-text',
 ] as const;
 
 export type OperatorCategoryId = (typeof OPERATOR_CATEGORY_IDS)[number];
 
-export type PortType = 'frame.rgba' | 'control.f32' | 'text.utf8' | 'audio.block';
+export type PortType = 'frame.rgba' | 'control.f32' | 'text.utf8' | 'audio.block' | 'data.json' | 'data.table';
 
 export type OperatorDomain = 'control' | 'frame' | 'audio' | 'display';
 
