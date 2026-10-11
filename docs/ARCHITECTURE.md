@@ -212,6 +212,37 @@ transaction, and either commit it atomically or preserve the last valid graph.
 Transport adapters must not expose arbitrary source-code or command-string
 evaluation.
 
+### MIDI and Companion action mappings
+
+The Controllers dialog owns versioned browser-local mappings, separate from
+project schema 1. Each mapping has a stable ID and targets a registry parameter,
+a frame router, or visual transport. MIDI Learn stores input device ID, channel,
+note/CC type, and message number; it does not introduce a MIDI graph wire.
+Mapping settings do not travel in project JSON exports.
+
+Web MIDI notes and 7-bit CC and the optional Bitfocus Companion bridge share
+the same action dispatcher. Parameter writes use the existing validated project
+store and undo/persistence path. Absolute numeric values scale and snap to
+registry bounds; set, toggle, and momentary modes also support boolean/select
+parameters. Graph-bound targets are rejected. Source actions select or advance
+Frame Switch/Source Selector, while transport actions call play/pause/reset.
+No controller action starts a capability session or replaces a project.
+
+The Companion service accepts authenticated `POST /api/control` requests and
+relays mapping IDs and press/release/value events to one explicitly connected
+browser over `/control-ws`. HTTP keys, WebSocket authentication, origin checks,
+bounded queues, acknowledgements, and a bounded request-ID cache protect this
+limited surface. It is not the planned revision-checked graph transaction API.
+The browser resolves mappings locally and requires explicit arming; credentials
+remain in memory. Reload, focus loss, and graph replacement disarm controls.
+Disconnection releases held values, with a ten-second safety timeout for lost
+releases. MIDI CC changes are coalesced at about 30 Hz.
+
+See [Controllers](CONTROLLERS.md) for setup, protocol examples, HTTPS and
+Permissions-Policy requirements, persistence, safety behavior, and unsupported
+MIDI messages. Physical MIDI/Stream Deck and live Companion validation remain
+separate from the automated simulated-input tests.
+
 ### Architecture review gate
 
 Gradient (`gradient`, catalog 11) is a stateless, permission-free visual-frame

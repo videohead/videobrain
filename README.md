@@ -29,6 +29,9 @@ The proof of concept opens into a working composition and runs locally without a
   pointer position/held/press/release, editable XY pad, and opt-in microphone
   controls
 - Reusable Constant, Math, Map Range, and Smooth control building blocks
+- MIDI notes/CC Learn and Bitfocus Companion action mappings for parameters,
+  frame-source selection/advance, and visual transport; optional Stream Deck
+  control through Companion or a MIDI plugin
 - Opt-in live camera frames with facing, fit, and mirror controls
 - Transform 2D with translation, scale, rotation, pivot, and edge modes
 - AI Chat prompt text and a Video Model node with a permission-free built-in
@@ -77,7 +80,7 @@ Build the complete deployable site, including the catalog, with
 The **Controllers** toolbar dialog maps MIDI notes/CC or Stream Deck through
 Bitfocus Companion to parameters, frame-source select/advance, and visual
 transport. MIDI access and remote control are opt-in and start disarmed.
-See [MIDI and Stream Deck setup](docs/CONTROLLERS.md) for permissions, mapping,
+See [MIDI, Bitfocus Companion, and Stream Deck setup](docs/CONTROLLERS.md) for permissions, mapping,
 Companion request examples, bridge security, and current limitations.
 
 | Action | Shortcut |

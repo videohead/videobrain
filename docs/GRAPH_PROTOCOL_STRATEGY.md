@@ -1,8 +1,9 @@
 # Graph Protocol Strategy
 
 Status: the read-only catalog and graph-inspection foundation is implemented.
-Transport adapters, remote sessions, and graph mutation transactions are future
-work.
+MIDI and an optional authenticated Bitfocus Companion action bridge are also
+implemented. General graph transport adapters, revision-checked mutation
+transactions, and multi-client remote sessions remain future work.
 
 ## Why this exists
 
@@ -65,8 +66,17 @@ must not encourage an unsafe mutation shortcut.
   and reachable stateful node IDs.
 
 Both functions return detached data rather than mutable registry objects. They
-are useful now for tests, developer tools, and future adapters. No HTTP,
-WebSocket, command-line, or MCP server is exposed by the application yet.
+are useful now for tests, developer tools, and adapters; these functions do not
+themselves open a network listener.
+
+The separate [Companion action bridge](CONTROLLERS.md#bitfocus-companion-bridge)
+exposes bounded HTTP commands for saved mapping IDs and relays them over an
+authenticated WebSocket to an armed browser. It shares the local controller
+dispatcher with MIDI and supports parameter, frame-source, and visual transport
+actions only. Its bounded request deduplication is not a substitute for the
+revision, capability-negotiation, and transaction contracts proposed here.
+The older whole-project bridge is disabled by default and is not required for
+controller support.
 
 ## Governing graph invariants
 

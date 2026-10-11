@@ -95,6 +95,23 @@ allowing Storybook's preview frame on the same origin.
 
 ## Adding a component or node
 
+### Controller mappings
+
+The Controllers toolbar action remains accessible on desktop and mobile and
+opens a native modal dialog. It uses an explicit Armed checkbox, MIDI enable/
+disable and Learn commands, connection status, and a password field for the
+Companion bridge key. Credentials never appear in mapping rows or project data.
+Mapping rows expose the stable ID used by Companion and any learned MIDI
+device/channel/message binding.
+
+Target and parameter menus come from the live graph and operator registry.
+Numeric bounds, select options, and boolean controls reuse registry definitions;
+the dialog must not maintain a second catalog. Mapping settings are browser-local,
+while parameter actions use the same project state as inline controls and the
+Inspector. See [Controllers](CONTROLLERS.md) for behavior and setup.
+
+### Component conventions
+
 Use the existing production style and state contracts first. Add a shared
 component when it represents an application-wide behavior or has multiple real
 consumers. Add stories beside the corresponding catalog layer and include the

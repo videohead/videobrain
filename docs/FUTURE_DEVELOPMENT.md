@@ -260,7 +260,7 @@ aid, not a separate commitment or priority system.
 | 3D and particles | Geometry, materials, lighting, instancing, particles, physics, glTF, and 3D rendering | [Geometry, particles, materials, and rendering](#geometry-particles-materials-and-rendering) |
 | Workflow and reuse | Groups, reusable subgraphs, named controls, presets, performance panels, asset bin, scenes, packages, and collaboration | [Components, UI, reuse, and show control](#components-ui-reuse-and-show-control) |
 | Output and distribution | Snapshot, recorder, multi-display, WebRTC publishing, projection mesh/edge-blend extensions, LED mapping, encoding, broadcast gateways, and XR | [Outputs, recording, mapping, and distribution](#outputs-recording-mapping-and-distribution) |
-| External control | Keyboard, MIDI, and device input | [Browser and bridge I/O matrix](#browser-and-bridge-io-matrix) |
+| External control | Keyboard/gamepad input, MIDI clock/feedback/pickup, relative encoders, and portable mappings beyond the shipped MIDI/Companion actions | [Browser and bridge I/O matrix](#browser-and-bridge-io-matrix) |
 
 For practical demonstrations that exercise these ideas, jump to the
 [example patch and preset library](#example-patch-and-preset-library). For
@@ -377,6 +377,8 @@ below remain distinct work, not duplicate implementations.
 | --- | --- | --- |
 | P0 | ✅ Transport Time, Beat Clock, Oscillator, Pointer, XY Pad, Audio Level | Existing timing, interaction, and modulation baseline |
 | P1 | ✅ Auto Selector | Deterministic timed index plus normalized phase in forward, reverse, or seeded shuffle-bag order |
+| P1 | ✅ Controller mappings (application module) | Web MIDI notes/7-bit CC and Bitfocus Companion mapping-ID actions for parameters, source select/advance, and visual transport; not new graph signal types. See [Controllers](CONTROLLERS.md). |
+| P2 | 🧭 Controller extensions | MIDI clock/MTC, output feedback, pickup, relative/14-bit controls, portable mappings, and broader device support |
 | P1 | ✅ Constant | Reusable numeric value with a typed output |
 | P1 | ✅ Math | Add, subtract, multiply, divide, minimum, and maximum |
 | P1 | ✅ Map Range | Linear remapping with none, clamp, wrap, and fold boundaries |
@@ -986,7 +988,7 @@ in [Architecture](ARCHITECTURE.md#architecture-review-gate).
 
 1. **A/B Clip Deck — P1/P2**
 
-   `Playlist A 🧭 + Playlist B 🧭 → Crossfade → Color Grade → Display; MIDI 🧭 → Crossfade.Mix`.
+   `Playlist A 🧭 + Playlist B 🧭 → Crossfade → Color Grade → Display; MIDI CC mapping → Crossfade.Mix`.
 
 2. **Audio Spectrum City — P1/P2**
 
@@ -998,7 +1000,7 @@ in [Architecture](ARCHITECTURE.md#architecture-review-gate).
 
 4. **Four-camera Switcher — P2**
 
-   `Video Input ×4 → Frame Switch → Grade → Display; MIDI/Gamepad 🧭 → Frame Switch.Index`.
+   `Video Input ×4 → Frame Switch → Color Grade → Display; MIDI/Companion source mapping → Frame Switch.Index`. Controller mapping is implemented; independent multi-camera sessions and gamepad input remain future work.
 
 5. **Lyric Overlay — P1**
 
@@ -1008,9 +1010,14 @@ in [Architecture](ARCHITECTURE.md#architecture-review-gate).
 
    `Playlist 🧭 → Frame Switch → Display; Audio Spectrum.Bass → Audio Trigger → Counter 🚧 → Frame Switch.Index`. Existing Source Selector can already advance from Audio Trigger's scalar rising edges; a general typed-event Counter remains future work.
 
-7. **MIDI Performance Rack — P1/P2**
+7. **MIDI / Companion Control Rack — available as a manual recipe**
 
-   `Macro Controls 🚧 → visual parameters; MIDI In 🧭 → Map Range → Macro Controls` with learn, takeover, and feedback.
+   `MIDI CC or Companion value → parameter mapping; note or Companion press/release → source, toggle, momentary, or transport action`.
+
+   Create mappings in Controllers, Learn the MIDI input or configure Companion
+   HTTP actions by mapping ID, then Arm. These are application actions, not
+   patch wires. Macro panels, pickup, and controller feedback remain planned.
+   See [MIDI and Bitfocus setup](CONTROLLERS.md).
 
 8. **Phrase-synced Scene Bank — P2**
 
@@ -1319,8 +1326,10 @@ are authoritative; wave numbering does not impose a sequential release order.
 
 - Deliver Wave 6 reusable public boundaries, then scene banks, cue stack,
   preview/program, and preflight.
-- Add MIDI/gamepad/device mapping, general data WebSocket I/O, and WebRTC
-   publishing/data channels beyond the shipped Network Video receiver.
+- Extend the implemented MIDI/Companion mappings with pickup, feedback,
+  relative encoders, and portable mapping sets; add gamepad/device mapping,
+  general data WebSocket I/O, and WebRTC publishing/data channels beyond the
+  shipped Network Video receiver.
 - Add CV landmarks/segmentation/zones and first GPU particle/3D render pipeline.
 - Extend Projector Mapping with mesh warping; add multi-output layouts,
   venue edge blending/calibration, LED pixel mapping, and a paired gateway protocol.

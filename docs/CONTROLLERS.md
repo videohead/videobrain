@@ -1,7 +1,17 @@
-# MIDI and Stream Deck control
+# MIDI, Bitfocus Companion, and Stream Deck control
 
 Open **Controllers** from the toolbar. This is a controller-mapping surface,
 not a new graph node or a general remote graph-editing API.
+
+| Input route | Requires | Available controls |
+| --- | --- | --- |
+| Web MIDI | Supported secure-context browser and a MIDI input | Notes and 7-bit CC learned by device, channel, and message number |
+| Stream Deck via MIDI | Third-party MIDI plugin and OS MIDI routing | The same Web MIDI mappings |
+| Bitfocus Companion | Optional authenticated control service and Companion HTTP actions | Press, release, and normalized parameter values addressed by mapping ID |
+
+These are implemented source features, not a claim that the currently deployed
+site or a particular Companion installation has been configured. No native
+VideoBrain Stream Deck plugin or dedicated Companion module is bundled.
 
 ## Supported actions
 
@@ -29,8 +39,9 @@ targets are rejected. Re-learn a device if its browser ID changes.
 
 Arm explicitly after setup. Disarm, disconnect, or leaving the browser window
 releases held parameters; focus loss also disarms controls. Keep the studio
-window focused during performance. Holds have a ten-second safety timeout and
-must receive a release before another press. A release restores the pre-press
+window focused during performance. Repeated presses are suppressed until release
+or the ten-second safety timeout; always send a release for each press. Closing
+the Controllers dialog also cancels Learn and releases held controls. A release restores the pre-press
 value only if it has not been changed meanwhile. Parameter changes use normal
 project persistence and undo; MIDI CC changes are coalesced at about 30 Hz with
 a 250 ms idle boundary for undo. No parameter automation track is recorded.
@@ -55,7 +66,7 @@ a 250 ms idle boundary for undo. No parameter automation track is recorded.
 This input-only implementation does not send MIDI feedback, clock, program
 changes, pitch bend, NRPN, 14-bit CC, relative encoder messages, or SysEx.
 A Stream Deck is not itself a Web MIDI device without the plugin/virtual-port
-route. For native Stream Deck button operation, use Companion below.
+route. For Stream Deck buttons managed by Bitfocus Companion, use the bridge below.
 
 Web MIDI requires a secure context and user permission. A restrictive
 `Permissions-Policy: midi=()` header blocks it even if the user wants to allow
