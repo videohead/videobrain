@@ -1,6 +1,7 @@
 export {
   RendererError,
   WebGLRenderer,
+  SCENE_ASSET_READY_EVENT,
   constrainRenderSize,
   readImageFrameSize,
   readVideoFrameSize,

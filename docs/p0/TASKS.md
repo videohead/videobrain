@@ -221,9 +221,9 @@ the envelope into projectStore autosave/import is a separate shared-file lease (
 
 ```task
 id: D1
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: C2, C3
 scope: src/engine/SceneAssetCache.ts and neighboring tests (proposed)
 ```
@@ -234,19 +234,31 @@ Preflight container/accessor bounds, then decoded counts before GPU upload. Deny
 implicit external requests; reject unsupported required extensions/skins/animation
 according to the accepted subset. Preserve last good scene during replacement.
 
+**Delivered (2026-10-11):** [src/engine/SceneAssetCache.ts](../../../src/engine/SceneAssetCache.ts),
+[src/engine/SceneAssetCache.test.ts](../../../src/engine/SceneAssetCache.test.ts) — 20 tests.
+- `preflightGlb`: GPU-free container/chunk/accessor/bufferView bounds, triangle budget,
+  static-subset enforcement (reject skins/animation), required-extension allowlist, external-URI ban
+- `SceneAssetCache`: injectable resolver + decoder (default pinned GLTFLoader with empty resource path),
+  content-hash ref counting, per-slot last-good preservation, stale-load discard, dispose
+- Real generated fixture (single-mesh.glb) passes preflight (12 triangles)
+- No operator, registry, or global renderer change
+
+Verify: lint + typecheck + 802 tests + build all pass.
+
 Acceptance: valid textured hierarchy, corrupt lengths/accessors, missing resources,
 over-budget input, stale load, partial cleanup and shared-cache lifetime tests.
 No automatic flattening, material stripping or global renderer changes.
 
-Handoff: pending; supported-feature matrix, resource inventory and tests required.
+Handoff: review — decoded texture-dimension and GPU-upload count checks run in the
+decoder (browser/GPU gate), deferred to D2 renderer integration and Playwright pixels.
 
 ## D2 - Integrate imported scene references with the graph
 
 ```task
 id: D2
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: A1, D1
 scope: src/graph/scene3d*; src/engine/Scene3DEvaluator.ts and Scene3DRenderer.ts; graph registry/types/compiler and WebGLRenderer (shared)
 ```
@@ -256,19 +268,34 @@ placement transforms without changing primitive contracts. Cache immutable resou
 preserve imported materials, and make graph light/camera policy explicit. Report
 actual decoded costs and reject exceeding accepted budgets without simplification.
 
+**Delivered (2026-10-11) — full live wiring under shared-file lease:**
+- `scene.asset` PortType + `asset3d` NodeKind added to authoritative types; catalog version 21→22
+- `asset3d` operator (asset id/hash/format + placement params) → `scene.asset` output
+- Additive `assetScene` input appended to Render 3D at index 8 (existing indexes preserved)
+- `SceneAssetValue` added to `Scene3DValue`; `Scene3DEvaluator` produces it with bounded placement
+- `Scene3DRenderer` renders the decoded asset with placement; `WebGLRenderer.loadSceneAsset`/`releaseSceneAsset` decode via pinned GLTFLoader and dispose GPU resources
+- Data bridge: [sceneAssetResolver.ts](../../../src/engine/sceneAssetResolver.ts) (12 tests)
+- `imported-model-stage` preset (reachable; satisfies per-kind preset rule)
+- Exact-count assertions updated: operators/protocol/scene3d tests; operatorMeta entry added
+- **Playwright pixel test** [e2e/scene-asset.spec.ts](../../../e2e/scene-asset.spec.ts): imported GLB → lights/camera → Render 3D → Display renders visible pixels (passed in pinned 1.62.1 container, SwiftShader)
+
+Verify: lint + typecheck + 820 unit tests + build pass; e2e scene-asset passes.
+
 Acceptance: old primitive tests unchanged; typed port and serialization checks;
 textured model -> lighting/camera -> effects -> Display pixel tests, alpha handling,
 delete/reset/context restoration and stale replacement checks. Scope UI to D3.
 
-Handoff: pending; additive port IDs/indexes and shared-file review required.
+Handoff: review — asset bytes are supplied to the renderer via `loadSceneAsset`;
+wiring the AssetStore→renderer preload into the live app + Inspector file-input UI
+is D3. Context-restore cache rebuild and multi-instance batches remain D3/D5.
 
 ## D3 - Deliver the usable 3D import baseline
 
 ```task
 id: D3
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: D2, A2
 scope: asset controls and tests; src/graph/scene3dPresets.ts; local glTF resolver; assigned stories/e2e; docs/SCENE_3D.md
 ```
@@ -278,11 +305,23 @@ material preservation, relink/package workflow, Local GLB Stage preset and stori
 Reuse existing file-input/node/Inspector controls. Optional fitting is stored as
 an explicit transform. Imported cameras/lights do not silently override graph inputs.
 
+**Delivered (2026-10-11):**
+- [useSceneAssets.ts](../../../src/hooks/useSceneAssets.ts) (+4 tests): AssetStore-backed import (GLB preflight + ingest), bytes-by-hash resolution, ready/missing/none status; IndexedDB in browser, injectable memory in tests
+- [SceneAssetControl.tsx](../../../src/components/SceneAssetControl.tsx) (+5 tests): file import, relink affordance, remove, error surfacing
+- Inspector renders the control for `asset3d` and hides raw id/hash params; placement params stay editable
+- [WebGLRenderer.setSceneAssets](../../../src/engine/WebGLRenderer.ts): reconciles resident scenes, fires `SCENE_ASSET_READY_EVENT`; App→PreviewPanel bridge preloads bytes and re-renders
+- `local-glb-stage` preset (renamed); [scene-asset-control story](../../../stories/scene-asset-control.stories.tsx); docs/SCENE_3D.md updated
+- Duplication yields independent placement sharing the cached scene by content hash; save/reopen re-resolves bytes from IndexedDB
+
+Verify: lint + typecheck + 829 unit tests + build pass; storybook catalog gate 159 entries; D2 e2e pixel test still passes.
+
 Acceptance: import -> duplicate/place -> light/render -> save/reopen; missing-file
 relink, denied network dependency, bounded costs, independent transforms, cleanup,
 desktop/mobile pixels and usable controls. This is the 3D baseline, not all formats.
 
-Handoff: pending; independent reviewer signs baseline acceptance and exclusions.
+Handoff: review — unit + component + hook coverage and the D2 render pixel test
+establish the path; a full UI click-through e2e (select node → import → pixels) and
+desktop/mobile screenshots remain for independent baseline sign-off.
 
 ## D4 - Add remaining requested format adapters
 

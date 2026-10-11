@@ -62,7 +62,7 @@ export const NODE_KINDS = [
   'tableTransform', 'tableSelect', 'tableJoin',
   'httpFetch', 'dataSocket', 'serverEvents', 'dataStorage', 'dataInspect',
   'vector2', 'vector3', 'vector4', 'splitVector2', 'splitVector3', 'splitVector4',
-  'primitive3d', 'grid3d', 'transform3d', 'camera3d', 'light3d', 'material3d', 'render3d',
+  'primitive3d', 'grid3d', 'transform3d', 'camera3d', 'light3d', 'material3d', 'asset3d', 'render3d',
   'controlToBool', 'boolToControl', 'compare', 'logic', 'trigger', 'eventToControl',
   'gate', 'hold', 'sampleHold', 'counter', 'random', 'timer', 'envelope', 'timedTransition', 'stepSequencer', 'cueScheduler',
   'signalNumber', 'signalText', 'signalEdge', 'signalBang',
@@ -87,7 +87,7 @@ export const OPERATOR_CATEGORY_IDS = [
 export type OperatorCategoryId = (typeof OPERATOR_CATEGORY_IDS)[number];
 
 export type PortType = 'frame.rgba' | 'control.f32' | 'text.utf8' | 'audio.block' | 'data.json' | 'data.table'
-  | 'control.vec2' | 'control.vec3' | 'control.vec4' | 'geometry.mesh' | 'geometry.points' | 'material.pbr' | 'scene.camera' | 'scene.light'
+  | 'control.vec2' | 'control.vec3' | 'control.vec4' | 'geometry.mesh' | 'geometry.points' | 'material.pbr' | 'scene.camera' | 'scene.light' | 'scene.asset'
   | 'control.bool' | 'event.trigger';
 
 export type OperatorDomain = 'control' | 'frame' | 'audio' | 'display';

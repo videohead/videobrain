@@ -6,12 +6,17 @@ interface SceneEntry {
   texture: THREE.FramebufferTexture;
   objects: Map<string, { key: string; object: THREE.Mesh | THREE.Points | THREE.Line }>;
 }
+export interface Scene3DAssetInstance {
+  object: THREE.Object3D;
+  placement: { position: readonly number[]; rotation: readonly number[]; scale: readonly number[] };
+}
 export interface Scene3DInput {
   geometry: Geometry3DValue | null;
   points: Geometry3DValue | null;
   material?: Material3DValue;
   camera?: Camera3DValue;
   lights: Light3DValue[];
+  asset?: Scene3DAssetInstance | null;
 }
 
 function geometryFor(value: Geometry3DValue): THREE.BufferGeometry {
@@ -119,6 +124,15 @@ export class Scene3DRenderer {
         }
         object.matrixWorldNeedsUpdate = true;
         scene.add(object);
+      }
+      const asset = input.asset;
+      if (asset?.object) {
+        const p = asset.placement;
+        asset.object.position.set(p.position[0] ?? 0, p.position[1] ?? 0, p.position[2] ?? 0);
+        asset.object.rotation.set(THREE.MathUtils.degToRad(p.rotation[0] ?? 0), THREE.MathUtils.degToRad(p.rotation[1] ?? 0), THREE.MathUtils.degToRad(p.rotation[2] ?? 0), 'XYZ');
+        asset.object.scale.set(p.scale[0] ?? 1, p.scale[1] ?? 1, p.scale[2] ?? 1);
+        asset.object.updateMatrixWorld(true);
+        scene.add(asset.object);
       }
       for (const value of input.lights.length ? input.lights : [DEFAULT_LIGHT]) {
         const color = new THREE.Color().setRGB(value.color[0] ?? 1, value.color[1] ?? 1, value.color[2] ?? 1, THREE.SRGBColorSpace);

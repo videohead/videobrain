@@ -22,7 +22,7 @@ describe('graph protocol inspection', () => {
     expect(first.protocolVersion).toBe(GRAPH_PROTOCOL_VERSION);
     expect(first.graphSchemaVersion).toBe(GRAPH_SCHEMA_VERSION);
     expect(first.catalogVersion).toBe(OPERATOR_CATALOG_VERSION);
-    expect(first.catalogVersion).toBe(21);
+    expect(first.catalogVersion).toBe(22);
     for (const kind of ['levels', 'hsv', 'lumaKey', 'chromaKey', 'crossfade', 'displace', 'edge', 'pixelate', 'kaleidoscope', 'channelShuffle']) {
       expect(first.operators.find((operator) => operator.kind === kind)).toMatchObject({
         domain: 'frame',
@@ -81,7 +81,7 @@ describe('graph protocol inspection', () => {
       'audio.block',
       'data.json',
       'data.table',
-      'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light',
+      'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light', 'scene.asset',
       'control.bool', 'event.trigger',
     ]);
     expect(first.categories).toEqual(OPERATOR_CATEGORY_IDS);

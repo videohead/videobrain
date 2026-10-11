@@ -1,9 +1,10 @@
 # 3D Scene Foundation
 
-The 3D Scene category adds thirteen nodes: Vector 2/3/4, Split Vector 2/3/4,
+The 3D Scene category adds fourteen nodes: Vector 2/3/4, Split Vector 2/3/4,
 Primitive 3D, Grid / Line 3D, Transform 3D, Camera 3D, Light 3D, PBR Material,
-and Render 3D. These are source-implemented features; deployment is separate.
-Particles, instancing, imported assets, and general scene hierarchies remain P1.
+Asset 3D, and Render 3D. These are source-implemented features; deployment is
+separate. Particles, instancing, and general scene hierarchies remain P1/P-later;
+static GLB/glTF import now ships via Asset 3D.
 
 ## Teaching patches
 
@@ -120,6 +121,29 @@ Light 3 without changing existing port indexes. Project schema stays 1 and
 existing projects require no migration.
 Older applications reject unknown kinds rather than silently rewriting them.
 Runtime Three.js objects and GPU handles are never serialized.
+
+## Imported GLB/glTF assets (Asset 3D)
+
+Catalog 22 adds the **Asset 3D** node and a `scene.asset` port. Asset 3D
+references a durable imported static GLB/glTF model by content identity
+(`assetId` + SHA-256 `assetHash`) and an explicit placement transform
+(position, rotation in degrees, scale). Its `scene.asset` output connects to the
+appended Render 3D `assetScene` input (index 8); existing Render 3D indexes and
+primitive semantics are unchanged.
+
+Import flows through the Inspector's model control: a local `.glb`/`.gltf` file is
+validated with a GPU-free preflight (container/accessor bounds, triangle budget,
+external-URI ban, static-subset enforcement that rejects skins and animation),
+then ingested into the durable AssetStore (IndexedDB) under its content hash.
+Only the content identity and placement are stored on the node; the model bytes
+live in asset storage, so saved projects reopen and re-resolve the asset. A
+missing asset keeps the node and offers a relink; duplicating the node yields
+independent placement that shares the cached GPU scene by content hash.
+
+Decoding uses the pinned Three.js GLTFLoader with an empty resource path, so no
+implicit network fetch occurs. Imported cameras and lights are not activated;
+graph Camera 3D and Light 3D remain authoritative. The `local-glb-stage` preset
+demonstrates the import-to-render path.
 
 ## Verification
 

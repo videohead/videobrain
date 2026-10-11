@@ -132,7 +132,7 @@ describe('operator registry', () => {
     );
 
     expect(signalTypes).toEqual(
-      new Set(['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table', 'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light', 'control.bool', 'event.trigger']),
+      new Set(['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table', 'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light', 'scene.asset', 'control.bool', 'event.trigger']),
     );
   });
 

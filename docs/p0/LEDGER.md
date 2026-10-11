@@ -7,7 +7,7 @@
 
 | ID | Status | Owner | Started | Evidence |
 |----|--------|-------|---------|----------|
-| A2 | review | assistant | 2026-10-11 | projectEnvelope.ts + 12 tests; 782 total tests pass |
+| D3 | review | assistant | 2026-10-11 | Import UI + hook + renderer bridge; 829 tests + catalog + e2e pass |
 
 **Delivered work (2026-10-11) — real code, not documentation:**
 - ✅ C2: [src/store/contracts.ts](../../src/store/contracts.ts) + [src/store/contracts.test.ts](../../src/store/contracts.test.ts) (20 tests)
@@ -107,10 +107,10 @@ None.
 | C3 | Fixtures & budgets | **review** | C1 | 7 real fixtures + manifest; GLBs valid glTF 2.0 |
 | A1 | Asset storage | **review** | C2,C3 | assetStore.ts + 16 tests; dedup/quota/relink/retain |
 | A2 | Project resources | **review** | A1 | projectEnvelope.ts + 12 tests; bundle round-trip/rollback |
-| D1 | GLB validation | ready | C2,C3 | Unblocked — fixtures available |
-| D2 | Graph integration | waiting | A1,D1 | Blocked on A1, D1 |
-| D3 | 3D import baseline | waiting | D2,A2 | Blocked on D2, A2 |
-| D4 | Format adapters | waiting | D3 | Blocked on D3 |
+| D1 | GLB validation | **review** | C2,C3 | SceneAssetCache.ts + 20 tests; preflight + cache lifecycle |
+| D2 | Graph integration | **review** | A1,D1 | Live asset3d + renderer + preset; 820 tests + Playwright pixel test pass |
+| D3 | 3D import baseline | **review** | D2,A2 | useSceneAssets + SceneAssetControl + Inspector/renderer bridge; 829 tests + catalog gate |
+| D4 | Format adapters | waiting | D3 | Deferred per C1 (OBJ/FBX/STL/3MF/3DS/USD) |
 | D5 | GPU instancing | waiting | D3 | Blocked on D3 |
 | G1 | Generation jobs | waiting | C2,C3 | Blocked on contracts |
 | G2 | Generation UI | waiting | G1,A2 | Blocked on G1, A2 |

@@ -6,6 +6,7 @@ const wire = (source: string, sourcePort: string, target: string, targetPort: st
 export const SCENE_3D_PRESETS = [
   { id: 'primitive-3d-lab', title: '3D Primitive Lab', description: 'Light and texture a rotating 3D primitive, then process its transparent frame.' },
   { id: 'vector-grid-lab', title: 'Vector & Grid Lab', description: 'Compose and split explicit vectors to position a bounded 3D point grid or line.' },
+  { id: 'local-glb-stage', title: 'Local GLB Stage', description: 'Import a local GLB/glTF model with the Asset 3D node and light it in a scene.' },
 ] as const;
 
 export const SCENE_3D_PRESET_FACTORIES = {
@@ -41,5 +42,16 @@ export const SCENE_3D_PRESET_FACTORIES = {
       createGraphNode('display', { x: 1920, y: 0 }, {}, 'output'),
     ],
     edges: [wire('vec2', 'vector', 'split2', 'vector'), wire('split2', 'x', 'vec3', 'x'), wire('split2', 'y', 'vec3', 'y'), wire('vec3', 'vector', 'transform', 'position'), wire('vec3', 'vector', 'split3', 'vector'), wire('split3', 'z', 'transform', 'rotationZ'), wire('vec4', 'vector', 'split4', 'vector'), wire('split4', 'x', 'material', 'red'), wire('split4', 'y', 'material', 'green'), wire('split4', 'z', 'material', 'blue'), wire('split4', 'w', 'material', 'opacity'), wire('grid', 'points', 'transform', 'points'), wire('transform', 'points', 'render', 'points'), wire('material', 'material', 'render', 'material'), wire('render', 'frame', 'output', 'source')],
+  }),
+  'local-glb-stage': (): GraphDocument => ({ schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('asset3d', { x: 0, y: 0 }, { scaleX: 1, scaleY: 1, scaleZ: 1 }, 'asset'),
+      createGraphNode('camera3d', { x: 370, y: 450 }, { x: 2.5, y: 1.8, z: 3 }, 'camera'),
+      createGraphNode('light3d', { x: 370, y: 850 }, {}, 'light'),
+      createGraphNode('light3d', { x: 740, y: 950 }, { mode: 'ambient', intensity: 0.6 }, 'ambient'),
+      createGraphNode('render3d', { x: 740, y: 0 }, {}, 'render'),
+      createGraphNode('display', { x: 1110, y: 0 }, {}, 'output'),
+    ],
+    edges: [wire('asset', 'assetScene', 'render', 'assetScene'), wire('camera', 'camera', 'render', 'camera'), wire('light', 'light', 'render', 'light'), wire('ambient', 'light', 'render', 'light2'), wire('render', 'frame', 'output', 'source')],
   }),
 };

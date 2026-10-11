@@ -46,6 +46,7 @@ import {
 } from './hooks/useFileInput';
 import { useVideoModel } from './hooks/useVideoModel';
 import { useNetworkVideo } from './hooks/useNetworkVideo';
+import { useSceneAssets } from './hooks/useSceneAssets';
 import {
   projectStore,
   useGraphDocument,
@@ -196,6 +197,7 @@ function Studio() {
     videoInputState === 'live' ? videoElement : null,
   );
   const networkVideo = useNetworkVideo(graphDocument);
+  const sceneAssets = useSceneAssets(graphDocument);
   const externalFrameSources = useMemo(() => new Map<string, HTMLImageElement | HTMLVideoElement>([
     ...videoModel.frames,
     ...networkVideo.sources,
@@ -586,6 +588,7 @@ function Studio() {
                   : null
             }
             videoModelSources={externalFrameSources}
+            sceneAssetBytes={sceneAssets.bytesByHash}
             meterLevel={audio.meterLevel}
             sampleAudio={sampleAudio}
             onRuntimeUpdate={setRuntime}
@@ -599,6 +602,7 @@ function Studio() {
             videoFacingMode={videoFacingMode}
             graphDocument={graphDocument}
             videoModelRuntime={videoModel}
+            sceneAssetRuntime={sceneAssets}
             inputRuntime={graphInputRuntime}
             onParamChange={handleNodeParamChange}
             onGestureStart={beginGesture}

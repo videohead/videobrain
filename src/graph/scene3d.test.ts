@@ -7,8 +7,9 @@ const box: Geometry3DValue = { shape: 'box', width: 1, height: 1, depth: 1, deta
 describe('3D descriptor budgets', () => {
   it('appends Light 3 without changing existing Render 3D input indexes', () => {
     const definition = SCENE_3D_DEFINITIONS.find(({ kind }) => kind === 'render3d')!;
-    expect(definition.inputs.map(({ id }) => id)).toEqual(['geometry', 'points', 'material', 'camera', 'light', 'light2', 'texture', 'light3']);
+    expect(definition.inputs.map(({ id }) => id)).toEqual(['geometry', 'points', 'material', 'camera', 'light', 'light2', 'texture', 'light3', 'assetScene']);
     expect(definition.inputs[7]).toMatchObject({ type: 'scene.light', optional: true });
+    expect(definition.inputs[8]).toMatchObject({ id: 'assetScene', type: 'scene.asset', optional: true });
     const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION,
       nodes: [createGraphNode('light3d', { x: 0, y: 0 }, {}, 'light'), createGraphNode('render3d', { x: 0, y: 0 }, {}, 'render'), createGraphNode('display', { x: 0, y: 0 }, {}, 'output')],
       edges: [
@@ -24,7 +25,7 @@ describe('3D descriptor budgets', () => {
     const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION, nodes: [node], edges: [] };
     expect(parseGraphDocument(serializeGraphDocument(document))).toEqual(document);
     for (const [id, parameter] of Object.entries(params)) {
-      const value = parameter.type === 'number' ? parameter.max + 1 : 'invalid';
+      const value = parameter.type === 'number' ? parameter.max + 1 : parameter.type === 'text' ? 'x'.repeat(parameter.maxLength + 1) : 'invalid';
       expect(() => parseGraphDocument({ ...document, nodes: [{ ...node, params: { ...node.params, [id]: value } }] })).toThrow();
     }
   });

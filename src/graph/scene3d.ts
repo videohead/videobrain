@@ -39,7 +39,14 @@ export interface Light3DValue {
   position: VectorValue;
   intensity: number;
 }
-export type Scene3DValue = VectorValue | Geometry3DValue | Material3DValue | Camera3DValue | Light3DValue | null;
+export interface SceneAssetValue {
+  kind: 'asset-scene';
+  assetId: string;
+  assetHash: string;
+  assetKind: 'glb' | 'gltf';
+  placement: { position: VectorValue; rotation: VectorValue; scale: VectorValue };
+}
+export type Scene3DValue = VectorValue | Geometry3DValue | Material3DValue | Camera3DValue | Light3DValue | SceneAssetValue | null;
 
 export const DEFAULT_MATERIAL: Material3DValue = { color: [0.2, 0.7, 0.55], metalness: 0.1, roughness: 0.45, emissive: 0, opacity: 1, wireframe: false, pointSize: 0.06 };
 export const DEFAULT_CAMERA: Camera3DValue = { mode: 'perspective', position: [3, 2, 4], target: [0, 0, 0], fov: 45, span: 4, near: 0.01, far: 100 };

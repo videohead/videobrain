@@ -18,13 +18,14 @@ import { DataEvaluator, isDataNode, type DataValue } from './DataEvaluator';
 import { dataSessions } from './DataSessions';
 import { evaluateScene3D, isScene3DNode } from './Scene3DEvaluator';
 import { Scene3DRenderer } from './Scene3DRenderer';
+import { decodeGlbScene, preflightGlb } from './SceneAssetCache';
 import { LiquidSimulation } from './LiquidSimulation';
 import { ParticleTransition } from './ParticleTransition';
 import { EventEvaluator, isEventNode, type EventValue } from './EventEvaluator';
 import { EMPTY_EVENTS } from './eventTiming';
 import { signalTests } from './SignalTests';
 import { isSignalTest } from '../graph/signalTestOperators';
-import type { Scene3DValue, Geometry3DValue, Material3DValue, Camera3DValue, Light3DValue } from '../graph/scene3d';
+import type { Scene3DValue, Geometry3DValue, Material3DValue, Camera3DValue, Light3DValue, SceneAssetValue } from '../graph/scene3d';
 import { getGradientStops } from '../graph/gradient';
 import { buildShaderSource, DEFAULT_SHADER_SOURCE } from '../graph/shaderSource';
 import { computeInverseProjectionMap } from './projection';
@@ -48,10 +49,30 @@ import {
   type AudioBeatState,
   type AudioOnsetState,
 } from './audioAnalysis';
+import type { Object3D as ThreeObject3D, Mesh as ThreeMesh, MeshStandardMaterial as ThreeMeshStandardMaterial } from 'three';
 import {
   evaluateInternalStrobePhase,
   normalizeStrobePhase,
 } from './strobe';
+
+/** Dispatched on the renderer canvas when an Asset 3D scene finishes decoding. */
+export const SCENE_ASSET_READY_EVENT = 'videobrain:scene-asset-ready';
+
+/** Dispose geometries, materials, and textures of a decoded scene asset. */
+function disposeSceneAsset(object: ThreeObject3D): void {
+  object.traverse((child) => {
+    const mesh = child as ThreeMesh;
+    mesh.geometry?.dispose();
+    const material = mesh.material;
+    if (material) {
+      const materials = Array.isArray(material) ? material : [material];
+      for (const entry of materials) {
+        (entry as ThreeMeshStandardMaterial).map?.dispose();
+        entry.dispose();
+      }
+    }
+  });
+}
 
 export interface RenderPointer {
   x: number;
@@ -433,6 +454,8 @@ export class WebGLRenderer {
   private eventValues = new Map<string, EventValue>();
   private eventEvaluator = new EventEvaluator();
   private sceneRenderer: Scene3DRenderer | null = null;
+  private sceneAssetGroups = new Map<string, ThreeObject3D>();
+  private sceneAssetLoading = new Set<string>();
   private liquidSimulations = new Map<string, LiquidSimulation>();
   private particleTransition: ParticleTransition | null = null;
   private smoothControlStates = new Map<string, SmoothControlState>();
@@ -554,6 +577,63 @@ export class WebGLRenderer {
     this.videoSourceHeight = 1;
     if (!this.contextLost) {
       this.resetVideoTexture();
+    }
+  }
+
+  /** Decode and register a validated GLB asset for Asset 3D nodes, keyed by content hash. */
+  async loadSceneAsset(
+    hash: string,
+    bytes: Uint8Array,
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    const preflight = preflightGlb(bytes);
+    if (!preflight.ok) {
+      return { ok: false, error: preflight.error };
+    }
+    try {
+      const object = await decodeGlbScene(bytes);
+      const previous = this.sceneAssetGroups.get(hash);
+      if (previous && previous !== object) {
+        disposeSceneAsset(previous);
+      }
+      this.sceneAssetGroups.set(hash, object);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'Scene asset decode failed.' };
+    }
+  }
+
+  /** Drop a registered scene asset and dispose its GPU resources. */
+  releaseSceneAsset(hash: string): void {
+    const object = this.sceneAssetGroups.get(hash);
+    if (object) {
+      disposeSceneAsset(object);
+      this.sceneAssetGroups.delete(hash);
+    }
+  }
+
+  /**
+   * Reconcile resident Asset 3D scenes against the requested bytes-by-hash map.
+   * New hashes are decoded asynchronously; removed hashes are released. A canvas
+   * SCENE_ASSET_READY_EVENT fires when a decode finishes so the host re-renders.
+   */
+  setSceneAssets(bytesByHash: ReadonlyMap<string, Uint8Array>): void {
+    this.assertActive();
+    for (const hash of this.sceneAssetGroups.keys()) {
+      if (!bytesByHash.has(hash)) {
+        this.releaseSceneAsset(hash);
+      }
+    }
+    for (const [hash, bytes] of bytesByHash) {
+      if (this.sceneAssetGroups.has(hash) || this.sceneAssetLoading.has(hash)) {
+        continue;
+      }
+      this.sceneAssetLoading.add(hash);
+      void this.loadSceneAsset(hash, bytes).then(() => {
+        this.sceneAssetLoading.delete(hash);
+        if (!this.disposed) {
+          this.canvas.dispatchEvent(new Event(SCENE_ASSET_READY_EVENT));
+        }
+      });
     }
   }
 
@@ -835,6 +915,10 @@ export class WebGLRenderer {
     this.sceneRenderer?.dispose();
     this.sceneRenderer = null;
     this.sceneValues.clear();
+    for (const object of this.sceneAssetGroups.values()) {
+      disposeSceneAsset(object);
+    }
+    this.sceneAssetGroups.clear();
     dataSessions.dispose();
     this.dataEvaluator.clear();
     this.dataValues.clear();
@@ -1768,6 +1852,8 @@ export class WebGLRenderer {
       const textureBinding = compiledNode.inputs.texture;
       const texture = textureBinding ? this.outputTextures.get(textureBinding.sourceNodeId) : undefined;
       const sourceTarget = textureBinding ? this.nodeResources.get(textureBinding.sourceNodeId)?.targets.find((candidate) => candidate.texture === texture) : undefined;
+      const assetValue = input('assetScene') as SceneAssetValue | null;
+      const assetObject = assetValue && assetValue.kind === 'asset-scene' ? this.sceneAssetGroups.get(assetValue.assetHash) : undefined;
       this.sceneRenderer ??= new Scene3DRenderer(this.gl, this.canvas);
       this.sceneRenderer.render(compiledNode.node.id, {
         geometry: input('geometry') as Geometry3DValue | null,
@@ -1775,6 +1861,7 @@ export class WebGLRenderer {
         material: input('material') as Material3DValue | undefined ?? undefined,
         camera: input('camera') as Camera3DValue | undefined ?? undefined,
         lights: [input('light'), input('light2'), input('light3')].filter((value) => value !== null) as Light3DValue[],
+        asset: assetValue && assetObject ? { object: assetObject, placement: assetValue.placement } : null,
       }, this.renderWidth, this.renderHeight, intermediate.framebuffer, sourceTarget?.framebuffer);
       const program = this.beginPass('render3d', target);
       this.bindTexture(program, 'uSource', intermediate.texture, 0);

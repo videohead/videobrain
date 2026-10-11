@@ -24,7 +24,7 @@ import {
 } from './types';
 
 export const GRAPH_PROTOCOL_VERSION = 1 as const;
-export const OPERATOR_CATALOG_VERSION = 21 as const;
+export const OPERATOR_CATALOG_VERSION = 22 as const;
 
 export interface OperatorCatalogPort extends PortDefinition {
   index: number;
@@ -143,7 +143,7 @@ export function getOperatorCatalog(): OperatorCatalogSnapshot {
     protocolVersion: GRAPH_PROTOCOL_VERSION,
     graphSchemaVersion: GRAPH_SCHEMA_VERSION,
     catalogVersion: OPERATOR_CATALOG_VERSION,
-    portTypes: ['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table', 'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light', 'control.bool', 'event.trigger'],
+    portTypes: ['frame.rgba', 'control.f32', 'text.utf8', 'audio.block', 'data.json', 'data.table', 'control.vec2', 'control.vec3', 'control.vec4', 'geometry.mesh', 'geometry.points', 'material.pbr', 'scene.camera', 'scene.light', 'scene.asset', 'control.bool', 'event.trigger'],
     categories: [...OPERATOR_CATEGORY_IDS],
     limits: {
       graphNodes: MAX_GRAPH_NODES,

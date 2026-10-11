@@ -25,6 +25,8 @@ import { FontAssetControl } from './FontAssetControl';
 import { NodeMediaControls, type OperatorInputRuntime } from './NodeMediaControls';
 import { DataNodeControls } from './DataNodeControls';
 import { SignalTestControls } from './SignalTestControls';
+import { SceneAssetControl } from './SceneAssetControl';
+import type { SceneAssetRuntime } from '../hooks/useSceneAssets';
 import { isSignalTest } from '../graph/signalTestOperators';
 import { DATA_NODE_KINDS } from '../graph/dataOperators';
 
@@ -46,6 +48,7 @@ interface InspectorProps {
   onDisableCamera: () => void;
   graphDocument: GraphDocument;
   videoModelRuntime: VideoModelRuntime;
+  sceneAssetRuntime?: SceneAssetRuntime;
 }
 
 export function Inspector({
@@ -66,6 +69,7 @@ export function Inspector({
   onDisableCamera,
   graphDocument,
   videoModelRuntime,
+  sceneAssetRuntime,
 }: InspectorProps) {
   if (!node) {
     return (
@@ -137,12 +141,38 @@ export function Inspector({
       ) : null}
       {DATA_NODE_KINDS.includes(node.kind) ? <DataNodeControls nodeId={node.id} kind={node.kind} /> : null}
       {isSignalTest(node.kind) ? <SignalTestControls nodeId={node.id} kind={node.kind} params={node.params} /> : null}
+      {node.kind === 'asset3d' && sceneAssetRuntime ? (
+        <section className="inspector-section">
+          <div className="section-label">Model</div>
+          <SceneAssetControl
+            assetId={String(node.params.assetId ?? '')}
+            assetHash={String(node.params.assetHash ?? '')}
+            status={sceneAssetRuntime.getStatus(String(node.params.assetId ?? ''), String(node.params.assetHash ?? ''))}
+            onImport={sceneAssetRuntime.importFile}
+            onApply={(assetId, assetHash) => {
+              onGestureStart();
+              onParamChange(node.id, 'assetId', assetId);
+              onParamChange(node.id, 'assetHash', assetHash);
+              onGestureEnd();
+            }}
+            onClear={() => {
+              onGestureStart();
+              onParamChange(node.id, 'assetId', '');
+              onParamChange(node.id, 'assetHash', '');
+              onGestureEnd();
+            }}
+          />
+        </section>
+      ) : null}
 
       {Object.keys(definition.params).length > 0 ? (
         <section className="inspector-section">
           <div className="section-label">Parameters</div>
           <div className="parameter-list">
             {Object.entries(definition.params).map(([paramId, parameter]) => {
+              if (node.kind === 'asset3d' && (paramId === 'assetId' || paramId === 'assetHash')) {
+                return null;
+              }
               if (definition.parameterLayout?.type === 'text' && paramId === definition.parameterLayout.fontParamId) {
                 return <FontAssetControl key={paramId} value={String(node.params[paramId] ?? '')} onChange={(value) => {
                   onGestureStart();

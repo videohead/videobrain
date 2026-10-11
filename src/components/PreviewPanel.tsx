@@ -6,6 +6,7 @@ import { TEXT_FRAME_READY_EVENT } from '../engine/TextFrameCache';
 import {
   FRAME_PACING_OPTIONS,
   FramePacer,
+  SCENE_ASSET_READY_EVENT,
   WebGLRenderer,
   type AudioAnalysisFrame,
   type AudioAnalysisSnapshot,
@@ -24,6 +25,7 @@ interface PreviewPanelProps {
   videoInputState: VideoInputState;
   videoSource: HTMLVideoElement | HTMLImageElement | null;
   videoModelSources: ReadonlyMap<string, HTMLImageElement | HTMLVideoElement>;
+  sceneAssetBytes?: ReadonlyMap<string, Uint8Array>;
   meterLevel: number;
   sampleAudio: (
     timeSeconds: number,
@@ -45,6 +47,7 @@ export function PreviewPanel({
   videoInputState,
   videoSource,
   videoModelSources,
+  sceneAssetBytes,
   meterLevel,
   sampleAudio,
   onRuntimeUpdate,
@@ -66,6 +69,7 @@ export function PreviewPanel({
   const publishTimestampRef = useRef(0);
   const playingRef = useRef(playing);
   const videoModelSourcesRef = useRef(videoModelSources);
+  const sceneAssetBytesRef = useRef(sceneAssetBytes);
   const measuredCanvasSizeRef = useRef<MeasuredCanvasSize | null>(null);
   const modelSourceNeedsRetryRef = useRef(false);
   const resizeNeedsRetryRef = useRef(false);
@@ -128,6 +132,17 @@ export function PreviewPanel({
   useEffect(() => {
     videoModelSourcesRef.current = videoModelSources;
   }, [videoModelSources]);
+
+  useEffect(() => {
+    sceneAssetBytesRef.current = sceneAssetBytes;
+  }, [sceneAssetBytes]);
+
+  const applySceneAssets = useCallback((renderer: WebGLRenderer) => {
+    const bytes = sceneAssetBytesRef.current;
+    if (bytes) {
+      renderer.setSceneAssets(bytes);
+    }
+  }, []);
 
   const applyVideoModelSources = useCallback(
     (renderer: WebGLRenderer) => {
@@ -208,6 +223,7 @@ export function PreviewPanel({
     canvas.addEventListener('webglcontextrestored', renderHeldContextChange);
     canvas.addEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
     canvas.addEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
+    canvas.addEventListener(SCENE_ASSET_READY_EVENT, renderHeldContextChange);
     window.addEventListener('videobrain:data-ready', renderHeldContextChange);
     window.addEventListener('videobrain:signal-test', renderHeldContextChange);
     return () => {
@@ -215,6 +231,7 @@ export function PreviewPanel({
       canvas.removeEventListener('webglcontextrestored', renderHeldContextChange);
       canvas.removeEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
       canvas.removeEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
+      canvas.removeEventListener(SCENE_ASSET_READY_EVENT, renderHeldContextChange);
       window.removeEventListener('videobrain:data-ready', renderHeldContextChange);
       window.removeEventListener('videobrain:signal-test', renderHeldContextChange);
     };
@@ -233,6 +250,7 @@ export function PreviewPanel({
       if (modelSourceNeedsRetryRef.current) {
         applyVideoModelSources(renderer);
       }
+      applySceneAssets(renderer);
       renderIfHeld();
       queueMicrotask(() => setGraphSyncError(null));
     } catch (caught) {
@@ -243,6 +261,7 @@ export function PreviewPanel({
   }, [
     applyMeasuredCanvasSize,
     applyVideoModelSources,
+    applySceneAssets,
     document,
     onNotify,
     renderIfHeld,
@@ -276,6 +295,15 @@ export function PreviewPanel({
       renderIfHeld();
     }
   }, [applyVideoModelSources, renderIfHeld, videoModelSources]);
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) {
+      return;
+    }
+    applySceneAssets(renderer);
+    renderIfHeld();
+  }, [applySceneAssets, renderIfHeld, sceneAssetBytes]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

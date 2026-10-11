@@ -46,6 +46,24 @@ export function evaluateScene3D(compiled: CompiledNode, input: Record<string, Sc
     case 'material3d': return { material: { color: color(), metalness: number('metalness'), roughness: number('roughness'), emissive: number('emissive'), opacity: number('opacity'), wireframe: node.params.wireframe === 'on', pointSize: number('pointSize') } };
     case 'camera3d': return { camera: { mode: node.params.mode === 'orthographic' ? 'orthographic' : 'perspective', position: vector('position', [number('x'), number('y'), number('z')], -50, 50), target: vector('target', [number('targetX'), number('targetY'), number('targetZ')], -20, 20), fov: number('fov'), span: number('span'), near: number('near'), far: number('far') } };
     case 'light3d': return { light: { mode: node.params.mode as 'directional' | 'point' | 'ambient', color: color(), position: vector('position', [number('x'), number('y'), number('z')], -50, 50), intensity: number('intensity') } };
+    case 'asset3d': {
+      const assetId = typeof node.params.assetId === 'string' ? node.params.assetId : '';
+      const assetHash = typeof node.params.assetHash === 'string' ? node.params.assetHash : '';
+      const assetKind = node.params.assetKind === 'gltf' ? 'gltf' : 'glb';
+      if (assetId.length === 0 || !/^[a-f0-9]{64}$/.test(assetHash)) {
+        return { assetScene: null };
+      }
+      return {
+        assetScene: {
+          kind: 'asset-scene', assetId, assetHash, assetKind,
+          placement: {
+            position: [number('x'), number('y'), number('z')],
+            rotation: [number('rotationX'), number('rotationY'), number('rotationZ')],
+            scale: [number('scaleX'), number('scaleY'), number('scaleZ')],
+          },
+        },
+      };
+    }
     default: return {};
   }
 }
