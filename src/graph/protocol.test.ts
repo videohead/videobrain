@@ -22,7 +22,55 @@ describe('graph protocol inspection', () => {
     expect(first.protocolVersion).toBe(GRAPH_PROTOCOL_VERSION);
     expect(first.graphSchemaVersion).toBe(GRAPH_SCHEMA_VERSION);
     expect(first.catalogVersion).toBe(OPERATOR_CATALOG_VERSION);
-    expect(first.catalogVersion).toBe(9);
+    expect(first.catalogVersion).toBe(15);
+    for (const kind of ['levels', 'hsv', 'lumaKey', 'chromaKey', 'crossfade', 'displace', 'edge', 'pixelate', 'kaleidoscope', 'channelShuffle']) {
+      expect(first.operators.find((operator) => operator.kind === kind)).toMatchObject({
+        domain: 'frame',
+        execution: { visualPasses: 1, renderTargets: 1, stateful: false },
+        outputs: [{ id: 'frame', type: 'frame.rgba', index: 0 }],
+      });
+    }
+    expect(first.operators.find(({ kind }) => kind === 'displace')?.inputs.slice(0, 2)).toMatchObject([
+      { id: 'source', index: 0 }, { id: 'map', index: 1, optional: true },
+    ]);
+    expect(first.operators.find(({ kind }) => kind === 'shaderSource')).toMatchObject({
+      category: 'generators', domain: 'frame',
+      inputs: [
+        { id: 'time', type: 'control.f32', index: 0 },
+        { id: 'value1', type: 'control.f32', index: 1 },
+        { id: 'value2', type: 'control.f32', index: 2 },
+        { id: 'value3', type: 'control.f32', index: 3 },
+        { id: 'value4', type: 'control.f32', index: 4 },
+      ],
+      outputs: [{ id: 'frame', type: 'frame.rgba', index: 0 }],
+      execution: { visualPasses: 1, renderTargets: 1, stateful: false },
+    });
+    expect(first.operators.find(({ kind }) => kind === 'networkVideo')).toMatchObject({
+      title: 'Network Video', category: 'inputs', domain: 'frame',
+      outputs: [{ id: 'frame', type: 'frame.rgba', index: 0 }],
+      execution: { visualPasses: 1, renderTargets: 1, stateful: false },
+    });
+    expect(first.operators.find(({ kind }) => kind === 'text')).toMatchObject({
+      domain: 'frame', parameterLayout: { type: 'text', fontParamId: 'fontAsset' },
+      execution: { visualPasses: 1, renderTargets: 2, stateful: false },
+    });
+    expect(first.operators.find(({ kind }) => kind === 'noise')).toMatchObject({
+      domain: 'frame', execution: { visualPasses: 1, renderTargets: 1, stateful: false },
+    });
+    expect(first.operators.find(({ kind }) => kind === 'gradient')).toMatchObject({
+      title: 'Gradient', category: 'generators', domain: 'frame',
+      parameterLayout: { type: 'gradient', label: 'Color stops' },
+      execution: { visualPasses: 1, renderTargets: 1, stateful: false },
+    });
+    expect(first.operators.find(({ kind }) => kind === 'shape')).toMatchObject({
+      title: 'Shape', category: 'generators', domain: 'frame',
+      outputs: [{ id: 'frame', type: 'frame.rgba', index: 0 }],
+    });
+    expect(first.operators.find(({ kind }) => kind === 'vectorShape')).toMatchObject({
+      title: 'Vector Shape', category: 'generators', domain: 'frame',
+      parameterLayout: { type: 'vector', svgParamId: 'artwork' },
+      execution: { visualPasses: 1, renderTargets: 2, stateful: false },
+    });
     expect(first.operators.map(({ kind }) => kind)).toEqual(
       OPERATOR_DEFINITIONS.map(({ kind }) => kind),
     );

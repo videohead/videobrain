@@ -25,6 +25,24 @@ function renderControls(kind: NodeKind) {
 }
 
 describe('NodeParameterControls', () => {
+  it('edits gradient RGB together without changing alpha and exposes stop controls', () => {
+    const props = renderControls('gradient');
+    const color = screen.getByLabelText('Gradient Stop 1 Color');
+    fireEvent.focus(color);
+    fireEvent.change(color, { target: { value: '#ff0080' } });
+    fireEvent.blur(color);
+    expect(props.onGestureStart).toHaveBeenCalledOnce();
+    expect(props.onGestureEnd).toHaveBeenCalledOnce();
+    expect(props.onParamChange.mock.calls).toEqual([
+      ['gradient-1', 'stop1Red', 1], ['gradient-1', 'stop1Green', 0], ['gradient-1', 'stop1Blue', 128 / 255],
+    ]);
+    fireEvent.change(screen.getByRole('slider', { name: 'Gradient Stop 1 Alpha' }), { target: { value: '0.35' } });
+    expect(props.onParamChange).toHaveBeenLastCalledWith('gradient-1', 'stop1Alpha', 0.35);
+    expect(screen.getByRole('button', { name: 'Remove last color stop' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Add color stop' }));
+    expect(props.onParamChange).toHaveBeenCalledWith('gradient-1', 'stop3Position', 0.5);
+    expect(props.onParamChange).toHaveBeenLastCalledWith('gradient-1', 'stopCount', 3);
+  });
   it('renders every numeric value as a compact node-safe slider', () => {
     renderControls('oscillator');
 
@@ -35,6 +53,20 @@ describe('NodeParameterControls', () => {
     expect(sliders).toHaveLength(4);
     expect(sliders[0]).toHaveClass('nodrag', 'nopan', 'nowheel');
     expect(screen.getByRole('combobox', { name: 'Oscillator Waveform' })).toBeVisible();
+  });
+
+  it('bounds the gradient editor at eight stops and preserves every alpha control', () => {
+    const props = {
+      nodeId: 'gradient-1', definition: getOperatorDefinition('gradient'),
+      params: { ...getDefaultParams('gradient'), stopCount: 8 },
+      onParamChange: vi.fn(), onGestureStart: vi.fn(), onGestureEnd: vi.fn(),
+    };
+    render(<NodeParameterControls {...props} />);
+    expect(screen.getByRole('button', { name: 'Add color stop' })).toBeDisabled();
+    expect(screen.getAllByLabelText(/Gradient Stop \d Color/)).toHaveLength(8);
+    expect(screen.getByRole('slider', { name: 'Gradient Stop 8 Alpha' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove last color stop' }));
+    expect(props.onParamChange).toHaveBeenCalledWith('gradient-1', 'stopCount', 7);
   });
 
   it('updates a numeric parameter inside one undo gesture', () => {
@@ -103,7 +135,7 @@ describe('NodeParameterControls', () => {
     );
   });
 
-  it('keeps multiline prompt editing inside one undo gesture', () => {
+  it('keeps multiline drafts on blur and applies them in one undo gesture', () => {
     const props = renderControls('aiPrompt');
     const prompt = screen.getByRole('textbox', { name: 'AI Chat Prompt' });
 
@@ -115,6 +147,10 @@ describe('NodeParameterControls', () => {
 
     expect(prompt).toHaveAttribute('maxlength', '4000');
     expect(props.onSelect).toHaveBeenCalled();
+    expect(props.onParamChange).not.toHaveBeenCalled();
+    expect(props.onGestureStart).not.toHaveBeenCalled();
+    expect(prompt).toHaveValue('Amber light folding through glass');
+    fireEvent.click(screen.getByRole('button', { name: 'Apply AI Chat Prompt' }));
     expect(props.onGestureStart).toHaveBeenCalledOnce();
     expect(props.onParamChange).toHaveBeenCalledWith(
       'aiPrompt-1',

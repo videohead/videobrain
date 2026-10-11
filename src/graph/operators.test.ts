@@ -9,6 +9,15 @@ import {
 } from './index';
 
 describe('operator registry', () => {
+  it('defines bounded multi-stop gradients with indexed control inputs', () => {
+    expect(OPERATOR_REGISTRY.gradient.inputs.map(({ id }) => id)).toEqual(['angle', 'x', 'y', 'radius']);
+    expect(OPERATOR_REGISTRY.gradient.params.mode).toMatchObject({
+      options: [{ value: 'linear' }, { value: 'radial' }, { value: 'conic' }],
+    });
+    expect(getDefaultParams('gradient')).toMatchObject({ stopCount: 2, stop1Alpha: 1, stop2Position: 1 });
+    expect(OPERATOR_REGISTRY.gradient.params.stop8Alpha).toMatchObject({ min: 0, max: 1 });
+    expect(getOperatorExecution('gradient')).toEqual({ visualPasses: 1, renderTargets: 1, stateful: false });
+  });
   it('contains exactly one definition for every node kind', () => {
     expect(OPERATOR_DEFINITIONS.map(({ kind }) => kind)).toEqual(NODE_KINDS);
     expect(Object.keys(OPERATOR_REGISTRY).sort()).toEqual(

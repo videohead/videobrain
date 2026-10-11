@@ -7,6 +7,7 @@ import type {
 import type { FileInputController } from '../hooks/useFileInput';
 
 export interface OperatorInputRuntime {
+  networkVideo?: import('../hooks/useNetworkVideo').NetworkVideoRuntime;
   mixerConfig?: import('../hooks/useFileInput').AudioMixerConfig | null;
   audioRouteConnected?: boolean;
   audio: {

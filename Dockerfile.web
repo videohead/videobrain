@@ -6,7 +6,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 # Served behind Traefik's /videobrain path prefix, so assets must resolve there.
-RUN npx tsc -b && npx vite build --base=/videobrain/
+RUN npx tsc -b && npx vite build --base=/videobrain/ \
+	&& npm run build:storybook -- --output-dir dist/storybook \
+	&& npm run check:storybook-dist
 
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html

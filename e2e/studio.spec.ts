@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { createGraphNode, GRAPH_PRESETS, GRAPH_SCHEMA_VERSION, type GraphDocument, type GraphParams, type NodeKind } from '../src/graph';
 
 async function screenPointAtPathMidpoint(pathLocator: Locator) {
   return pathLocator.evaluate((element) => {
@@ -112,6 +113,378 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByText('Graph healthy')).toBeVisible();
 });
 
+async function sourceFrameStats(page: Page) {
+  return page.locator('canvas.preview-canvas').evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const gl = canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 unavailable');
+    const bounds = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2 }));
+    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    let hash = 0;
+    let minimum = 255;
+    let maximum = 0;
+    let visible = 0;
+    let maxAlpha = 0;
+    for (let index = 0; index < pixels.length; index += 4) {
+      hash = Math.imul(hash, 31) + (pixels[index] ?? 0) + (pixels[index + 1] ?? 0) * 3 + (pixels[index + 2] ?? 0) * 7 + (pixels[index + 3] ?? 0) * 11 | 0;
+      minimum = Math.min(minimum, pixels[index] ?? 0);
+      maximum = Math.max(maximum, pixels[index] ?? 0);
+      maxAlpha = Math.max(maxAlpha, pixels[index + 3] ?? 0);
+      if ((pixels[index + 3] ?? 0) > 0) visible++;
+    }
+    return { hash, minimum, maximum, visible, maxAlpha, pixelCount: canvas.width * canvas.height };
+  });
+}
+
+async function installEffectGraph(page: Page, kind: NodeKind, params: GraphParams = {}, sourceKind: NodeKind = 'solid', connectMap = false) {
+  const document: GraphDocument = {
+    schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode(sourceKind, { x: 0, y: 0 }, sourceKind === 'solid' ? { red: 0.25, green: 0.5, blue: 0.75, alpha: 0.5 } : {}, 'effect-source'),
+      createGraphNode(kind, { x: 340, y: 0 }, params, 'effect'),
+      createGraphNode('display', { x: 680, y: 0 }, {}, 'effect-output'),
+    ],
+    edges: [
+      { id: 'source', source: { nodeId: 'effect-source', portId: 'frame' }, target: { nodeId: 'effect', portId: 'source' } },
+      { id: 'output', source: { nodeId: 'effect', portId: 'frame' }, target: { nodeId: 'effect-output', portId: 'source' } },
+    ],
+  };
+  if (connectMap) document.edges.push({ id: 'map', source: { nodeId: 'effect-source', portId: 'frame' }, target: { nodeId: 'effect', portId: 'map' } });
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+}
+
+async function centerPixel(page: Page) {
+  return page.locator('canvas.preview-canvas').evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const gl = canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 unavailable');
+    const bounds = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2 }));
+    const pixel = new Uint8Array(4);
+    gl.readPixels(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return Array.from(pixel);
+  });
+}
+
+const effectPixelCases: { kind: NodeKind; params?: GraphParams; expected: number[] }[] = [
+  { kind: 'levels', expected: [64, 128, 191, 128] },
+  { kind: 'levels', params: { gamma: 2 }, expected: [128, 181, 221, 128] },
+  { kind: 'levels', params: { black: 0.5, white: 0.5 }, expected: [0, 255, 255, 128] },
+  { kind: 'hsv', expected: [64, 128, 191, 128] },
+  { kind: 'hsv', params: { saturation: 0 }, expected: [191, 191, 191, 128] },
+  { kind: 'hsv', params: { mode: 'hsl' }, expected: [64, 128, 191, 128] },
+  { kind: 'hsv', params: { mode: 'hsl', saturation: 0 }, expected: [128, 128, 128, 128] },
+  { kind: 'lumaKey', params: { threshold: 0, softness: 0 }, expected: [64, 128, 191, 128] },
+  { kind: 'lumaKey', params: { threshold: 1, softness: 0 }, expected: [64, 128, 191, 0] },
+  { kind: 'lumaKey', params: { threshold: 1, softness: 0, invert: 'on' }, expected: [64, 128, 191, 128] },
+  { kind: 'chromaKey', params: { red: 0.25, green: 0.5, blue: 0.75 }, expected: [64, 128, 191, 0] },
+  { kind: 'crossfade', params: { mix: 0.5 }, expected: [64, 128, 191, 64] },
+  { kind: 'crossfade', params: { mix: 0 }, expected: [64, 128, 191, 128] },
+  { kind: 'crossfade', params: { mix: 1 }, expected: [0, 0, 0, 0] },
+  { kind: 'crossfade', params: { mix: 0.5, curve: 'easeIn' }, expected: [64, 128, 191, 96] },
+  { kind: 'crossfade', params: { mix: 0.5, curve: 'easeOut' }, expected: [64, 128, 191, 32] },
+  { kind: 'displace', params: { center: 0 }, expected: [64, 128, 191, 128] },
+  { kind: 'edge', expected: [0, 0, 0, 128] },
+  { kind: 'pixelate', expected: [64, 128, 191, 128] },
+  { kind: 'kaleidoscope', expected: [64, 128, 191, 128] },
+  { kind: 'channelShuffle', params: { red: 'blue', blue: 'red', alpha: 'one' }, expected: [191, 128, 64, 255] },
+];
+
+for (const { kind, params, expected } of effectPixelCases) {
+  test(`P1 effect GPU contract: ${kind} ${JSON.stringify(params ?? {})}`, async ({ page }) => {
+    await installEffectGraph(page, kind, params);
+    await expect.poll(async () => {
+      const actual = await centerPixel(page);
+      return expected.every((value, index) => expected[3] === 0 && index < 3 || Math.abs((actual[index] ?? -999) - value) <= 2);
+    }).toBe(true);
+  });
+}
+
+for (const { kind, title, parameter, value } of [
+  { kind: 'pixelate' as const, title: 'Pixelate', parameter: 'Block size (px)', value: '128' },
+  { kind: 'displace' as const, title: 'Displace', parameter: 'X amount (UV)', value: '0.9' },
+  { kind: 'edge' as const, title: 'Edge', parameter: 'Strength', value: '8' },
+]) {
+  test(`P1 effect spatial sampling: ${kind}`, async ({ page }) => {
+    await installEffectGraph(page, kind, {}, 'gradient', kind === 'displace');
+    const before = await sourceFrameStats(page);
+    await page.locator(`article[aria-label="${title} node"]`).getByRole('slider', { name: `${title} ${parameter}`, exact: true }).fill(value);
+    await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(before.hash);
+  });
+}
+
+test('P1 effect teaching presets render with separated nodes and no permissions', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  page.on('dialog', (dialog) => void dialog.accept());
+  for (const title of ['Color & Channel Lab', 'Keyed Camera', 'Displacement Map Lab', 'Pattern & Mix Lab']) {
+    await page.getByRole('button', { name: 'New patch', exact: true }).click();
+    await page.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
+    await expect(page.getByText('Graph healthy')).toBeVisible();
+    await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+    const pause = page.getByRole('button', { name: 'Pause', exact: true });
+    if (await pause.count()) await pause.click();
+    await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(20);
+    expect(await cameraRequestCount(page)).toBe(0);
+    const overlaps = await page.locator('.react-flow__node').evaluateAll((nodes) => {
+      const bounds = nodes.map((node) => ({ id: node.getAttribute('data-id'), rect: node.getBoundingClientRect() }));
+      return bounds.flatMap((node, index) => bounds.slice(index + 1).filter((other) =>
+        Math.min(node.rect.right, other.rect.right) > Math.max(node.rect.left, other.rect.left) + 1 &&
+        Math.min(node.rect.bottom, other.rect.bottom) > Math.max(node.rect.top, other.rect.top) + 1,
+      ).map((other) => `${node.id}/${other.id}`));
+    });
+    expect(overlaps, title).toEqual([]);
+  }
+});
+
+test('P1 effect spatial controls change GPU output and persist on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await installEffectGraph(page, 'kaleidoscope', { mode: 'repeat' }, 'gradient');
+  const node = page.locator('article[aria-label="Tile / Kaleidoscope node"]');
+  const before = await sourceFrameStats(page);
+  await node.getByRole('combobox', { name: 'Tile / Kaleidoscope Mode', exact: true }).selectOption('kaleidoscope');
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(before.hash);
+  const rotation = node.getByRole('slider', { name: 'Tile / Kaleidoscope Rotation (deg)', exact: true });
+  await rotation.focus();
+  await rotation.fill('45');
+  await rotation.blur();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(rotation).toHaveValue('0');
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(rotation).toHaveValue('45');
+  await expect.poll(() => page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('videobrain.project') ?? '{}') as { document?: GraphDocument };
+    return stored.document?.nodes.find(({ id }) => id === 'effect')?.params.rotation;
+  })).toBe(45);
+  await page.screenshot({ path: 'test-results/p1-effects-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(node).toBeVisible();
+  await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+  await page.screenshot({ path: 'test-results/p1-effects-mobile.png' });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('Shader Source applies bounded GLSL with live uniforms and compile recovery', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.getByRole('button', { name: 'New patch', exact: true }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('menuitem', { name: /^Shader Lab/ }).click();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.getByRole('button', { name: 'Return to frame zero' }).click();
+  const node = page.locator('article[aria-label="Shader Source node"]');
+  const editor = node.getByRole('textbox', { name: 'Shader Source GLSL body', exact: true });
+  const apply = node.getByRole('button', { name: 'Apply Shader Source GLSL body', exact: true });
+  await expect.poll(async () => (await sourceFrameStats(page)).maximum).toBeGreaterThan(100);
+  const original = await editor.inputValue();
+  const initial = (await sourceFrameStats(page)).hash;
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  const frame = Number(await page.locator('canvas.preview-canvas').getAttribute('data-frame'));
+  await expect.poll(async () => Number(await page.locator('canvas.preview-canvas').getAttribute('data-frame'))).toBeGreaterThan(frame + 5);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  expect((await sourceFrameStats(page)).hash).not.toBe(initial);
+  const beforeEdit = (await sourceFrameStats(page)).hash;
+  const body = 'outColor = vec4(uValue1, uValue2, 0.25, uValue4);';
+  await editor.click();
+  await editor.fill(body);
+  await editor.blur();
+  expect((await sourceFrameStats(page)).hash).toBe(beforeEdit);
+  await apply.click();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(editor).toHaveValue(original);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(editor).toHaveValue(body);
+  await node.getByRole('slider', { name: 'Shader Source uValue4', exact: true }).fill('0.5');
+  await expect.poll(async () => (await sourceFrameStats(page)).maxAlpha).toBe(128);
+  const firstUniform = (await sourceFrameStats(page)).hash;
+  await page.locator('article[aria-label="Constant node"]').getByRole('slider', { name: 'Constant Value', exact: true }).fill('0.8');
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(firstUniform);
+  const lastGood = (await sourceFrameStats(page)).hash;
+  for (const invalid of ['while (true) {}', 'outColor = missingVariable;']) {
+    await editor.click();
+    await editor.fill(invalid);
+    await apply.click();
+    await expect(page.getByText(/Shader Source \(shader-source\):/).first()).toBeVisible();
+    expect((await sourceFrameStats(page)).hash).toBe(lastGood);
+  }
+  await editor.click();
+  await editor.fill(body);
+  await apply.click();
+  await expect(page.getByText(/Shader Source \(shader-source\):/)).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/shader-desktop.png' });
+  await page.reload();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(editor).toHaveValue(body);
+  await expect.poll(async () => (await sourceFrameStats(page)).maxAlpha).toBe(128);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => (await sourceFrameStats(page)).maxAlpha).toBe(128);
+  const bounds = await node.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(195, 500);
+  await page.mouse.down();
+  await page.mouse.move(390 - bounds!.x - bounds!.width / 2, 500, { steps: 12 });
+  await page.mouse.up();
+  await expect(editor).toBeInViewport();
+  await page.screenshot({ path: 'test-results/shader-mobile.png' });
+});
+
+test('Network Video plays an external HLS stream through WebGL2', async ({ page }) => {
+  const url = process.env.TEST_HLS_URL;
+  test.skip(!url, 'Set TEST_HLS_URL to run the live network check.');
+  test.setTimeout(90_000);
+  await page.goto('https://videohead.duckdns.org/videobrain/');
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.getByRole('button', { name: 'New patch', exact: true }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('menuitem', { name: /^Network Video/ }).click();
+  const node = page.locator('article[aria-label="Network Video node"]');
+  const endpoint = node.getByRole('textbox', { name: /URL/ });
+  await endpoint.click();
+  await endpoint.fill(url!);
+  await endpoint.blur();
+  await expect(endpoint).toHaveValue(url!);
+  await node.getByRole('button', { name: 'Apply Network Video Stream URL', exact: true }).click();
+  await node.getByRole('button', { name: 'Connect stream', exact: true }).click();
+  await expect(node.locator('.node-input-state')).toHaveText('live', { timeout: 45_000 });
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect.poll(async () => (await sourceFrameStats(page)).maximum, { timeout: 15_000 }).toBeGreaterThan(20);
+  const first = await sourceFrameStats(page);
+  await expect.poll(async () => (await sourceFrameStats(page)).hash, { timeout: 15_000 }).not.toBe(first.hash);
+  await page.screenshot({ path: 'test-results/network-hls-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => (await sourceFrameStats(page)).maximum).toBeGreaterThan(20);
+  await page.screenshot({ path: 'test-results/network-hls-mobile.png' });
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await node.getByRole('button', { name: 'Disconnect stream', exact: true }).click();
+  await expect(node.locator('.node-input-state')).toHaveText('idle');
+  await expect.poll(async () => (await sourceFrameStats(page)).maximum).toBe(0);
+  await page.reload();
+  await expect(node.locator('.node-input-state')).toHaveText('idle');
+  await expect(endpoint).toHaveValue(url!);
+});
+
+test('Noise renders every variant with deterministic seeds and animated time', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await expect(page.getByTitle('Add Noise', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'New patch' }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('menuitem', { name: /Noise Lab/ }).click();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await page.getByRole('button', { name: 'Return to frame zero' }).click();
+  const noise = page.locator('article[aria-label="Noise node"]');
+  const hashes = new Set<number>();
+  for (const mode of ['value', 'simplex', 'cellular', 'curl', 'fractal']) {
+    await noise.getByRole('combobox', { name: 'Noise Mode', exact: true }).selectOption(mode);
+    await expect.poll(async () => (await sourceFrameStats(page)).maximum - (await sourceFrameStats(page)).minimum).toBeGreaterThan(30);
+    hashes.add((await sourceFrameStats(page)).hash);
+  }
+  expect(hashes.size).toBe(5);
+  const fractals = new Set<number>();
+  for (const mode of ['fbm', 'turbulence', 'ridged']) {
+    await noise.getByRole('combobox', { name: 'Noise Fractal', exact: true }).selectOption(mode);
+    fractals.add((await sourceFrameStats(page)).hash);
+  }
+  expect(fractals.size).toBe(3);
+  const initial = (await sourceFrameStats(page)).hash;
+  await noise.getByRole('slider', { name: 'Noise Seed', exact: true }).fill('124');
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(initial);
+  await noise.getByRole('slider', { name: 'Noise Seed', exact: true }).fill('23');
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).toBe(initial);
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  const frame = Number(await page.locator('canvas.preview-canvas').getAttribute('data-frame'));
+  await expect.poll(async () => Number(await page.locator('canvas.preview-canvas').getAttribute('data-frame'))).toBeGreaterThan(frame + 5);
+  await page.getByRole('button', { name: 'Pause' }).click();
+  expect((await sourceFrameStats(page)).hash).not.toBe(initial);
+  await page.getByRole('button', { name: 'Return to frame zero' }).click();
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).toBe(initial);
+  await page.screenshot({ path: 'test-results/noise-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => (await sourceFrameStats(page)).maximum).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/noise-mobile.png' });
+});
+
+test('Text wraps live strings, imports fonts, preserves alpha, and reloads on mobile', async ({ page }) => {
+  const document: GraphDocument = {
+    schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('aiPrompt', { x: -350, y: 0 }, { text: 'LIVE WORDS', negative: '' }, 'copy'),
+      createGraphNode('text', { x: 0, y: 0 }, { text: 'Saved fallback', fontSize: 64, alpha: 0.5 }, 'text'),
+      createGraphNode('display', { x: 350, y: 0 }, {}, 'display'),
+    ],
+    edges: [
+      { id: 'copy', source: { nodeId: 'copy', portId: 'prompt' }, target: { nodeId: 'text', portId: 'text' } },
+      { id: 'output', source: { nodeId: 'text', portId: 'frame' }, target: { nodeId: 'display', portId: 'source' } },
+    ],
+  };
+  await page.addInitScript((document) => {
+    if (!sessionStorage.getItem('text-fixture')) {
+      localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document }));
+      sessionStorage.setItem('text-fixture', 'loaded');
+    }
+  }, document);
+  await page.reload();
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await expect(page.getByTitle('Add Text', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  const text = page.locator('article[aria-label="Text node"]');
+  const copy = page.locator('article[aria-label="AI Chat node"]').getByRole('textbox', { name: 'AI Chat Prompt', exact: true });
+  await expect.poll(async () => (await sourceFrameStats(page)).visible).toBeGreaterThan(100);
+  expect((await sourceFrameStats(page)).maxAlpha).toBe(128);
+  expect((await sourceFrameStats(page)).visible).toBeLessThan((await sourceFrameStats(page)).pixelCount / 2);
+  const initial = (await sourceFrameStats(page)).hash;
+  await text.getByRole('textbox', { name: 'Text Text', exact: true }).click();
+  await text.getByRole('textbox', { name: 'Text Text', exact: true }).fill('Saved edit');
+  await text.getByRole('textbox', { name: 'Text Text', exact: true }).blur();
+  await expect(text.getByRole('textbox', { name: 'Text Text', exact: true })).toHaveValue('Saved edit');
+  await text.getByRole('button', { name: 'Apply Text Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(text.getByRole('textbox', { name: 'Text Text', exact: true })).toHaveValue('Saved fallback');
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(text.getByRole('textbox', { name: 'Text Text', exact: true })).toHaveValue('Saved edit');
+  expect((await sourceFrameStats(page)).hash).toBe(initial);
+  await copy.click();
+  await copy.fill('Words that wrap across several short lines');
+  await copy.blur();
+  await expect(copy).toHaveValue('Words that wrap across several short lines');
+  expect((await sourceFrameStats(page)).hash).toBe(initial);
+  await page.locator('article[aria-label="AI Chat node"]').getByRole('button', { name: 'Apply AI Chat Prompt', exact: true }).click();
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(initial);
+  await text.getByRole('slider', { name: 'Text Box width', exact: true }).fill('0.4');
+  const wrapped = (await sourceFrameStats(page)).hash;
+  expect(wrapped).not.toBe(initial);
+  await text.getByRole('combobox', { name: 'Text Wrapping', exact: true }).selectOption('none');
+  expect((await sourceFrameStats(page)).hash).not.toBe(wrapped);
+  await text.getByRole('combobox', { name: 'Text Wrapping', exact: true }).selectOption('word');
+  await text.getByRole('combobox', { name: 'Text Align', exact: true }).selectOption('left');
+  expect((await sourceFrameStats(page)).hash).not.toBe(wrapped);
+  await text.getByLabel('Import font asset', { exact: true }).setInputFiles('node_modules/storybook/assets/browser/nunito-sans-regular.woff2');
+  await expect(text.getByRole('combobox', { name: 'Text Font', exact: true })).toHaveValue('custom');
+  await expect(text.getByRole('button', { name: 'Remove font', exact: true })).toBeEnabled();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await expect.poll(async () => (await sourceFrameStats(page)).visible).toBeGreaterThan(100);
+  await text.getByLabel('Import font asset', { exact: true }).setInputFiles({ name: 'bad.woff2', mimeType: 'font/woff2', buffer: Buffer.from('not a font') });
+  await expect(text.getByRole('alert')).toContainText('Choose a WOFF2');
+  await expect(text.getByRole('combobox', { name: 'Text Font', exact: true })).toHaveValue('custom');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('videobrain.project'))).toContain('data:font/woff2;base64,');
+  await page.screenshot({ path: 'test-results/text-desktop.png' });
+  await page.reload();
+  await expect(text.getByRole('combobox', { name: 'Text Font', exact: true })).toHaveValue('custom');
+  await expect(text.getByRole('textbox', { name: 'Text Text', exact: true })).toHaveValue('Saved edit');
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.mouse.move(350, 650);
+  await page.mouse.down();
+  await page.mouse.move(30, 650, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(async () => (await sourceFrameStats(page)).visible).toBeGreaterThan(0);
+  expect(await text.locator('.font-asset-control').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/text-mobile.png' });
+});
+
 test('boots a live GPU composition without permissions', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Live output' })).toBeVisible();
   await expect(page.getByText('running', { exact: true })).toBeVisible();
@@ -121,6 +494,198 @@ test('boots a live GPU composition without permissions', async ({ page }) => {
   await expect
     .poll(async () => Number(await canvas.getAttribute('data-frame')))
     .toBeGreaterThan(1);
+});
+
+test('gradient modes interpolate RGBA stops on the GPU', async ({ page }) => {
+  const document = {
+    schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('gradient', { x: 0, y: 0 }, { stop1Red: 1, stop1Green: 0, stop1Blue: 0, stop1Alpha: 0, stop2Red: 0, stop2Green: 0, stop2Blue: 1 }, 'gradient'),
+      createGraphNode('display', { x: 350, y: 0 }, {}, 'display'),
+    ],
+    edges: [{ id: 'output', source: { nodeId: 'gradient', portId: 'frame' }, target: { nodeId: 'display', portId: 'source' } }],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  const gradient = page.locator('article[aria-label="Gradient node"]');
+  await expect(gradient).toBeVisible();
+  const sample = async (offsetX: number, offsetY: number) => page.locator('canvas.preview-canvas').evaluate((element, offsets) => {
+    const canvas = element as HTMLCanvasElement;
+    const gl = canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 unavailable');
+    const bounds = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2 }));
+    const size = Math.min(canvas.width, canvas.height);
+    const pixel = new Uint8Array(4);
+    gl.readPixels(Math.floor(canvas.width / 2 + offsets.offsetX * size), Math.floor(canvas.height / 2 + offsets.offsetY * size), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return Array.from(pixel);
+  }, { offsetX, offsetY });
+  await expect.poll(async () => (await sample(0, 0))[2]).toBe(255);
+  expect((await sample(0, 0))[0]).toBe(0);
+  expect((await sample(0, 0))[3]).toBeGreaterThan(124);
+  expect((await sample(0, 0))[3]).toBeLessThan(132);
+  await gradient.getByRole('combobox', { name: 'Gradient Mode' }).selectOption('radial');
+  await expect.poll(async () => (await sample(0, 0))[3]).toBeLessThan(4);
+  expect((await sample(0.25, 0))[3]).toBeGreaterThan(124);
+  expect((await sample(-0.25, 0))[3]).toBeLessThan(132);
+  await gradient.getByRole('combobox', { name: 'Gradient Mode' }).selectOption('conic');
+  await expect.poll(async () => (await sample(0, 0.25))[3]).toBeLessThan(68);
+  expect((await sample(0, 0.25))[3]).toBeGreaterThan(60);
+  expect((await sample(0, -0.25))[3]).toBeGreaterThan(187);
+  expect((await sample(0, -0.25))[3]).toBeLessThan(195);
+  await gradient.getByRole('combobox', { name: 'Gradient Mode' }).selectOption('linear');
+  await gradient.getByRole('button', { name: 'Add color stop' }).click();
+  await gradient.getByLabel('Gradient Stop 3 Color', { exact: true }).fill('#00ff00');
+  await expect.poll(async () => (await sample(0, 0))[1]).toBeGreaterThan(250);
+  await gradient.getByRole('slider', { name: 'Gradient Stop 3 Position' }).fill('0');
+  await expect.poll(async () => (await sample(-0.49, 0))[1]).toBeGreaterThan(245);
+  expect((await sample(-0.49, 0))[3]).toBe(255);
+});
+
+test('gradient color pickers, alpha, undo, and persistence work on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await expect(page.getByTitle('Add Gradient', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'New patch' }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('menuitem', { name: /Gradient Lab/ }).click();
+  const gradient = page.locator('article[aria-label="Gradient node"]');
+  const color = gradient.getByLabel('Gradient Stop 1 Color', { exact: true });
+  const original = await color.inputValue();
+  await color.focus();
+  await color.fill('#c04080');
+  await color.blur();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(color).toHaveValue(original);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(color).toHaveValue('#c04080');
+  const alpha = gradient.getByRole('slider', { name: 'Gradient Stop 1 Alpha', exact: true });
+  await alpha.fill('0.35');
+  await alpha.blur();
+  await expect(page.getByRole('complementary', { name: 'Gradient inspector' }).getByRole('slider', { name: 'Gradient Stop 1 Alpha', exact: true })).toHaveValue('0.35');
+  await page.screenshot({ path: 'test-results/gradient-desktop.png' });
+  await expect.poll(() => page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('videobrain.project') ?? '{}') as { document?: GraphDocument };
+    return stored.document?.nodes.find((node) => node.kind === 'gradient')?.params.stop1Alpha;
+  })).toBe(0.35);
+  await page.reload();
+  await expect(color).toHaveValue('#c04080');
+  await expect(alpha).toHaveValue('0.35');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gradient.getByRole('button', { name: 'Add color stop' }).click();
+  await expect(gradient.getByLabel('Gradient Stop 4 Color', { exact: true })).toBeVisible();
+  await gradient.getByRole('button', { name: 'Remove last color stop' }).click();
+  await expect(gradient.getByLabel('Gradient Stop 4 Color', { exact: true })).toHaveCount(0);
+  const fits = await gradient.locator('.gradient-stops').evaluate((element) => element.scrollWidth <= element.clientWidth);
+  expect(fits).toBe(true);
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/gradient-mobile.png' });
+});
+
+test('shape primitives render filled and outlined alpha on the GPU', async ({ page }) => {
+  const document = {
+    schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('shape', { x: 0, y: 0 }, { alpha: 0.5 }, 'shape'),
+      createGraphNode('display', { x: 350, y: 0 }, {}, 'display'),
+    ],
+    edges: [{ id: 'output', source: { nodeId: 'shape', portId: 'frame' }, target: { nodeId: 'display', portId: 'source' } }],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  const shape = page.locator('article[aria-label="Shape node"]');
+  const alphaAt = async (offset: number) => page.locator('canvas.preview-canvas').evaluate((element, offset) => {
+    const canvas = element as HTMLCanvasElement;
+    const gl = canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 unavailable');
+    const bounds = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2 }));
+    const pixel = new Uint8Array(4);
+    gl.readPixels(Math.floor(canvas.width / 2 + offset * Math.min(canvas.width, canvas.height)), Math.floor(canvas.height / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return pixel[3];
+  }, offset);
+  for (const primitive of ['ellipse', 'rectangle', 'triangle', 'polygon', 'star']) {
+    await shape.getByRole('combobox', { name: 'Shape Primitive', exact: true }).selectOption(primitive);
+    await expect.poll(() => alphaAt(0)).toBe(128);
+    expect(await alphaAt(0.45)).toBe(0);
+    await shape.getByRole('combobox', { name: 'Shape Style', exact: true }).selectOption('outline');
+    await expect.poll(() => alphaAt(0)).toBe(0);
+    await shape.getByRole('combobox', { name: 'Shape Style', exact: true }).selectOption('filled');
+  }
+  await shape.getByRole('combobox', { name: 'Shape Primitive', exact: true }).selectOption('ellipse');
+  await shape.getByRole('combobox', { name: 'Shape Style', exact: true }).selectOption('outline');
+  await expect.poll(() => alphaAt(0.3)).toBeGreaterThan(100);
+});
+
+test('catalog shape tools draw, import SVG, and persist artwork', async ({ page }) => {
+  await expect(page.getByTitle('Add Shape', { exact: true })).toBeVisible();
+  await expect(page.getByTitle('Add Vector Shape', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'New patch' }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('menuitem', { name: /Shape Studio/ }).click();
+  await expect(page.getByText('Shape Studio loaded.')).toBeVisible();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(0);
+
+  const shape = page.locator('article[aria-label="Shape node"]');
+  const foregroundOpacity = page.locator('article[aria-label="Composite node"]').getByRole('slider', { name: 'Composite Opacity' });
+  await foregroundOpacity.focus();
+  await foregroundOpacity.press('Home');
+  for (const primitive of ['ellipse', 'rectangle', 'triangle', 'polygon', 'star']) {
+    await shape.getByRole('combobox', { name: 'Shape Primitive', exact: true }).selectOption(primitive);
+    await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+    await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(0);
+  }
+  await foregroundOpacity.focus();
+  await foregroundOpacity.press('End');
+  const vector = page.locator('article[aria-label="Vector Shape node"]');
+  const original = await vector.getByAltText('Vector artwork').getAttribute('src');
+  await vector.getByRole('button', { name: 'Edit artwork' }).click();
+  const editor = page.getByRole('dialog', { name: 'Vector Shape' });
+  await expect(editor.getByRole('button', { name: 'Add rectangle' })).toBeEnabled();
+  await editor.getByRole('button', { name: 'Add rectangle' }).click();
+  await editor.getByRole('button', { name: 'Undo artwork edit' }).click();
+  await expect(editor.getByRole('button', { name: 'Redo artwork edit' })).toBeEnabled();
+  await editor.getByRole('button', { name: 'Redo artwork edit' }).click();
+  await page.screenshot({ path: 'test-results/shape-editor-desktop.png' });
+  await editor.getByRole('button', { name: 'Apply artwork' }).click();
+  await expect(editor).not.toBeVisible();
+  await expect(vector.getByAltText('Vector artwork')).not.toHaveAttribute('src', original ?? '');
+
+  const file = { name: 'custom.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M10 50 Q50 5 90 50 L50 90Z" fill="#f52288"/></svg>') };
+  await vector.getByLabel('Import SVG artwork', { exact: true }).setInputFiles(file);
+  await expect(vector.getByAltText('Vector artwork')).toHaveAttribute('src', /f52288/);
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(0);
+  await vector.getByLabel('Import SVG artwork', { exact: true }).setInputFiles({ ...file, buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>') });
+  await expect(vector.getByRole('alert')).toContainText('Unsupported SVG element');
+  await expect(vector.getByAltText('Vector artwork')).toHaveAttribute('src', /f52288/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('videobrain.project'))).toContain('f52288');
+  await page.reload();
+  await expect(page.locator('article[aria-label="Vector Shape node"]').getByAltText('Vector artwork')).toHaveAttribute('src', /f52288/);
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+});
+
+test('shape editor fits a mobile viewport and cancels without changing artwork', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'New patch' }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('menuitem', { name: /Shape Studio/ }).click();
+  const vector = page.locator('article[aria-label="Vector Shape node"]');
+  const original = await vector.getByAltText('Vector artwork').getAttribute('src');
+  await vector.getByRole('button', { name: 'Edit artwork' }).click();
+  const editor = page.getByRole('dialog', { name: 'Vector Shape' });
+  await expect(editor.getByRole('button', { name: 'Add star' })).toBeEnabled();
+  await editor.getByRole('button', { name: 'Add star' }).click();
+  const bounds = await editor.boundingBox();
+  expect(bounds?.x).toBeGreaterThanOrEqual(0);
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: 'test-results/shape-editor-mobile.png' });
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(vector.getByAltText('Vector artwork')).toHaveAttribute('src', original ?? '');
 });
 
 test('starts blank and example graphs from the New patch menu', async ({
@@ -137,7 +702,7 @@ test('starts blank and example graphs from the New patch menu', async ({
   await trigger.click();
   const menu = page.getByRole('menu', { name: 'New patch starters' });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('menuitem')).toHaveCount(18);
+  await expect(menu.getByRole('menuitem')).toHaveCount(GRAPH_PRESETS.length);
   await expect(
     menu.getByRole('menuitem', { name: /Blank Canvas/ }),
   ).toBeFocused();

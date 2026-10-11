@@ -4,6 +4,7 @@ import {
   Mic2,
   Pause,
   Play,
+  Radio,
   Square,
   Video,
   Volume2,
@@ -87,6 +88,35 @@ export function NodeMediaControls({
   }
 
   const fileRuntime = runtime.getFile?.(nodeId ?? '') ?? runtime.file;
+
+  if (kind === 'networkVideo') {
+    const stream = runtime.networkVideo;
+    const id = nodeId ?? '';
+    const status = stream?.getStatus(id) ?? { state: 'idle', error: null };
+    const connected = ['connecting', 'live', 'buffering'].includes(status.state);
+    const reachable = stream?.canConnect(id) ?? false;
+    return (
+      <section className="node-input-runtime nodrag nopan nowheel" aria-label="Network video controls">
+        <span className={`node-input-state ${status.state === 'live' ? 'is-live' : ''}`} aria-live="polite">
+          <i aria-hidden="true" />{status.state}
+        </span>
+        {status.error ? <p className="node-input-hint" role="alert">{status.error}</p> : null}
+        <button type="button" className={`node-input-button ${connected ? 'is-stop' : ''}`}
+          disabled={!connected && (!reachable || !String(params.url ?? '').trim())}
+          title={!reachable ? 'Connect the frame output to Display first' : connected ? 'Disconnect stream' : 'Connect stream'}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect();
+            if (connected) stream?.disconnect(id);
+            else stream?.connect(id);
+          }}>
+          {connected ? <Square aria-hidden="true" /> : <Radio aria-hidden="true" />}
+          {connected ? 'Disconnect stream' : 'Connect stream'}
+        </button>
+      </section>
+    );
+  }
 
   if (kind === 'audioLevel') {
     const gain = typeof params.gain === 'number' ? params.gain : 1.5;

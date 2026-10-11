@@ -18,8 +18,14 @@ import type {
 } from '../hooks/useVideoInput';
 import { formatParameterNumber } from './parameterFormatting';
 import { DOMAIN_LABELS, OPERATOR_META } from './operatorMeta';
+import { VectorArtworkControl } from './VectorArtworkControl';
+import { TextParameterEditor } from './TextParameterEditor';
+import { GradientStopControls } from './GradientStopControls';
+import { FontAssetControl } from './FontAssetControl';
+import { NodeMediaControls, type OperatorInputRuntime } from './NodeMediaControls';
 
 interface InspectorProps {
+  inputRuntime?: OperatorInputRuntime;
   node: GraphNode | null;
   audioInputState: AudioInputState;
   videoInputState: VideoInputState;
@@ -39,6 +45,7 @@ interface InspectorProps {
 }
 
 export function Inspector({
+  inputRuntime,
   node,
   audioInputState,
   videoInputState,
@@ -121,15 +128,47 @@ export function Inspector({
         </div>
       </section>
 
+      {node.kind === 'networkVideo' ? (
+        <NodeMediaControls nodeId={node.id} kind={node.kind} params={node.params} runtime={inputRuntime} onSelect={() => undefined} />
+      ) : null}
+
       {Object.keys(definition.params).length > 0 ? (
         <section className="inspector-section">
           <div className="section-label">Parameters</div>
           <div className="parameter-list">
             {Object.entries(definition.params).map(([paramId, parameter]) => {
+              if (definition.parameterLayout?.type === 'text' && paramId === definition.parameterLayout.fontParamId) {
+                return <FontAssetControl key={paramId} value={String(node.params[paramId] ?? '')} onChange={(value) => {
+                  onGestureStart();
+                  onParamChange(node.id, paramId, value);
+                  onParamChange(node.id, 'fontFamily', value ? 'custom' : 'sans-serif');
+                  onGestureEnd();
+                }} />;
+              }
+              if (definition.parameterLayout?.type === 'gradient' && paramId.startsWith('stop')) {
+                return paramId === 'stopCount' ? <GradientStopControls key={paramId} definition={definition} params={node.params}
+                  onChange={(id, value) => onParamChange(node.id, id, value)} onGestureStart={onGestureStart} onGestureEnd={onGestureEnd} /> : null;
+              }
               const value = node.params[paramId] ?? parameter.defaultValue;
+              if (definition.parameterLayout?.type === 'vector' && paramId === definition.parameterLayout.svgParamId) {
+                return <VectorArtworkControl key={paramId} value={String(value)} onChange={(artwork) => {
+                  onGestureStart();
+                  onParamChange(node.id, paramId, artwork);
+                  onGestureEnd();
+                }} />;
+              }
               if (parameter.type === 'text') {
                 const textValue =
                   typeof value === 'string' ? value : parameter.defaultValue;
+                if (parameter.multiline || node.kind === 'networkVideo') {
+                  return <TextParameterEditor key={`${node.id}-${paramId}-${textValue}`} value={textValue}
+                    code={node.kind === 'shaderSource'}
+                    parameter={parameter} label={`${definition.title} ${parameter.label}`}
+                    onApply={(draft) => {
+                      onGestureStart();
+                      try { onParamChange(node.id, paramId, draft); } finally { onGestureEnd(); }
+                    }} />;
+                }
                 const inputId = `inspector-${node.id}-${paramId}`;
                 const countId = `${inputId}-count`;
                 const commonProps = {

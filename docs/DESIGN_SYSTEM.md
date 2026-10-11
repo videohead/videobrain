@@ -44,6 +44,15 @@ a two-axis control.
 
 ## Story organization
 
+Multiline Text and AI Chat fields use a local draft with an explicit Apply
+button in both the node and Inspector. Blur does not commit or discard the
+draft. Apply saves one undoable change; external saved-value changes (including
+undo/redo) replace the draft. Connected text inputs still override saved literals
+at runtime. Network Video endpoint settings also use Apply; other single-line
+model fields retain immediate editing. Shader Source uses the same draft/Apply
+contract with a resizable monospace GLSL editor and spellcheck disabled. Compile
+errors appear on the monitor while the last valid program remains active.
+
 ```text
 Foundations/  color, type, spacing, signal and node accents
 Controls/     buttons, status, numeric sliders, enumerated values

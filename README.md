@@ -17,6 +17,14 @@ The proof of concept opens into a working composition and runs locally without a
   rate-capped strobe processing, color grading, and display
 - Solid color, soft thresholding, alpha masks, Porter-Duff compositing,
   four-input frame switching, and control-driven blur
+- Single-pass Levels, HSV/HSL, Luma/Chroma Key, Displace, Edge, Pixelate,
+  Tile/Kaleidoscope, Channel Shuffle, and alpha-correct control-driven Crossfade,
+  with four complete teaching patches
+- Shape primitives and a Vector Shape drawing editor with SVG import/export
+- Text with local font import, alignment, wrapping, and live string input; multiline text and AI Chat drafts commit with Apply
+- Seeded value, simplex, cellular, curl, and fractal Noise, with Poster Maker and Noise Lab starters
+- GLSL Shader Source with an Apply editor, four patchable float uniforms, static complexity budgets, compile diagnostics, and a Shader Lab starter
+- Linear, radial, and conic Gradient with 2–8 color stops, color pickers, alpha controls, and a Gradient Lab starter
 - Transport/beat clocks, deterministic automatic source selection, oscillator,
   pointer position/held/press/release, editable XY pad, and opt-in microphone
   controls
@@ -29,7 +37,7 @@ The proof of concept opens into a working composition and runs locally without a
   display-synced/60/30 fps monitor pacing
 - Node creation, connection, deletion, movement, and parameter editing
 - Searchable, collapsible node categories backed by the operator registry
-- A New patch menu with Blank Canvas and sixteen complete starter graphs
+- A New patch menu with Blank Canvas and complete starter graphs, including Shape Studio and Gradient Lab
 - Always-visible inline sliders, selects, and XY controls synchronized with the inspector
 - Undo and redo for project edits
 - Versioned local autosave plus JSON import and export
@@ -145,6 +153,26 @@ replacement is undoable, but it stops active camera and
 microphone sessions, closes model connections, and clears session-only model
 keys. Device-based starters remain in fallback mode until access is explicitly
 enabled again.
+
+### Shapes and SVG artwork
+
+Find **Shape** and **Vector Shape** under **Generators** in the operator
+catalog, or open **New patch > Shape Studio** for a connected example.
+Shape generates ellipses, rectangles, triangles, polygons, and stars on a
+transparent background. Size and outline width are fractions of the shorter
+output dimension; equal width and height produce circles or squares.
+
+Vector Shape's **Edit artwork** opens a local editor for freehand paths,
+primitive objects, selection, scaling, rotation, fill/stroke, layer ordering,
+and undo/redo. **Apply artwork** commits one project edit; **Cancel** leaves
+the previous artwork unchanged. SVG import/export is available in the editor,
+with a direct import button on the node and in the Inspector.
+Artwork is included in autosave and JSON export, not tied to a session file.
+
+SVG import accepts static paths, shapes, gradients, and clipping up to 150 KB
+and 512 elements. Convert text and use instances to paths first. Scripts,
+animation, embedded images, external resources, and unsupported elements are
+rejected. Both nodes work without permissions or network access.
 
 ### Teaching examples
 

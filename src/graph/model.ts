@@ -5,6 +5,8 @@ import {
   MAX_GRAPH_NODES,
 } from './limits';
 import { getDefaultParams, getOperatorDefinition } from './operators';
+import { validateVectorArtwork } from './vectorArtwork';
+import { decodeFontAsset } from './fontAsset';
 import {
   GRAPH_SCHEMA_VERSION,
   NODE_KINDS,
@@ -157,6 +159,21 @@ function parseNode(value: unknown, index: number): GraphNode {
 
   const position = requireRecord(record.position, `${path}.position`);
   assertOnlyKeys(position, ['x', 'y'], `${path}.position`);
+  const params = normalizeNodeParams(kindValue as NodeKind, record.params, `${path}.params`);
+  if (kindValue === 'vectorShape') {
+    try {
+      validateVectorArtwork(String(params.artwork));
+    } catch (error) {
+      throw new GraphDocumentError(`${path}.params.artwork: ${error instanceof Error ? error.message : 'Invalid SVG artwork.'}`);
+    }
+  }
+  if (kindValue === 'text') {
+    try {
+      decodeFontAsset(String(params.fontAsset));
+    } catch (error) {
+      throw new GraphDocumentError(`${path}.params.fontAsset: ${error instanceof Error ? error.message : 'Invalid font asset.'}`);
+    }
+  }
   return {
     id: requireString(record.id, `${path}.id`),
     kind: kindValue as NodeKind,
@@ -164,11 +181,7 @@ function parseNode(value: unknown, index: number): GraphNode {
       x: requireFiniteNumber(position.x, `${path}.position.x`),
       y: requireFiniteNumber(position.y, `${path}.position.y`),
     },
-    params: normalizeNodeParams(
-      kindValue as NodeKind,
-      record.params,
-      `${path}.params`,
-    ),
+    params,
   };
 }
 

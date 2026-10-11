@@ -42,6 +42,7 @@ import {
   type AudioMixerConfig,
 } from './hooks/useFileInput';
 import { useVideoModel } from './hooks/useVideoModel';
+import { useNetworkVideo } from './hooks/useNetworkVideo';
 import {
   projectStore,
   useGraphDocument,
@@ -190,6 +191,11 @@ function Studio() {
     graphDocument,
     videoInputState === 'live' ? videoElement : null,
   );
+  const networkVideo = useNetworkVideo(graphDocument);
+  const externalFrameSources = useMemo(() => new Map<string, HTMLImageElement | HTMLVideoElement>([
+    ...videoModel.frames,
+    ...networkVideo.sources,
+  ]), [videoModel.frames, networkVideo.sources]);
   const resetVideoModels = videoModel.resetAll;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toastTimerRef = useRef<number | undefined>(undefined);
@@ -201,6 +207,7 @@ function Studio() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const graphInputRuntime = useMemo<OperatorInputRuntime>(
     () => ({
+      networkVideo,
       audioRouteConnected,
       audio: {
         inputState: audio.inputState,
@@ -261,6 +268,7 @@ function Studio() {
       fileControllers,
       getRuntimeFile,
       audioRouteConnected,
+      networkVideo,
     ],
   );
 
@@ -567,7 +575,7 @@ function Studio() {
                   ? videoElement
                   : null
             }
-            videoModelSources={videoModel.frames}
+            videoModelSources={externalFrameSources}
             meterLevel={audio.meterLevel}
             sampleAudio={sampleAudio}
             onRuntimeUpdate={setRuntime}
@@ -581,6 +589,7 @@ function Studio() {
             videoFacingMode={videoFacingMode}
             graphDocument={graphDocument}
             videoModelRuntime={videoModel}
+            inputRuntime={graphInputRuntime}
             onParamChange={handleNodeParamChange}
             onGestureStart={beginGesture}
             onGestureEnd={endGesture}

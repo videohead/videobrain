@@ -17,11 +17,18 @@ export const NODE_KINDS = [
   'audioTrigger',
   'audioBeat',
   'videoInput',
+  'networkVideo',
   'file',
   'audioOutput',
   'audioMixer',
   'videoModel',
   'solid',
+  'gradient',
+  'shape',
+  'vectorShape',
+  'text',
+  'noise',
+  'shaderSource',
   'plasma',
   'cells',
   'transform2d',
@@ -38,6 +45,16 @@ export const NODE_KINDS = [
   'feedbackSpiral',
   'strobe',
   'colorGrade',
+  'levels',
+  'hsv',
+  'lumaKey',
+  'chromaKey',
+  'crossfade',
+  'displace',
+  'edge',
+  'pixelate',
+  'kaleidoscope',
+  'channelShuffle',
   'display',
 ] as const;
 
@@ -180,6 +197,9 @@ export interface SourceSelectorParameterLayout {
 }
 
 export type ParameterLayout =
+  | { type: 'text'; label: string; fontParamId: string }
+  | { type: 'gradient'; label: string }
+  | { type: 'vector'; label: string; svgParamId: string }
   | XYParameterLayout
   | AudioBandParameterLayout
   | ProjectionEditorParameterLayout

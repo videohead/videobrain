@@ -2,6 +2,10 @@ import { useRef } from 'react';
 import type { GraphParamValue, OperatorDefinition } from '../graph';
 import { bandResponse } from '../engine';
 import { formatParameterNumber } from './parameterFormatting';
+import { VectorArtworkControl } from './VectorArtworkControl';
+import { TextParameterEditor } from './TextParameterEditor';
+import { GradientStopControls } from './GradientStopControls';
+import { FontAssetControl } from './FontAssetControl';
 
 interface NodeParameterControlsProps {
   nodeId: string;
@@ -630,6 +634,18 @@ export function NodeParameterControls({
       {renderSourceSelector()}
       {renderBandCurves()}
       {parameters.map(([paramId, parameter]) => {
+        if (layout?.type === 'text' && paramId === layout.fontParamId) {
+          return <FontAssetControl key={paramId} value={String(params[paramId] ?? '')} onChange={(value) => {
+            onGestureStart();
+            onParamChange(nodeId, paramId, value);
+            onParamChange(nodeId, 'fontFamily', value ? 'custom' : 'sans-serif');
+            onGestureEnd();
+          }} />;
+        }
+        if (layout?.type === 'gradient' && paramId.startsWith('stop')) {
+          return paramId === 'stopCount' ? <GradientStopControls key={paramId} definition={definition} params={params}
+            onChange={(id, value) => onParamChange(nodeId, id, value)} onGestureStart={onGestureStart} onGestureEnd={onGestureEnd} onSelect={onSelect} /> : null;
+        }
         if (
           sourceSelectorLayout &&
           paramId === sourceSelectorLayout.paramId
@@ -637,9 +653,25 @@ export function NodeParameterControls({
           return null;
         }
         const value = params[paramId] ?? parameter.defaultValue;
+        if (layout?.type === 'vector' && paramId === layout.svgParamId) {
+          return <VectorArtworkControl key={paramId} value={String(value)} onChange={(artwork) => {
+            onGestureStart();
+            onParamChange(nodeId, paramId, artwork);
+            onGestureEnd();
+          }} />;
+        }
         if (parameter.type === 'text') {
           const textValue =
             typeof value === 'string' ? value : parameter.defaultValue;
+          if (parameter.multiline || definition.kind === 'networkVideo') {
+            return <TextParameterEditor key={`${nodeId}-${paramId}-${textValue}`} value={textValue}
+              code={definition.kind === 'shaderSource'}
+              parameter={parameter} label={`${definition.title} ${parameter.label}`} onSelect={onSelect}
+              onApply={(draft) => {
+                onGestureStart();
+                try { onParamChange(nodeId, paramId, draft); } finally { onGestureEnd(); }
+              }} />;
+          }
           const commonProps = {
             className: 'nodrag nopan nowheel',
             value: textValue,

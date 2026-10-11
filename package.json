@@ -24,7 +24,13 @@
     "control-server": "node server/control-server.mjs"
   },
   "dependencies": {
+    "@shaderfrog/glsl-parser": "7.0.1",
     "@xyflow/react": "^12.11.6",
+    "dashjs": "5.2.1",
+    "dompurify": "3.4.16",
+    "fabric": "7.4.0",
+    "glsl-noise": "0.0.0",
+    "hls.js": "1.7.3",
     "lucide-react": "^1.40.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

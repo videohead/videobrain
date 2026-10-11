@@ -1,5 +1,6 @@
-import { describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 
+import * as graph from '../graph';
 import {
   GRAPH_SCHEMA_VERSION,
   MAX_RENDER_DIMENSION,
@@ -14,6 +15,8 @@ import {
   readImageFrameSize,
   readVideoFrameSize,
 } from './WebGLRenderer';
+import { TextFrameCache } from './TextFrameCache';
+import { FRAME_EFFECT_SHADERS } from './frameEffects';
 
 interface FakeWebGLContext {
   gl: WebGL2RenderingContext;
@@ -79,6 +82,7 @@ function createFakeWebGLContext(): FakeWebGLContext {
     texParameteri: vi.fn(),
     texImage2D,
     texStorage2D: vi.fn(),
+    texSubImage2D: vi.fn(),
     pixelStorei,
     createFramebuffer: vi.fn(resource),
     deleteFramebuffer: vi.fn(),
@@ -733,6 +737,369 @@ function createRendererHarness(): {
     uniform4f,
   };
 }
+
+function firstFixtureItem<T>(items: readonly T[]): T {
+  const item = items[0];
+  if (item === undefined) {
+    throw new Error('The graph fixture must not be empty.');
+  }
+  return item;
+}
+
+describe('graph synchronization', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(Object.keys(FRAME_EFFECT_SHADERS) as (keyof typeof FRAME_EFFECT_SHADERS)[])(
+    '%s binds every numeric override, restores literals, and releases resources', (kind) => {
+      const { renderer, uniform1f, createTexture, deleteTexture } = createRendererHarness();
+      const effect = createGraphNode(kind, { x: 0, y: 0 }, {}, 'effect');
+      const document: GraphDocument = {
+        schemaVersion: GRAPH_SCHEMA_VERSION,
+        nodes: [effect, createGraphNode('display', { x: 300, y: 0 }, {}, 'output')],
+        edges: [{ id: 'out', source: { nodeId: 'effect', portId: 'frame' }, target: { nodeId: 'output', portId: 'source' } }],
+      };
+      const numeric = Object.entries(graph.OPERATOR_REGISTRY[kind].params).filter(([, parameter]) => parameter.type === 'number');
+      for (const [id] of numeric) {
+        document.nodes.push(createGraphNode('constant', { x: -300, y: 0 }, { value: 10 }, id));
+        document.edges.push({ id, source: { nodeId: id, portId: 'value' }, target: { nodeId: 'effect', portId: id } });
+      }
+      renderer.setGraph(document);
+      expect(renderer.render(0)).toMatchObject({ error: null, passCount: 2 });
+      expect(lastUniformValue(uniform1f, 'uHasMap')).toBe(0);
+      for (const [id, parameter] of numeric) {
+        if (parameter.type !== 'number') continue;
+        expect(lastUniformValue(uniform1f, `u${id.charAt(0).toUpperCase()}${id.slice(1)}`)).toBe(Math.max(parameter.min, Math.min(10, parameter.max)));
+        expect(effect.params[id]).toBe(parameter.defaultValue);
+      }
+      document.edges = document.edges.filter(({ id }) => id === 'out');
+      document.nodes = document.nodes.filter(({ kind: nodeKind }) => nodeKind !== 'constant');
+      renderer.setGraph(document);
+      expect(renderer.render(0).error).toBeNull();
+      for (const [id, parameter] of numeric) {
+        expect(lastUniformValue(uniform1f, `u${id.charAt(0).toUpperCase()}${id.slice(1)}`)).toBe(parameter.defaultValue);
+      }
+      renderer.dispose();
+      expect(deleteTexture).toHaveBeenCalledTimes(createTexture.mock.calls.length);
+    },
+  );
+
+  it('caches GLSL programs and resolves connected uniforms without replacing literals', () => {
+    const { renderer, gl, uniform1f } = createRendererHarness();
+    const document = graph.createGraphPreset('shader-lab');
+    const source = document.nodes.find((node) => node.kind === 'shaderSource')!;
+    source.params.value2 = 0.2;
+    const compile = vi.spyOn(gl, 'compileShader');
+    renderer.setGraph(document);
+    expect(renderer.render(3).error).toBeNull();
+    expect(lastUniformValue(uniform1f, 'uTime')).toBe(3);
+    expect(lastUniformValue(uniform1f, 'uValue2')).toBe(0.5);
+    const count = compile.mock.calls.length;
+    renderer.render(4);
+    expect(compile).toHaveBeenCalledTimes(count);
+    document.edges = document.edges.filter((edge) => edge.id !== 'shader-uniform');
+    renderer.setGraph(document);
+    renderer.render(4);
+    expect(lastUniformValue(uniform1f, 'uValue2')).toBe(0.2);
+    expect(compile).toHaveBeenCalledTimes(count);
+    renderer.dispose();
+  });
+
+  it('retains the last valid GLSL program, caches failures, and recovers on correction', () => {
+    const { renderer, gl } = createRendererHarness();
+    const document = graph.createGraphPreset('shader-lab');
+    const source = document.nodes.find((node) => node.kind === 'shaderSource')!;
+    const compile = vi.spyOn(gl, 'compileShader');
+    const deleted = vi.spyOn(gl, 'deleteProgram');
+    renderer.setGraph(document);
+    renderer.render(0);
+    const initialCount = compile.mock.calls.length;
+    source.params.source = 'while (true) {}';
+    renderer.setGraph(document);
+    const rejected = renderer.render(0);
+    expect(rejected.rendered).toBe(true);
+    expect(rejected.error).toContain('Unsupported GLSL');
+    expect(compile).toHaveBeenCalledTimes(initialCount);
+    source.params.source = 'outColor = missingVariable;';
+    renderer.setGraph(document);
+    vi.spyOn(gl, 'getShaderParameter').mockReturnValueOnce(true).mockReturnValueOnce(false);
+    vi.spyOn(gl, 'getShaderInfoLog').mockReturnValue('unknown variable');
+    const failed = renderer.render(0);
+    expect(failed.rendered).toBe(true);
+    expect(failed.error).toContain('unknown variable');
+    const failedCount = compile.mock.calls.length;
+    renderer.render(1);
+    expect(compile).toHaveBeenCalledTimes(failedCount);
+    expect(deleted).not.toHaveBeenCalled();
+    source.params.source = 'outColor = vec4(1.0);';
+    renderer.setGraph(document);
+    expect(renderer.render(0).error).toBeNull();
+    expect(deleted).toHaveBeenCalledTimes(1);
+    renderer.setGraph(graph.createGraphPreset('blank'));
+    expect(deleted).toHaveBeenCalledTimes(2);
+    renderer.dispose();
+  });
+
+  it('uses transparent fallback for invalid imported GLSL and rebuilds after context loss', () => {
+    const { renderer, gl, canvas } = createRendererHarness();
+    const document = graph.createGraphPreset('shader-lab');
+    document.nodes.find((node) => node.kind === 'shaderSource')!.params.source = 'for (;;) {}';
+    renderer.setGraph(document);
+    const fallback = renderer.render(0);
+    expect(fallback.rendered).toBe(true);
+    expect(fallback.error).toContain('Shader Source');
+    document.nodes.find((node) => node.kind === 'shaderSource')!.params.source = 'outColor = vec4(vUv, 0.5, 1.0);';
+    renderer.setGraph(document);
+    expect(renderer.render(0).error).toBeNull();
+    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+    canvas.dispatchEvent(new Event('webglcontextrestored'));
+    const compile = vi.spyOn(gl, 'compileShader');
+    compile.mockClear();
+    expect(renderer.render(0).error).toBeNull();
+    expect(compile.mock.calls.length).toBeGreaterThan(0);
+    renderer.dispose();
+  });
+
+  it('resolves live text and restores the saved literal on disconnect', () => {
+    const raster = globalThis.document.createElement('canvas');
+    const getFrame = vi.spyOn(TextFrameCache.prototype, 'get').mockReturnValue({ image: raster, key: '', asset: '', font: null, error: null, ready: true, dirty: true });
+    const { renderer } = createRendererHarness();
+    const document = createVideoGraph();
+    document.nodes[0] = createGraphNode('text', { x: 0, y: 0 }, { text: 'Saved fallback' }, 'camera');
+    document.nodes.push(createGraphNode('aiPrompt', { x: 0, y: 0 }, { text: 'Live input' }, 'copy'));
+    document.edges.push({ id: 'text-binding', source: { nodeId: 'copy', portId: 'prompt' }, target: { nodeId: 'camera', portId: 'text' } });
+    renderer.setGraph(document);
+    expect(renderer.render(0).rendered).toBe(true);
+    expect(getFrame.mock.calls.at(-1)?.[1].text).toBe('Live input');
+    document.edges.pop();
+    renderer.setGraph(document);
+    renderer.render(0);
+    expect(getFrame.mock.calls.at(-1)?.[1].text).toBe('Saved fallback');
+    expect(firstFixtureItem(document.nodes).params.text).toBe('Saved fallback');
+    renderer.dispose();
+  });
+
+  it('resolves seeded Noise parameters with bounded controls and visual time', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    const document = createVideoGraph();
+    document.nodes[0] = createGraphNode('noise', { x: 0, y: 0 }, { seed: 123, mode: 'fractal', fractalType: 'ridged', speed: 0.5, octaves: 6 }, 'camera');
+    renderer.setGraph(document);
+    expect(renderer.render(4).rendered).toBe(true);
+    expect(lastUniformValue(uniform1f, 'uTime')).toBe(2);
+    expect(lastUniformValue(uniform1f, 'uSeed')).toBe(123);
+    expect(lastUniformValue(uniform1f, 'uMode')).toBe(4);
+    expect(lastUniformValue(uniform1f, 'uFractalType')).toBe(2);
+    expect(lastUniformValue(uniform1f, 'uOctaves')).toBe(6);
+    renderer.reset();
+    renderer.render(4);
+    expect(lastUniformValue(uniform1f, 'uTime')).toBe(2);
+    renderer.dispose();
+  });
+
+  it('uploads sorted gradient stops, resolves controls, and stays deterministic across reset', () => {
+    const { renderer, uniform1f, uniform4f } = createRendererHarness();
+    const document = createVideoGraph();
+    document.nodes[0] = createGraphNode('gradient', { x: 0, y: 0 }, {
+      stopCount: 3, stop1Position: 1, stop2Position: 0, stop3Position: 0.5,
+      stop3Red: 0.2, stop3Green: 0.4, stop3Blue: 0.6, stop3Alpha: 0.3,
+    }, 'camera');
+    document.nodes.push(createGraphNode('constant', { x: 0, y: 0 }, { value: 9 }, 'angle'));
+    document.edges.push({ id: 'angle-binding', source: { nodeId: 'angle', portId: 'value' }, target: { nodeId: 'camera', portId: 'angle' } });
+    for (const [mode, value] of [['linear', 0], ['radial', 1], ['conic', 2]] as const) {
+      firstFixtureItem(document.nodes).params.mode = mode;
+      renderer.setGraph(document);
+      expect(renderer.render(0)).toMatchObject({ rendered: true, error: null });
+      expect(lastUniformValue(uniform1f, 'uMode')).toBe(value);
+      expect(lastUniformValue(uniform1f, 'uAngle')).toBeCloseTo(Math.PI / 20);
+      expect(lastUniformValue(uniform1f, 'uStopCount')).toBe(3);
+      expect(lastUniformValue(uniform1f, 'uPositions[0]')).toBe(0);
+      expect(lastUniformValue(uniform1f, 'uPositions[1]')).toBe(0.5);
+      expect(lastUniformValue(uniform1f, 'uPositions[2]')).toBe(1);
+      expect(wroteUniform4f(uniform4f, 'uColors[1]', 0.2, 0.4, 0.6, 0.3)).toBe(true);
+      renderer.reset();
+      expect(renderer.render(0).rendered).toBe(true);
+      expect(lastUniformValue(uniform1f, 'uMode')).toBe(value);
+    }
+    document.edges.pop();
+    renderer.setGraph(document);
+    renderer.render(0);
+    expect(lastUniformValue(uniform1f, 'uAngle')).toBe(0);
+    expect(firstFixtureItem(document.nodes).params.angle).toBe(0);
+    renderer.dispose();
+  });
+
+  it('decodes vector text, uploads once, and restores its source texture after reset', () => {
+    const images: HTMLImageElement[] = [];
+    vi.spyOn(globalThis, 'Image').mockImplementation(function () {
+      const image = globalThis.document.createElement('img');
+      images.push(image);
+      return image;
+    });
+    const { renderer, gl } = createRendererHarness();
+    const upload = vi.spyOn(gl, 'texSubImage2D');
+    const document = createVideoGraph();
+    document.nodes[0] = createGraphNode('vectorShape', { x: 0, y: 0 }, {}, 'camera');
+    renderer.setGraph(document);
+    expect(renderer.render(0)).toMatchObject({ rendered: true, error: null });
+    const image = firstFixtureItem(images);
+    image.onload?.(new Event('load'));
+    expect(renderer.render(1).rendered).toBe(true);
+    expect(upload).toHaveBeenCalledTimes(1);
+    renderer.render(2);
+    expect(upload).toHaveBeenCalledTimes(1);
+    renderer.reset();
+    renderer.render(3);
+    expect(upload).toHaveBeenCalledTimes(2);
+    renderer.dispose();
+    expect(image.onload).toBeNull();
+  });
+
+  it('renders Shape geometry and alpha with connected controls and literal fallback', () => {
+    const { renderer, uniform1f, uniform2f, uniform4f } = createRendererHarness();
+    const document = createVideoGraph();
+    document.nodes[0] = createGraphNode('shape', { x: 0, y: 0 }, { primitive: 'star', style: 'outline', sides: 7, alpha: 0.4, width: 0.8, height: 0.6 }, 'camera');
+    document.nodes.push(createGraphNode('constant', { x: 0, y: 0 }, { value: 2 }, 'alpha'));
+    document.edges.push({ id: 'alpha-binding', source: { nodeId: 'alpha', portId: 'value' }, target: { nodeId: 'camera', portId: 'alpha' } });
+    renderer.setGraph(document);
+    expect(renderer.render(0)).toMatchObject({ rendered: true, error: null });
+    expect(lastUniformValue(uniform1f, 'uPrimitive')).toBe(4);
+    expect(lastUniformValue(uniform1f, 'uOutline')).toBe(1);
+    expect(lastUniformValue(uniform1f, 'uSides')).toBe(7);
+    expect(wroteUniform2f(uniform2f, 'uSize', 0.8, 0.6)).toBe(true);
+    expect(wroteUniform4f(uniform4f, 'uColor', 0.2, 0.9, 0.8, 1)).toBe(true);
+    document.edges.pop();
+    renderer.setGraph(document);
+    renderer.render(0);
+    expect(wroteUniform4f(uniform4f, 'uColor', 0.2, 0.9, 0.8, 0.4)).toBe(true);
+    expect(firstFixtureItem(document.nodes).params.alpha).toBe(0.4);
+    renderer.dispose();
+  });
+
+  it('compiles a document exactly once when installing it', () => {
+    const compile = vi.spyOn(graph, 'compileGraph');
+    const { renderer } = createRendererHarness();
+
+    expect(compile).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+  });
+
+  it('revalidates externally supplied compiled graphs before replacing the plan', () => {
+    const { renderer } = createRendererHarness();
+    const compiled = graph.compileGraph(createVideoGraph());
+    firstFixtureItem(compiled.document.edges).target.portId = 'missing';
+    const compile = vi.spyOn(graph, 'compileGraph');
+
+    expect(() => renderer.setCompiledGraph(compiled)).toThrow();
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(renderer.render(0).rendered).toBe(true);
+    renderer.dispose();
+  });
+
+  it('skips compilation and resource reconciliation for position-only edits', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    const moved = createFeedbackSpiralGraph();
+    renderer.setGraph(moved);
+    expect(renderer.render(0).rendered).toBe(true);
+    const compile = vi.spyOn(graph, 'compileGraph');
+    const resources = renderer as unknown as {
+      reconcileNodeResources(): void;
+      reconcileVideoModelTextures(): void;
+    };
+    const reconcileNodes = vi.spyOn(resources, 'reconcileNodeResources');
+    const reconcileModels = vi.spyOn(resources, 'reconcileVideoModelTextures');
+    firstFixtureItem(moved.nodes).position = { x: 125, y: 80 };
+
+    renderer.setGraph(moved);
+    renderer.setGraph(cloneGraphDocument(moved));
+
+    expect(compile).not.toHaveBeenCalled();
+    expect(reconcileNodes).not.toHaveBeenCalled();
+    expect(reconcileModels).not.toHaveBeenCalled();
+    expect(renderer.render(1).rendered).toBe(true);
+    expect(lastUniformValue(uniform1f, 'uHistoryReady')).toBe(1);
+    expect(lastUniformValue(uniform1f, 'uDeltaTime')).toBe(1);
+    renderer.dispose();
+  });
+
+  it.each([
+    ['parameter value', (document: GraphDocument) => {
+      firstFixtureItem(document.nodes).params.mirror = true;
+    }, true],
+    ['parameter removal', (document: GraphDocument) => {
+      delete firstFixtureItem(document.nodes).params.mirror;
+    }, true],
+    ['node kind', (document: GraphDocument) => {
+      document.nodes[0] = createGraphNode('plasma', { x: 0, y: 0 }, {}, 'camera');
+    }, true],
+    ['node addition', (document: GraphDocument) => {
+      document.nodes.push(createGraphNode('constant', { x: 0, y: 0 }, {}, 'extra'));
+    }, true],
+    ['edge removal', (document: GraphDocument) => {
+      document.edges = [];
+    }, true],
+    ['edge identity', (document: GraphDocument) => {
+      firstFixtureItem(document.edges).id = 'replacement';
+    }, true],
+    ['endpoint', (document: GraphDocument) => {
+      firstFixtureItem(document.edges).target.portId = 'missing';
+    }, false],
+    ['node identity', (document: GraphDocument) => {
+      firstFixtureItem(document.nodes).id = 'replacement';
+    }, false],
+  ])('compiles changes to %s even when positions also change', (_label, edit, valid) => {
+    const { renderer } = createRendererHarness();
+    const compile = vi.spyOn(graph, 'compileGraph');
+    const changed = createVideoGraph();
+    firstFixtureItem(changed.nodes).position.x += 100;
+    edit(changed);
+
+    if (valid) {
+      expect(() => renderer.setGraph(changed)).not.toThrow();
+    } else {
+      expect(() => renderer.setGraph(changed)).toThrow();
+      expect(renderer.lastError).not.toBeNull();
+    }
+
+    expect(compile).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+  });
+
+  it('detects parameter mutations on a previously submitted document', () => {
+    const { renderer, uniform1f } = createRendererHarness();
+    const document = createXYControlGraph();
+    renderer.setGraph(document);
+    const compile = vi.spyOn(graph, 'compileGraph');
+    firstFixtureItem(document.nodes).params.x = 0.81;
+
+    renderer.setGraph(document);
+    renderer.render(0);
+
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(uniform1f).toHaveBeenCalledWith({ name: 'uHue' }, 0.81);
+    renderer.dispose();
+  });
+
+  it('revalidates the previous graph after a failed edit and clears the error', () => {
+    const { renderer } = createRendererHarness();
+    const invalid = createVideoGraph();
+    firstFixtureItem(invalid.edges).target.portId = 'missing';
+    expect(() => renderer.setGraph(invalid)).toThrow();
+    const compile = vi.spyOn(graph, 'compileGraph');
+
+    renderer.setGraph(createVideoGraph());
+
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(renderer.lastError).toBeNull();
+    expect(renderer.render(0).rendered).toBe(true);
+    renderer.dispose();
+  });
+
+  it('rejects unchanged graph submissions after disposal', () => {
+    const { renderer } = createRendererHarness();
+    renderer.dispose();
+
+    expect(() => renderer.setGraph(createVideoGraph())).toThrow('disposed');
+  });
+});
 
 describe('renderer size constraints', () => {
   it('keeps ordinary responsive dimensions and pixel density', () => {

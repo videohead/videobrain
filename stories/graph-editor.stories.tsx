@@ -202,6 +202,31 @@ type Story = StoryObj<typeof meta>;
 
 export const RunningPatch: Story = {};
 
+export const ColorChannelLab: Story = { args: { presetId: 'color-channel-lab' } };
+export const KeyedCamera: Story = { args: { presetId: 'keyed-camera' } };
+export const DisplacementMapLab: Story = { args: { presetId: 'displacement-map-lab' } };
+export const PatternMixLab: Story = { args: { presetId: 'pattern-mix-lab' } };
+
+export const ShapeStudio: Story = {
+  args: { presetId: 'shape-studio' },
+};
+
+export const GradientLab: Story = {
+  args: { presetId: 'gradient-lab' },
+};
+
+export const PosterMaker: Story = {
+  args: { presetId: 'poster-maker' },
+};
+
+export const NoiseLab: Story = {
+  args: { presetId: 'noise-lab' },
+};
+
+export const ShaderLab: Story = {
+  args: { presetId: 'shader-lab' },
+};
+
 export const PausedPatch: Story = {
   args: { playing: false },
 };

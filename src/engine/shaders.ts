@@ -1,4 +1,6 @@
 import type { NodeKind } from '../graph';
+import { NOISE_FRAGMENT_SHADER } from './noiseShader';
+import { FRAME_EFFECT_SHADERS } from './frameEffects';
 
 export const FULLSCREEN_VERTEX_SHADER = `#version 300 es
 precision highp float;
@@ -214,6 +216,101 @@ uniform vec4 uColor;
 
 void main() {
   outColor = clamp(uColor, 0.0, 1.0);
+}
+`;
+
+const gradient = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform vec2 uResolution;
+uniform vec2 uCenter;
+uniform float uAngle;
+uniform float uRadius;
+uniform float uMode;
+uniform float uStopCount;
+uniform float uPositions[8];
+uniform vec4 uColors[8];
+
+vec4 premultiply(vec4 color) {
+  return vec4(color.rgb * color.a, color.a);
+}
+
+void main() {
+  vec2 point = (vUv - uCenter) * uResolution / min(uResolution.x, uResolution.y);
+  vec2 direction = vec2(cos(uAngle), sin(uAngle));
+  float position = dot(point, direction) / (2.0 * uRadius) + 0.5;
+  if (uMode > 1.5) {
+    position = length(point) < 0.000001 ? 0.0 : fract((atan(point.y, point.x) - uAngle) / 6.28318530718 + 1.0);
+  } else if (uMode > 0.5) {
+    position = length(point) / uRadius;
+  }
+  position = clamp(position, 0.0, 1.0);
+  vec4 color = premultiply(uColors[0]);
+  for (int index = 1; index < 8; index++) {
+    if (float(index) >= uStopCount) break;
+    if (position < uPositions[index - 1]) break;
+    float span = uPositions[index] - uPositions[index - 1];
+    float amount = span > 0.0 ? clamp((position - uPositions[index - 1]) / span, 0.0, 1.0) : 1.0;
+    color = mix(premultiply(uColors[index - 1]), premultiply(uColors[index]), amount);
+  }
+  outColor = vec4(color.a > 0.00001 ? color.rgb / color.a : vec3(0.0), color.a);
+}
+`;
+
+const shape = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform vec2 uResolution;
+uniform vec2 uCenter;
+uniform vec2 uSize;
+uniform float uRotation;
+uniform float uPrimitive;
+uniform float uSides;
+uniform float uOutline;
+uniform float uThickness;
+uniform vec4 uColor;
+
+vec2 vertex(float index, float count, vec2 halfSize) {
+  float angle = 1.570796327 + index * 6.283185307 / count;
+  float radius = uPrimitive > 3.5 && mod(index, 2.0) > 0.5 ? 0.45 : 1.0;
+  return vec2(cos(angle), sin(angle)) * halfSize * radius;
+}
+
+void main() {
+  vec2 point = (vUv - uCenter) * uResolution / min(uResolution.x, uResolution.y);
+  float cosine = cos(uRotation);
+  float sine = sin(uRotation);
+  point = vec2(cosine * point.x + sine * point.y, -sine * point.x + cosine * point.y);
+  vec2 halfSize = max(uSize * 0.5, vec2(0.0001));
+  float distanceToEdge;
+  if (uPrimitive < 0.5) {
+    distanceToEdge = (length(point / halfSize) - 1.0) * min(halfSize.x, halfSize.y);
+  } else if (uPrimitive < 1.5) {
+    vec2 outside = abs(point) - halfSize;
+    distanceToEdge = length(max(outside, 0.0)) + min(max(outside.x, outside.y), 0.0);
+  } else {
+    float count = uPrimitive < 2.5 ? 3.0 : uSides * (uPrimitive > 3.5 ? 2.0 : 1.0);
+    float nearest = 100.0;
+    bool inside = false;
+    for (int index = 0; index < 24; index++) {
+      if (float(index) >= count) break;
+      vec2 start = vertex(float(index), count, halfSize);
+      vec2 end = vertex(mod(float(index + 1), count), count, halfSize);
+      vec2 edge = end - start;
+      vec2 offset = point - start;
+      nearest = min(nearest, length(offset - edge * clamp(dot(offset, edge) / max(dot(edge, edge), 0.0000001), 0.0, 1.0)));
+      if ((start.y > point.y) != (end.y > point.y)) {
+        if (point.x < start.x + (point.y - start.y) * edge.x / edge.y) inside = !inside;
+      }
+    }
+    distanceToEdge = inside ? -nearest : nearest;
+  }
+  if (uOutline > 0.5) distanceToEdge = abs(distanceToEdge) - uThickness * 0.5;
+  float antialias = max(fwidth(distanceToEdge), 0.00001);
+  float coverage = 1.0 - smoothstep(-antialias, antialias, distanceToEdge);
+  outColor = vec4(uColor.rgb, uColor.a * coverage);
 }
 `;
 
@@ -740,10 +837,22 @@ void main() {
 `;
 
 export const FRAME_FRAGMENT_SHADERS: Partial<Record<NodeKind, string>> = {
+  ...FRAME_EFFECT_SHADERS,
+  shaderSource: `#version 300 es
+precision highp float;
+out vec4 outColor;
+void main() { outColor = vec4(0.0); }
+`,
   videoInput,
+  networkVideo: videoInput,
   file: videoInput,
   videoModel,
   solid,
+  gradient,
+  shape,
+  vectorShape: display,
+  text: display,
+  noise: NOISE_FRAGMENT_SHADER,
   plasma,
   cells,
   transform2d,

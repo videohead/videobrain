@@ -11,6 +11,21 @@ import { OPERATOR_CATEGORIES } from './operatorCategories';
 import { OperatorLibrary } from './OperatorLibrary';
 
 describe('OperatorLibrary', () => {
+  it('publishes Shape and Vector Shape in the Generators catalog and adds both', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    render(<OperatorLibrary onAdd={onAdd} />);
+    expect(screen.getByRole('button', { name: 'Generators' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTitle('Add Shape')).toBeVisible();
+    expect(screen.getByTitle('Add Vector Shape')).toBeVisible();
+    await user.click(screen.getByTitle('Add Shape'));
+    await user.click(screen.getByTitle('Add Vector Shape'));
+    expect(onAdd.mock.calls).toEqual([['shape'], ['vectorShape']]);
+    await user.type(screen.getByRole('textbox', { name: 'Search nodes' }), 'shape');
+    expect(screen.getByTitle('Add Shape')).toBeVisible();
+    expect(screen.getByTitle('Add Vector Shape')).toBeVisible();
+  });
+
   it('groups every node under a stable, collapsible functional category', () => {
     render(<OperatorLibrary onAdd={() => undefined} />);
 

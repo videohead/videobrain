@@ -18,6 +18,35 @@ export const GRAPH_PRESETS = [
     title: 'Full Studio',
     description: 'A broad built-in tour of signals, visuals, and models.',
   },
+  { id: 'color-channel-lab', title: 'Color & Channel Lab', description: 'Remap levels, adjust HSV/HSL, shuffle channels, and key luminance over a background.' },
+  { id: 'keyed-camera', title: 'Keyed Camera', description: 'Key a procedural green screen first, then explicitly switch to an opt-in camera.' },
+  { id: 'displacement-map-lab', title: 'Displacement Map Lab', description: 'Use a seeded red/green noise field to displace a gradient before extracting edges.' },
+  { id: 'pattern-mix-lab', title: 'Pattern & Mix Lab', description: 'Pixelate and fold a field, then crossfade it with a second source using a slow control.' },
+  {
+    id: 'shape-studio',
+    title: 'Shape Studio',
+    description: 'Layer GPU primitives with editable vector artwork and imported SVG.',
+  },
+  {
+    id: 'gradient-lab',
+    title: 'Gradient Lab',
+    description: 'Explore multi-stop color and alpha in linear, radial, and conic gradients.',
+  },
+  {
+    id: 'poster-maker',
+    title: 'Poster Maker',
+    description: 'Lay out live, wrapped text over a multi-stop gradient.',
+  },
+  {
+    id: 'noise-lab',
+    title: 'Noise Lab',
+    description: 'Compare seeded value, simplex, cellular, curl, and fractal textures.',
+  },
+  {
+    id: 'shader-lab',
+    title: 'Shader Lab',
+    description: 'Apply bounded GLSL and patch a declared uniform into a custom GPU source.',
+  },
   {
     id: 'beat-color',
     title: 'Beat-Synced Color',
@@ -102,6 +131,11 @@ export const GRAPH_PRESETS = [
       'Display a file from this browser session and warp it with its own bass content.',
   },
   {
+    id: 'network-video',
+    title: 'Network Video',
+    description: 'Connect an HLS, MPEG-DASH, or WebRTC WHEP endpoint through a frame transform.',
+  },
+  {
     id: 'projection-mapping-lab',
     title: 'Projection Mapping Lab',
     description:
@@ -131,6 +165,21 @@ export const FOUNDATION_NODE_EXAMPLES = {
 
 export const NODE_EXAMPLES = {
   ...FOUNDATION_NODE_EXAMPLES,
+  levels: ['color-channel-lab'],
+  hsv: ['color-channel-lab'],
+  channelShuffle: ['color-channel-lab'],
+  lumaKey: ['color-channel-lab'],
+  chromaKey: ['keyed-camera'],
+  displace: ['displacement-map-lab'],
+  edge: ['displacement-map-lab'],
+  pixelate: ['pattern-mix-lab'],
+  kaleidoscope: ['pattern-mix-lab'],
+  crossfade: ['pattern-mix-lab'],
+  shape: ['shape-studio'],
+  gradient: ['gradient-lab'],
+  text: ['poster-maker'],
+  noise: ['noise-lab'],
+  vectorShape: ['shape-studio'],
   solid: ['mask-composite-lab'],
   threshold: ['mask-composite-lab'],
   mask: ['mask-composite-lab'],
@@ -143,18 +192,26 @@ export const NODE_EXAMPLES = {
   autoSelector: ['live-cut-lab'],
   strobe: ['live-cut-lab'],
   file: ['file-preview'],
+  networkVideo: ['network-video'],
   audioOutput: ['file-preview'],
   audioMixer: ['file-preview'],
   audioSpectrum: ['audio-beat-pulse'],
   audioTrigger: ['audio-beat-pulse'],
   audioBeat: ['audio-beat-pulse'],
 } as const satisfies Record<
+  | 'levels' | 'hsv' | 'channelShuffle' | 'lumaKey' | 'chromaKey'
+  | 'displace' | 'edge' | 'pixelate' | 'kaleidoscope' | 'crossfade'
   | 'constant'
   | 'math'
   | 'mapRange'
   | 'smooth'
   | 'transform2d'
   | 'solid'
+  | 'shape'
+  | 'gradient'
+  | 'text'
+  | 'noise'
+  | 'vectorShape'
   | 'threshold'
   | 'mask'
   | 'composite'
@@ -166,6 +223,7 @@ export const NODE_EXAMPLES = {
   | 'autoSelector'
   | 'strobe'
   | 'file'
+  | 'networkVideo'
   | 'audioOutput'
   | 'audioMixer'
   | 'audioSpectrum'
@@ -1392,6 +1450,147 @@ function createLiveSourceSelectGraph(): GraphDocument {
 const PRESET_FACTORIES: Readonly<
   Record<GraphPresetId, () => GraphDocument>
 > = {
+  'color-channel-lab': () => graph(
+    [
+      createGraphNode('gradient', { x: 0, y: 0 }, {}, 'color-source'),
+      createGraphNode('levels', { x: 340, y: 0 }, { black: 0.08, gamma: 1.3 }, 'color-levels'),
+      createGraphNode('hsv', { x: 680, y: 0 }, { hue: 0.12 }, 'color-hsv'),
+      createGraphNode('channelShuffle', { x: 1020, y: 0 }, { red: 'blue', blue: 'red' }, 'color-channels'),
+      createGraphNode('lumaKey', { x: 1360, y: 0 }, { threshold: 0.3, softness: 0.15 }, 'color-key'),
+      createGraphNode('solid', { x: 1360, y: 470 }, { red: 0.04, green: 0.18, blue: 0.13 }, 'color-background'),
+      createGraphNode('composite', { x: 1700, y: 0 }, {}, 'color-composite'),
+      createGraphNode('display', { x: 2040, y: 0 }, {}, 'color-output'),
+    ],
+    [
+      edge('color-levels', 'color-source', 'frame', 'color-levels', 'source'),
+      edge('color-hsv', 'color-levels', 'frame', 'color-hsv', 'source'),
+      edge('color-channels', 'color-hsv', 'frame', 'color-channels', 'source'),
+      edge('color-key', 'color-channels', 'frame', 'color-key', 'source'),
+      edge('color-foreground', 'color-key', 'frame', 'color-composite', 'foreground'),
+      edge('color-background', 'color-background', 'frame', 'color-composite', 'background'),
+      edge('color-output', 'color-composite', 'frame', 'color-output', 'source'),
+    ],
+  ),
+  'keyed-camera': () => graph(
+    [
+      createGraphNode('shape', { x: 0, y: 0 }, { red: 1, green: 0.15, blue: 0.05 }, 'key-shape'),
+      createGraphNode('solid', { x: 0, y: 760 }, { red: 0, green: 1, blue: 0 }, 'key-green'),
+      createGraphNode('composite', { x: 340, y: 0 }, {}, 'key-fixture'),
+      createGraphNode('videoInput', { x: 340, y: 470 }, {}, 'key-camera'),
+      createGraphNode('frameSwitch', { x: 680, y: 0 }, { index: 0 }, 'key-switch'),
+      createGraphNode('chromaKey', { x: 1020, y: 0 }, {}, 'key-effect'),
+      createGraphNode('plasma', { x: 1020, y: 590 }, {}, 'key-background'),
+      createGraphNode('composite', { x: 1360, y: 0 }, {}, 'key-composite'),
+      createGraphNode('display', { x: 1700, y: 0 }, {}, 'key-output'),
+    ],
+    [
+      edge('key-shape', 'key-shape', 'frame', 'key-fixture', 'foreground'),
+      edge('key-green', 'key-green', 'frame', 'key-fixture', 'background'),
+      edge('key-fixture', 'key-fixture', 'frame', 'key-switch', 'a'),
+      edge('key-camera', 'key-camera', 'frame', 'key-switch', 'b'),
+      edge('key-switch', 'key-switch', 'frame', 'key-effect', 'source'),
+      edge('key-foreground', 'key-effect', 'frame', 'key-composite', 'foreground'),
+      edge('key-background', 'key-background', 'frame', 'key-composite', 'background'),
+      edge('key-output', 'key-composite', 'frame', 'key-output', 'source'),
+    ],
+  ),
+  'displacement-map-lab': () => graph(
+    [
+      createGraphNode('gradient', { x: 0, y: 0 }, { mode: 'conic' }, 'displace-source'),
+      createGraphNode('noise', { x: 0, y: 720 }, { mode: 'curl', seed: 42 }, 'displace-map'),
+      createGraphNode('displace', { x: 340, y: 0 }, { amountX: 0.3, amountY: 0.3, edgeMode: 'mirror' }, 'displace-effect'),
+      createGraphNode('edge', { x: 680, y: 0 }, { strength: 4 }, 'displace-edges'),
+      createGraphNode('display', { x: 1020, y: 0 }, {}, 'displace-output'),
+    ],
+    [
+      edge('displace-source', 'displace-source', 'frame', 'displace-effect', 'source'),
+      edge('displace-map', 'displace-map', 'frame', 'displace-effect', 'map'),
+      edge('displace-edges', 'displace-effect', 'frame', 'displace-edges', 'source'),
+      edge('displace-output', 'displace-edges', 'frame', 'displace-output', 'source'),
+    ],
+  ),
+  'pattern-mix-lab': () => graph(
+    [
+      createGraphNode('plasma', { x: 0, y: 0 }, {}, 'pattern-source'),
+      createGraphNode('pixelate', { x: 340, y: 0 }, { size: 18 }, 'pattern-pixels'),
+      createGraphNode('kaleidoscope', { x: 680, y: 0 }, { segments: 8 }, 'pattern-fold'),
+      createGraphNode('cells', { x: 680, y: 740 }, {}, 'pattern-second'),
+      createGraphNode('oscillator', { x: 1020, y: 550 }, { frequency: 0.05 }, 'pattern-control'),
+      createGraphNode('crossfade', { x: 1020, y: 0 }, { curve: 'smooth' }, 'pattern-mix'),
+      createGraphNode('display', { x: 1360, y: 0 }, {}, 'pattern-output'),
+    ],
+    [
+      edge('pattern-pixels', 'pattern-source', 'frame', 'pattern-pixels', 'source'),
+      edge('pattern-fold', 'pattern-pixels', 'frame', 'pattern-fold', 'source'),
+      edge('pattern-first', 'pattern-fold', 'frame', 'pattern-mix', 'source'),
+      edge('pattern-second', 'pattern-second', 'frame', 'pattern-mix', 'map'),
+      edge('pattern-control', 'pattern-control', 'value', 'pattern-mix', 'mix'),
+      edge('pattern-output', 'pattern-mix', 'frame', 'pattern-output', 'source'),
+    ],
+  ),
+  'shader-lab': () => graph(
+    [
+      createGraphNode('constant', { x: -340, y: 0 }, { value: 0.5 }, 'shader-control'),
+      createGraphNode('shaderSource', { x: 0, y: 0 }, {}, 'shader-source'),
+      createGraphNode('display', { x: 360, y: 0 }, {}, 'shader-display'),
+    ],
+    [
+      edge('shader-uniform', 'shader-control', 'value', 'shader-source', 'value2'),
+      edge('shader-output', 'shader-source', 'frame', 'shader-display', 'source'),
+    ],
+  ),
+  'poster-maker': () => graph(
+    [
+      createGraphNode('aiPrompt', { x: -650, y: -160 }, { text: 'VideoBrain\nSignal / Studio', negative: '' }, 'poster-copy'),
+      createGraphNode('text', { x: -320, y: -160 }, { fontWeight: 'bold', fontSize: 68 }, 'poster-text'),
+      createGraphNode('gradient', { x: -650, y: 220 }, { angle: 35, stop1Red: 0.02, stop1Green: 0.3, stop1Blue: 0.25, stop2Red: 0.45, stop2Green: 0.08, stop2Blue: 0.23 }, 'poster-background'),
+      createGraphNode('composite', { x: 20, y: -40 }, {}, 'poster-composite'),
+      createGraphNode('display', { x: 350, y: -40 }, {}, 'poster-display'),
+    ],
+    [
+      edge('poster-string', 'poster-copy', 'prompt', 'poster-text', 'text'),
+      edge('poster-foreground', 'poster-text', 'frame', 'poster-composite', 'foreground'),
+      edge('poster-background-frame', 'poster-background', 'frame', 'poster-composite', 'background'),
+      edge('poster-output', 'poster-composite', 'frame', 'poster-display', 'source'),
+    ],
+  ),
+  'noise-lab': () => graph(
+    [
+      createGraphNode('time', { x: -480, y: -100 }, {}, 'noise-clock'),
+      createGraphNode('noise', { x: -160, y: -100 }, { mode: 'fractal' }, 'noise-source'),
+      createGraphNode('display', { x: 180, y: -100 }, {}, 'noise-display'),
+    ],
+    [
+      edge('noise-time', 'noise-clock', 'value', 'noise-source', 'time'),
+      edge('noise-output', 'noise-source', 'frame', 'noise-display', 'source'),
+    ],
+  ),
+  'gradient-lab': () => graph(
+    [
+      createGraphNode('gradient', { x: -480, y: -280 }, { mode: 'radial', stopCount: 3, stop1Alpha: 0, stop3Position: 0.5, stop3Red: 1, stop3Green: 0.85, stop3Blue: 0.15 }, 'gradient-source'),
+      createGraphNode('solid', { x: -160, y: 180 }, { red: 0.08, green: 0.12, blue: 0.16 }, 'gradient-background'),
+      createGraphNode('composite', { x: 170, y: -100 }, {}, 'gradient-composite'),
+      createGraphNode('display', { x: 490, y: -100 }, {}, 'gradient-display'),
+    ],
+    [
+      edge('gradient-foreground', 'gradient-source', 'frame', 'gradient-composite', 'foreground'),
+      edge('gradient-background-frame', 'gradient-background', 'frame', 'gradient-composite', 'background'),
+      edge('gradient-output', 'gradient-composite', 'frame', 'gradient-display', 'source'),
+    ],
+  ),
+  'shape-studio': () => graph(
+    [
+      createGraphNode('shape', { x: -500, y: -140 }, { primitive: 'star', width: 0.9, height: 0.9, rotation: 18 }, 'shape-base'),
+      createGraphNode('vectorShape', { x: -160, y: -140 }, {}, 'shape-artwork'),
+      createGraphNode('composite', { x: 180, y: -140 }, {}, 'shape-composite'),
+      createGraphNode('display', { x: 500, y: -140 }, {}, 'shape-display'),
+    ],
+    [
+      edge('shape-background', 'shape-base', 'frame', 'shape-composite', 'background'),
+      edge('shape-foreground', 'shape-artwork', 'frame', 'shape-composite', 'foreground'),
+      edge('shape-output', 'shape-composite', 'frame', 'shape-display', 'source'),
+    ],
+  ),
   blank: createBlankGraph,
   'full-studio': createDefaultGraph,
   'beat-color': createBeatColorGraph,
@@ -1410,6 +1609,17 @@ const PRESET_FACTORIES: Readonly<
   'camera-dream': createCameraDreamGraph,
   'prompted-preview': createPromptedPreviewGraph,
   'file-preview': createFilePreviewGraph,
+  'network-video': () => graph(
+    [
+      createGraphNode('networkVideo', { x: -320, y: 0 }, {}, 'network-video'),
+      createGraphNode('transform2d', { x: 0, y: 0 }, {}, 'network-transform'),
+      createGraphNode('display', { x: 320, y: 0 }, {}, 'network-display'),
+    ],
+    [
+      edge('network-transform', 'network-video', 'frame', 'network-transform', 'source'),
+      edge('network-display', 'network-transform', 'frame', 'network-display', 'source'),
+    ],
+  ),
   'projection-mapping-lab': createProjectionMappingLabGraph,
   'live-source-select': createLiveSourceSelectGraph,
 };

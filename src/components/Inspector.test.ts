@@ -301,6 +301,8 @@ describe('model and text inspectors', () => {
 
     const prompt = screen.getByRole('textbox', { name: /Prompt/ });
     fireEvent.change(prompt, { target: { value: 'A slow amber wave' } });
+    expect(onParamChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply AI Chat Prompt' }));
 
     expect(onParamChange).toHaveBeenLastCalledWith(
       'prompt-1',

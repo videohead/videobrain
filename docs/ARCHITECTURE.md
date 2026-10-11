@@ -122,6 +122,53 @@ public changes require a new version or an explicit migration. A planner may
 flatten a module internally only when inspection can still explain the public
 boundary.
 
+## Stateless frame effects (Wave 5)
+
+The additive kinds `levels`, `hsv`, `lumaKey`, `chromaKey`, `crossfade`,
+`displace`, `edge`, `pixelate`, `kaleidoscope`, and `channelShuffle` use the
+existing visual-frame clock and straight-alpha RGBA8 working textures. Each
+costs one visual pass and one output-sized render target. They retain no
+history: pause, reset, seek, and reload reproduce the result for the same
+inputs. Disconnected nodes do not cook; ordinary cycles remain rejected.
+No device, asset, network, worker, or additional capability is required.
+
+Input index 0 is `source` (`frame.rgba`). Displace and Crossfade additionally
+have `map` at index 1, labeled Map and B respectively; Crossfade labels source
+A. Both Crossfade frames and Displace's map are optional. Numeric parameters
+follow frame inputs in registry order as optional `control.f32` inputs.
+Output index 0 is `frame`. Missing frames sample transparent black; a missing
+displacement map explicitly produces zero offset regardless of Map neutral.
+Required-source diagnostics remain visible while editing incomplete graphs.
+Channel Shuffle can intentionally synthesize opaque output from zero/one.
+
+Numeric literals, defaults, bounds, and select IDs live in the registry.
+Connected numeric values override, clamp to those same bounds, and never
+replace saved literals. Select values map to shader modes in their declared
+order. The catalog advances additively to version 15; project schema 1 and
+existing kinds/ports remain unchanged, so existing projects need no migration.
+Older applications reject the new kinds rather than silently dropping them.
+
+| Kind | Parameter contract (default; range) | Pixel semantics |
+| --- | --- | --- |
+| `levels` | black 0, white 1 (0..1); gamma 1 (0.01..5); lift 0 (-1..1); gain 1 (0..4) | Normalize by max(white-black, 0.0001), clamp, inverse gamma, gain then lift, clamp RGB; preserve alpha. Reversed/equal points form a near-hard cutoff, not inversion. |
+| `hsv` | mode hsv/hsl; hue 0 (-1..1 turns); saturation 1 (0..3); brightness 0 (-1..1) | Hue wraps, saturation multiplies, value/lightness offsets and clamps; preserve alpha. |
+| `lumaKey` | threshold 0.5 (0..1); softness 0.1 (0..0.5); invert off/on | Weighted RGB luminance, symmetric soft threshold or hard step at zero softness; multiply source alpha. |
+| `chromaKey` | red 0, green 1, blue 0 (0..1); tolerance 0.15 (0..2); softness 0.1 (0..1); spill 0.5 (0..1) | Compare B-luma/R-luma chrominance distance; fade alpha from tolerance to tolerance+softness, suppress projected key chroma in transition pixels. Basic keying, no matte morphology. |
+| `crossfade` | mix 0.5 (0..1); curve linear/smooth/easeIn/easeOut | Shape Mix, interpolate premultiplied RGB and alpha, unpremultiply with zero-alpha guard. No internal timer or trigger. |
+| `displace` | amountX/amountY 0.1 (-1..1 UV); center 0.5 (0..1); edgeMode transparent/clamp/repeat/mirror, default clamp | Sample source at UV + (map.rg-center)*amount; positive Y samples upward. Map alpha does not scale displacement. |
+| `edge` | strength 1 (0..8); invert off/on | Nine bounded samples: 3x3 Sobel of alpha-weighted luminance, clamped borders, grayscale magnitude, center alpha. |
+| `pixelate` | size 12 (1..256 output pixels) | Sample centers of square blocks, including truncated border blocks; preserve sampled RGBA, no resolution boundary. |
+| `kaleidoscope` | mode repeat/mirror/kaleidoscope (default kaleidoscope); repeatX/Y 1 (0.1..16); segments 6 (2..24, floored); rotation 0 (-180..180 degrees); centerX/Y 0.5 (0..1) | Aspect-correct clockwise rotation around center, optional polar folding, repeat or mirrored UV sampling; Y increases upward. |
+| `channelShuffle` | red/green/blue/alpha default to corresponding source channel; each selects red/green/blue/alpha/luma/zero/one | Independently route channels or constants without implicit premultiplication. |
+
+Color arithmetic and luminance weights (0.2126, 0.7152, 0.0722) operate in
+the existing working RGB values, not a newly introduced linear-light pipeline.
+Sampling uses the existing linear-filtered textures. Single pass is not shader
+fusion or a constant-time cost claim; graph pass/target/pixel budgets still
+apply. GPU programs and targets use the existing cleanup and context-recovery
+path. Teaching presets are Color & Channel Lab, Keyed Camera (procedural A,
+opt-in camera B), Displacement Map Lab, and Pattern & Mix Lab.
+
 ## Project and state ownership
 
 VideoBrain has three kinds of state:
@@ -167,6 +214,34 @@ evaluation.
 
 ### Architecture review gate
 
+Gradient (`gradient`, catalog 11) is a stateless, permission-free visual-frame
+GPU source: one pass, one render target, output index 0 `frame.rgba`. Optional
+`control.f32` inputs are indexed 0 `angle`, 1 `x`, 2 `y`, 3 `radius`; connected
+signals replace bounded runtime values without altering saved literals.
+It executes only on an output-reachable path and owns no history, clock, or
+external resource. Pause, seek, reset, and reload produce the same frame for
+the same resolved parameters. Existing renderer disposal and context recovery
+own its program and target.
+
+Modes `linear`, `radial`, and `conic` all use 2–8 stops. Stable numeric parameters
+`stop1Position` through `stop8Position` and each stop's `Red`, `Green`, `Blue`,
+and `Alpha` channels are bounded to 0–1 by the registry. `stopCount` selects
+the first numbered slots, rounded to the nearest integer; hidden slots remain
+saved. Defaults are two opaque cyan/pink endpoints. Rendering sorts active
+stops by position, breaking ties by slot order; the last coincident stop wins
+at the boundary, and endpoint colors extend beyond the stop range. Interpolation
+uses premultiplied RGBA and converts back to straight alpha for composition.
+
+Coordinates use the shorter output dimension: radius defaults to 0.5, linear
+spans twice that radius, radial runs from center to radius, and conic wraps
+counterclockwise from the angle ray. Center defaults to (0.5, 0.5), Y increases
+upward, and angle is in degrees. The exact conic center resolves to position 0.
+The `gradient` parameter-layout hint supplies the shared color-stop editor;
+catalog and validation still expose every numeric channel. Schema 1 and the
+protocol envelope remain unchanged because this is an additive kind with no
+existing projects to migrate. Gradient Lab teaches stop alpha over Solid Color
+through Composite to Display.
+
 Every node proposal must identify its typed signal family, explicit indexed
 ports, stable IDs and defaults, parameter/input precedence, runtime domain and
 clock, demand-root behavior, resource budget, state/reset contract, capability
@@ -189,7 +264,15 @@ A structural edit creates a new graph revision. The planner then:
 5. creates a topological order for control evaluation and frame passes;
 6. reports actionable errors before the runtime replaces its last valid plan.
 
-The POC recompiles a small graph snapshot after any project change. A later planner can distinguish structural and parameter-only revisions and add resource-lifetime planning without changing graph semantics.
+The renderer compares incoming project snapshots with its installed runtime
+graph. Position-only edits and equivalent snapshots reuse the existing plan
+without compilation or GPU resource reconciliation, preserving control and
+feedback state. Parameter, node, and connection changes compile once before
+the validated plan is installed; externally supplied compiled graphs are still
+revalidated. A renderer error disables the fast path so resubmitting a graph
+can retry installation. A later planner can distinguish structural and
+parameter-only revisions and add resource-lifetime planning without changing
+graph semantics.
 
 Display, recording, streaming, and future gateway outputs are demand roots.
 Disconnected branches remain valid authoring material but do not execute,
@@ -274,6 +357,20 @@ Node behavior uses monotonic elapsed time rather than assuming a fixed frame rat
 
 ## GPU frame path
 
+### Shape generators
+
+Shape and Vector Shape are permission-free frame generators. Each exposes
+one `frame.rgba` output at index 0. Shape's optional scalar inputs follow
+registry order and override stored literals without changing them. Geometry
+uses the shorter output dimension for size and outline units, normalized
+centers, and degrees for rotation. It costs one pass and one render target.
+Vector Shape stores bounded SVG artwork as project text, uses no external
+resources, and rasterizes only when artwork or output dimensions change.
+Its frame pass adds one source texture to one render target. Both are
+stateless: pause and reset preserve artwork, while context restoration rebuilds
+GPU resources. The Shape Studio starter connects both to a Composite and Display.
+New kinds are additive catalog changes; existing project contracts stay intact.
+
 The MVP renderer uses WebGL2. Each frame processor renders a full-screen primitive into a texture attached to an offscreen framebuffer. Upstream textures become shader inputs; resolved parameters become uniforms. The final texture is drawn to the visible canvas.
 
 The POC renderer owns:
@@ -319,6 +416,81 @@ report a rolling average of monitor renders and restart the sample
 window after pauses or long browser stalls.
 
 Control evaluation follows the same reachability and revision rules as the frame graph. A control chain runs only when it contributes to an exposed parameter or output. Non-finite values are contained at the node boundary and reported as diagnostics rather than allowed to poison the GPU pass.
+
+## Text and Noise generators
+
+Catalog 12 adds `text` and `noise` without changing schema 1 or the protocol
+envelope. Both are output-demanded, permission-free generators with `frame.rgba`
+at output index 0. Registry defaults, bounds, and select IDs are authoritative;
+existing projects require no migration.
+
+Text inputs are indexed 0 `text` (`text.utf8`), then scalar 1 `x`, 2 `y`,
+3 `fontSize`, and 4 `alpha`. Disconnected inputs use saved parameters; connected
+values override the resolved frame without modifying those literals. Multiline
+Text and AI Chat editors keep local drafts until Apply commits one undoable
+change. Blur never commits; undo/redo or another saved-value change refreshes
+the editor. Drafts are not serialized or sent to live model adapters.
+
+Text uses Canvas2D rasterization cached by resolved parameters and output size,
+with one GPU pass and two targets. Strings are capped at 4,000 UTF-16 units and
+128 laid-out lines. Word/character wrapping respects grapheme boundaries and
+overflow is clipped to a normalized box. Y increases upward; font size is
+relative to a 512-pixel shorter output dimension. Local WOFF2, WOFF, TTF, and
+OTF fonts are bounded to 384 KB and embedded as validated data URLs. FontFace
+handles are session-only, released with inactive nodes, and stale loads are
+ignored. A built-in font renders during loading; decode failures report an
+error with replacement guidance. Platform font rasterization can vary. Pause
+preserves the image and reset reuploads pixels without temporal history.
+
+Noise inputs are indexed 0 `time`, 1 `scale`, and 2 `alpha`, all optional
+`control.f32`. Missing time uses transport seconds, multiplied by Speed. Value,
+simplex, cellular, curl-field, and fractal modes share bounded scale, seed,
+contrast, brightness, and alpha. Fractal selects fBm, turbulence, or ridged
+accumulation with at most six octaves. Curl encodes XY in frame channels, not a
+new signal family. The simplex kernel comes from `glsl-noise`. One GPU pass and
+one target produce deterministic output for the same seed and resolved time;
+pause freezes time and reset returns to the initial sample. Neither generator
+permits ordinary graph cycles or owns network/device resources. Poster Maker
+and Noise Lab provide complete output-reachable teaching paths.
+
+## Constrained GLSL source
+
+Catalog 14 adds `shaderSource`; schema 1 and the protocol envelope are unchanged.
+Its output at index 0 is `frame.rgba`. Optional `control.f32` inputs are indexed
+0 `time`, then 1-4 `value1` through `value4`. The host declares `uTime` (transport
+seconds unless connected), `uResolution` (physical output pixels), and float
+uniforms `uValue1` through `uValue4`. Connected values override saved parameters
+without replacing them. `vUv` covers normalized coordinates with Y increasing
+upward. The editable GLSL ES 3.00 fragment body assigns straight-alpha
+`outColor`; the host supplies `main`, precision, declarations, non-finite output
+containment, and final RGBA clamping to 0-1.
+
+The ShaderFrog parser validates an allowlisted syntax tree before GPU compilation.
+Source is limited to 4096 UTF-16 units, 512 AST nodes, 128 expression operations,
+and 32 structural nesting levels. Local scalar/vector declarations, arithmetic,
+swizzles, ternaries, and allowlisted GLSL math calls are supported. Loops, branch
+statements, recursion, user functions, arrays, structs, matrices, textures,
+preprocessor directives, extra uniforms, and `gl_` variables are unavailable.
+Supported calls are scalar/vector constructors, radians/degrees, trigonometric,
+exponential/logarithmic and square-root functions, abs/sign, rounding/fract/mod,
+min/max/clamp/mix/step/smoothstep, and length/distance/dot/cross/normalize/reflect/
+refract. See `src/graph/shaderSource.ts` for the exact allowlist.
+
+One visual pass and one render target use the existing graph-wide resolution,
+pixel, target, and pass budgets. These are static complexity limits, not a GPU
+wall-clock guarantee or driver-isolation boundary. Only output-reachable shaders
+are compiled. Each node caches its attempted source, last valid program, and
+bounded diagnostic; rejected source is not retried every frame. A failed edit
+keeps the prior program while reporting its error, or renders transparent when
+no valid program exists. Replacement and node removal delete GPU programs;
+context loss drops handles and restoration recompiles saved source. The fallback
+program is session-only, so an invalid saved shader is transparent after reload.
+
+The code editor uses local drafts and one undoable Apply action. Source and
+uniform literals are project data; drafts and GPU programs are not serialized.
+Pause holds transport time; reset returns it to zero. There is no temporal frame
+history, permission request, or network activity. Shader Lab connects Constant
+to `uValue2` and Shader Source to Display, with node and graph catalog stories.
 
 ## Text and model connector path
 

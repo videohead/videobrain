@@ -220,6 +220,17 @@ type Story = StoryObj<typeof meta>;
 
 export const AllNodeKinds: Story = {};
 
+export const Levels: Story = { args: { kinds: ['levels'], compact: true } };
+export const HSVHSL: Story = { args: { kinds: ['hsv'], compact: true } };
+export const LumaKey: Story = { args: { kinds: ['lumaKey'], compact: true } };
+export const ChromaKey: Story = { args: { kinds: ['chromaKey'], compact: true } };
+export const Crossfade: Story = { args: { kinds: ['crossfade'], compact: true } };
+export const Displace: Story = { args: { kinds: ['displace'], compact: true } };
+export const Edge: Story = { args: { kinds: ['edge'], compact: true } };
+export const Pixelate: Story = { args: { kinds: ['pixelate'], compact: true } };
+export const TileKaleidoscope: Story = { args: { kinds: ['kaleidoscope'], compact: true } };
+export const ChannelShuffle: Story = { args: { kinds: ['channelShuffle'], compact: true } };
+
 export const SelectedNode: Story = {
   args: {
     kinds: ['colorGrade'],
@@ -253,6 +264,22 @@ export const TimingAndGenerationNodes: Story = {
       },
     },
   },
+};
+
+export const ShapeGenerators: Story = {
+  args: { kinds: ['shape', 'vectorShape'] },
+};
+
+export const GradientGenerator: Story = {
+  args: { kinds: ['gradient'] },
+};
+
+export const TextAndNoiseGenerators: Story = {
+  args: { kinds: ['text', 'noise'] },
+};
+
+export const ShaderSource: Story = {
+  args: { kinds: ['shaderSource'], selectedKind: 'shaderSource', compact: true },
 };
 
 export const MappingAndTransformNodes: Story = {

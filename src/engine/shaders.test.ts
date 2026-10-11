@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { parse } from '@shaderfrog/glsl-parser';
 
 import { OPERATOR_DEFINITIONS, type NodeKind } from '../graph';
+import { FRAME_EFFECT_SHADERS } from './frameEffects';
 import { FRAME_FRAGMENT_SHADERS } from './shaders';
 
 function shaderFor(kind: NodeKind): string {
@@ -10,6 +12,27 @@ function shaderFor(kind: NodeKind): string {
 }
 
 describe('frame shader alpha contracts', () => {
+  it.each(Object.entries(FRAME_EFFECT_SHADERS))('parses the %s single-pass shader', (_kind, shader) => {
+    expect(() => parse(shader, { quiet: true })).not.toThrow();
+    expect(shader).not.toMatch(/uPrevious|uTime|while\s*\(/);
+  });
+
+  it('interpolates bounded gradient stops in premultiplied alpha and returns straight alpha', () => {
+    const gradient = shaderFor('gradient');
+    expect(gradient).toContain('index < 8');
+    expect(gradient).toContain('color.rgb * color.a');
+    expect(gradient).toContain('color.rgb / color.a');
+    expect(gradient).toContain('atan(point.y, point.x)');
+    expect(gradient).toContain('length(point) / uRadius');
+  });
+  it('renders aspect-correct primitives with antialiased transparent edges', () => {
+    const shape = shaderFor('shape');
+    expect(shape).toContain('min(uResolution.x, uResolution.y)');
+    expect(shape).toContain('fwidth(distanceToEdge)');
+    expect(shape).toContain('uColor.a * coverage');
+    expect(shape).toContain('index < 24');
+  });
+
   it('registers a shader for every frame and display operator', () => {
     const renderKinds = OPERATOR_DEFINITIONS.filter(
       ({ domain }) => domain === 'frame' || domain === 'display',

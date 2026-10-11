@@ -1,3 +1,7 @@
+import { DEFAULT_VECTOR_ARTWORK, MAX_VECTOR_BYTES } from './vectorArtwork';
+import { GRADIENT_STOP_IDS } from './gradient';
+import { MAX_FONT_DATA_LENGTH } from './fontAsset';
+import { DEFAULT_SHADER_SOURCE, MAX_SHADER_SOURCE_LENGTH } from './shaderSource';
 import type {
   GraphParamValue,
   NodeKind,
@@ -50,7 +54,7 @@ const selectParam = (
   options: options.map((value) => ({
     value,
     label:
-      ({ api: 'API', http: 'HTTP', websocket: 'WebSocket', xor: 'XOR' })[
+      ({ api: 'API', http: 'HTTP', websocket: 'WebSocket', xor: 'XOR', hls: 'HLS', dash: 'MPEG-DASH', whep: 'WebRTC (WHEP)' })[
         value
       ] ??
       (value.charAt(0).toUpperCase() + value.slice(1)).replace(
@@ -71,6 +75,22 @@ const textParam = (
   defaultValue,
   maxLength,
   ...options,
+});
+
+const frameEffect = (
+  kind: NodeKind,
+  title: string,
+  summary: string,
+  params: Record<string, OperatorParamDefinition>,
+  frameInputs: readonly PortDefinition[] = [port('source', 'Source', 'frame.rgba')],
+  category: OperatorDefinition['category'] = 'image-processing',
+): OperatorDefinition => ({
+  kind, title, summary, domain: 'frame', category,
+  inputs: [...frameInputs, ...Object.entries(params)
+    .filter(([, parameter]) => parameter.type === 'number')
+    .map(([id, parameter]) => port(id, parameter.label, 'control.f32', true))],
+  outputs: [port('frame', 'Frame', 'frame.rgba')],
+  params,
 });
 
 const definitions = [
@@ -420,6 +440,22 @@ const definitions = [
     },
   },
   {
+    kind: 'networkVideo',
+    title: 'Network Video',
+    summary: 'Receive HLS, MPEG-DASH, or WebRTC (WHEP) video as a WebGL2 frame texture.',
+    domain: 'frame',
+    category: 'inputs',
+    inputs: [],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      protocol: selectParam('Protocol', 'hls', ['hls', 'dash', 'whep']),
+      url: textParam('Stream URL', '', 2_048, { placeholder: 'https://example.com/live.m3u8' }),
+      stunServer: textParam('STUN server', '', 256, { placeholder: 'stun:stun.example.com:3478' }),
+      fit: selectParam('Fit', 'cover', ['cover', 'contain', 'stretch']),
+      mirror: selectParam('Mirror', 'off', ['on', 'off']),
+    },
+  },
+  {
     kind: 'file',
     title: 'File',
     summary: 'A local image, video, or audio file selected in this browser session.',
@@ -522,6 +558,167 @@ const definitions = [
       blue: numberParam('Blue', 0.42, 0, 1, 0.01),
       alpha: numberParam('Alpha', 1, 0, 1, 0.01),
     },
+  },
+  {
+    kind: 'gradient',
+    title: 'Gradient',
+    summary: 'Linear, radial, or conic gradients with up to eight RGBA stops.',
+    domain: 'frame',
+    category: 'generators',
+    inputs: [
+      port('angle', 'Angle', 'control.f32', true),
+      port('x', 'Center X', 'control.f32', true),
+      port('y', 'Center Y', 'control.f32', true),
+      port('radius', 'Radius', 'control.f32', true),
+    ],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      mode: selectParam('Mode', 'linear', ['linear', 'radial', 'conic']),
+      angle: numberParam('Angle (degrees)', 0, -180, 180, 1),
+      x: numberParam('Center X', 0.5, 0, 1, 0.01),
+      y: numberParam('Center Y', 0.5, 0, 1, 0.01),
+      radius: numberParam('Radius', 0.5, 0.01, 2, 0.01),
+      stopCount: numberParam('Stops', 2, 2, 8, 1),
+      ...Object.fromEntries(GRADIENT_STOP_IDS.flatMap((id, index) => [
+        [`${id}Position`, numberParam(`Stop ${index + 1} Position`, index === 1 ? 1 : index === 0 ? 0 : (index - 1) / 7, 0, 1, 0.01)],
+        [`${id}Red`, numberParam(`Stop ${index + 1} Red`, index === 0 ? 0.1 : 1, 0, 1, 1 / 255)],
+        [`${id}Green`, numberParam(`Stop ${index + 1} Green`, index === 0 ? 0.8 : 0.2, 0, 1, 1 / 255)],
+        [`${id}Blue`, numberParam(`Stop ${index + 1} Blue`, index === 0 ? 0.9 : 0.4, 0, 1, 1 / 255)],
+        [`${id}Alpha`, numberParam(`Stop ${index + 1} Alpha`, 1, 0, 1, 0.01)],
+      ])),
+    },
+    parameterLayout: { type: 'gradient', label: 'Color stops' },
+  },
+  {
+    kind: 'shape',
+    title: 'Shape',
+    summary: 'Antialiased 2D primitives on a transparent frame.',
+    domain: 'frame',
+    category: 'generators',
+    inputs: [
+      port('x', 'Center X', 'control.f32', true),
+      port('y', 'Center Y', 'control.f32', true),
+      port('width', 'Width', 'control.f32', true),
+      port('height', 'Height', 'control.f32', true),
+      port('rotation', 'Rotation', 'control.f32', true),
+      port('red', 'Red', 'control.f32', true),
+      port('green', 'Green', 'control.f32', true),
+      port('blue', 'Blue', 'control.f32', true),
+      port('alpha', 'Alpha', 'control.f32', true),
+    ],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      primitive: selectParam('Primitive', 'ellipse', ['ellipse', 'rectangle', 'triangle', 'polygon', 'star']),
+      style: selectParam('Style', 'filled', ['filled', 'outline']),
+      sides: numberParam('Sides / Points', 5, 3, 12, 1),
+      x: numberParam('Center X', 0.5, 0, 1, 0.01),
+      y: numberParam('Center Y', 0.5, 0, 1, 0.01),
+      width: numberParam('Width', 0.6, 0.01, 2, 0.01),
+      height: numberParam('Height', 0.6, 0.01, 2, 0.01),
+      rotation: numberParam('Rotation', 0, -180, 180, 1),
+      thickness: numberParam('Outline Width', 0.015, 0.001, 0.2, 0.001),
+      red: numberParam('Red', 0.2, 0, 1, 0.01),
+      green: numberParam('Green', 0.9, 0, 1, 0.01),
+      blue: numberParam('Blue', 0.8, 0, 1, 0.01),
+      alpha: numberParam('Alpha', 1, 0, 1, 0.01),
+    },
+  },
+  {
+    kind: 'vectorShape',
+    title: 'Vector Shape',
+    summary: 'Draw layered vector artwork or import a static SVG file.',
+    domain: 'frame',
+    category: 'generators',
+    inputs: [],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: { artwork: textParam('Artwork', DEFAULT_VECTOR_ARTWORK, MAX_VECTOR_BYTES) },
+    parameterLayout: { type: 'vector', label: 'Artwork', svgParamId: 'artwork' },
+    execution: { visualPasses: 1, renderTargets: 2, stateful: false },
+  },
+  {
+    kind: 'text',
+    title: 'Text',
+    summary: 'Live text with embedded fonts, wrapping, alignment, and RGBA color.',
+    domain: 'frame',
+    category: 'generators',
+    inputs: [
+      port('text', 'Text', 'text.utf8', true),
+      port('x', 'Center X', 'control.f32', true),
+      port('y', 'Center Y', 'control.f32', true),
+      port('fontSize', 'Font size', 'control.f32', true),
+      port('alpha', 'Alpha', 'control.f32', true),
+    ],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      text: textParam('Text', 'VideoBrain', 4_000, { multiline: true }),
+      fontFamily: selectParam('Font', 'sans-serif', ['sans-serif', 'serif', 'monospace', 'custom']),
+      fontAsset: textParam('Font asset', '', MAX_FONT_DATA_LENGTH),
+      fontWeight: selectParam('Weight', 'normal', ['normal', 'bold']),
+      fontSize: numberParam('Font size', 64, 4, 256, 1),
+      align: selectParam('Align', 'center', ['left', 'center', 'right']),
+      verticalAlign: selectParam('Vertical align', 'middle', ['top', 'middle', 'bottom']),
+      wrap: selectParam('Wrapping', 'word', ['word', 'character', 'none']),
+      lineHeight: numberParam('Line height', 1.2, 0.5, 3, 0.05),
+      x: numberParam('Center X', 0.5, 0, 1, 0.01),
+      y: numberParam('Center Y', 0.5, 0, 1, 0.01),
+      width: numberParam('Box width', 0.9, 0.05, 1, 0.01),
+      height: numberParam('Box height', 0.8, 0.05, 1, 0.01),
+      red: numberParam('Red', 1, 0, 1, 0.01),
+      green: numberParam('Green', 1, 0, 1, 0.01),
+      blue: numberParam('Blue', 1, 0, 1, 0.01),
+      alpha: numberParam('Alpha', 1, 0, 1, 0.01),
+    },
+    parameterLayout: { type: 'text', label: 'Font asset', fontParamId: 'fontAsset' },
+    execution: { visualPasses: 1, renderTargets: 2, stateful: false },
+  },
+  {
+    kind: 'noise',
+    title: 'Noise',
+    summary: 'Seeded value, simplex, cellular, curl-field, and fractal textures.',
+    domain: 'frame',
+    category: 'generators',
+    inputs: [
+      port('time', 'Time', 'control.f32', true),
+      port('scale', 'Scale', 'control.f32', true),
+      port('alpha', 'Alpha', 'control.f32', true),
+    ],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      mode: selectParam('Mode', 'simplex', ['value', 'simplex', 'cellular', 'curl', 'fractal']),
+      fractalType: selectParam('Fractal', 'fbm', ['fbm', 'turbulence', 'ridged']),
+      scale: numberParam('Scale', 6, 0.1, 64, 0.1),
+      speed: numberParam('Speed', 0.2, -2, 2, 0.01),
+      seed: numberParam('Seed', 23, 0, 65_535, 1),
+      octaves: numberParam('Octaves', 4, 1, 6, 1),
+      persistence: numberParam('Persistence', 0.5, 0.1, 0.9, 0.01),
+      lacunarity: numberParam('Lacunarity', 2, 1, 4, 0.1),
+      contrast: numberParam('Contrast', 1, 0, 4, 0.01),
+      brightness: numberParam('Brightness', 0, -1, 1, 0.01),
+      alpha: numberParam('Alpha', 1, 0, 1, 0.01),
+    },
+  },
+  {
+    kind: 'shaderSource',
+    title: 'Shader Source',
+    summary: 'Constrained GLSL ES 3.00 fragment body with declared uniforms and static budgets.',
+    domain: 'frame',
+    category: 'generators',
+    inputs: [
+      port('time', 'uTime', 'control.f32', true),
+      port('value1', 'uValue1', 'control.f32', true),
+      port('value2', 'uValue2', 'control.f32', true),
+      port('value3', 'uValue3', 'control.f32', true),
+      port('value4', 'uValue4', 'control.f32', true),
+    ],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      source: textParam('GLSL body', DEFAULT_SHADER_SOURCE, MAX_SHADER_SOURCE_LENGTH, { multiline: true }),
+      value1: numberParam('uValue1', 0, -100, 100, 0.01),
+      value2: numberParam('uValue2', 0.5, -100, 100, 0.01),
+      value3: numberParam('uValue3', 0, -100, 100, 0.01),
+      value4: numberParam('uValue4', 1, 0, 1, 0.01),
+    },
+    execution: { visualPasses: 1, renderTargets: 1, stateful: false },
   },
   {
     kind: 'plasma',
@@ -902,6 +1099,64 @@ const definitions = [
       saturation: numberParam('Saturation', 1.2, 0, 3, 0.01),
     },
   },
+  frameEffect('levels', 'Levels', 'Remaps black and white points, gamma, lift, and gain; output is clamped.', {
+    black: numberParam('Black point', 0, 0, 1, 0.01),
+    white: numberParam('White point', 1, 0, 1, 0.01),
+    gamma: numberParam('Gamma', 1, 0.01, 5, 0.01),
+    lift: numberParam('Lift', 0, -1, 1, 0.01),
+    gain: numberParam('Gain', 1, 0, 4, 0.01),
+  }),
+  frameEffect('hsv', 'HSV / HSL', 'Adjusts hue, saturation, and value or lightness while preserving alpha.', {
+    mode: selectParam('Color model', 'hsv', ['hsv', 'hsl']),
+    hue: numberParam('Hue (turns)', 0, -1, 1, 0.01),
+    saturation: numberParam('Saturation', 1, 0, 3, 0.01),
+    brightness: numberParam('Value / lightness', 0, -1, 1, 0.01),
+  }),
+  frameEffect('lumaKey', 'Luma Key', 'Removes dark or bright regions by multiplying source alpha with a soft luminance key.', {
+    threshold: numberParam('Threshold', 0.5, 0, 1, 0.01),
+    softness: numberParam('Softness', 0.1, 0, 0.5, 0.01),
+    invert: selectParam('Invert', 'off', ['off', 'on']),
+  }),
+  frameEffect('chromaKey', 'Chroma Key', 'Keys a chosen RGB color by chrominance distance with soft edges and spill suppression.', {
+    red: numberParam('Key red', 0, 0, 1, 0.01),
+    green: numberParam('Key green', 1, 0, 1, 0.01),
+    blue: numberParam('Key blue', 0, 0, 1, 0.01),
+    tolerance: numberParam('Tolerance', 0.15, 0, 2, 0.01),
+    softness: numberParam('Softness', 0.1, 0, 1, 0.01),
+    spill: numberParam('Spill suppression', 0.5, 0, 1, 0.01),
+  }),
+  frameEffect('crossfade', 'Crossfade', 'Interpolates two frames with alpha-correct curves; Mix is the position, not a clock.', {
+    mix: numberParam('Mix', 0.5, 0, 1, 0.01),
+    curve: selectParam('Curve', 'linear', ['linear', 'smooth', 'easeIn', 'easeOut']),
+  }, [port('source', 'A', 'frame.rgba', true), port('map', 'B', 'frame.rgba', true)], 'compositing'),
+  frameEffect('displace', 'Displace', 'Offsets source UVs using map red/green channels; no map leaves the source unchanged.', {
+    amountX: numberParam('X amount (UV)', 0.1, -1, 1, 0.01),
+    amountY: numberParam('Y amount (UV)', 0.1, -1, 1, 0.01),
+    center: numberParam('Map neutral', 0.5, 0, 1, 0.01),
+    edgeMode: selectParam('Edges', 'clamp', ['transparent', 'clamp', 'repeat', 'mirror']),
+  }, [port('source', 'Source', 'frame.rgba'), port('map', 'Map', 'frame.rgba', true)]),
+  frameEffect('edge', 'Edge', 'Sobel luminance edges with clamped borders and source alpha.', {
+    strength: numberParam('Strength', 1, 0, 8, 0.01),
+    invert: selectParam('Invert', 'off', ['off', 'on']),
+  }),
+  frameEffect('pixelate', 'Pixelate', 'Samples square pixel blocks without changing the output resolution.', {
+    size: numberParam('Block size (px)', 12, 1, 256, 1),
+  }),
+  frameEffect('kaleidoscope', 'Tile / Kaleidoscope', 'Repeats, mirrors, or folds a frame into aspect-correct polar symmetry.', {
+    mode: selectParam('Mode', 'kaleidoscope', ['repeat', 'mirror', 'kaleidoscope']),
+    repeatX: numberParam('X repeats', 1, 0.1, 16, 0.1),
+    repeatY: numberParam('Y repeats', 1, 0.1, 16, 0.1),
+    segments: numberParam('Segments', 6, 2, 24, 1),
+    rotation: numberParam('Rotation (deg)', 0, -180, 180, 1),
+    centerX: numberParam('Center X', 0.5, 0, 1, 0.01),
+    centerY: numberParam('Center Y', 0.5, 0, 1, 0.01),
+  }),
+  frameEffect('channelShuffle', 'Channel Shuffle', 'Routes source channels, luminance, zero, or one into each RGBA output.', {
+    red: selectParam('Red from', 'red', ['red', 'green', 'blue', 'alpha', 'luma', 'zero', 'one']),
+    green: selectParam('Green from', 'green', ['red', 'green', 'blue', 'alpha', 'luma', 'zero', 'one']),
+    blue: selectParam('Blue from', 'blue', ['red', 'green', 'blue', 'alpha', 'luma', 'zero', 'one']),
+    alpha: selectParam('Alpha from', 'alpha', ['red', 'green', 'blue', 'alpha', 'luma', 'zero', 'one']),
+  }),
   {
     kind: 'display',
     title: 'Display',

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Camera, Maximize2 } from 'lucide-react';
 import type { GraphDocument } from '../graph';
+import { VECTOR_FRAME_READY_EVENT } from '../engine/SvgFrameCache';
+import { TEXT_FRAME_READY_EVENT } from '../engine/TextFrameCache';
 import {
   FRAME_PACING_OPTIONS,
   FramePacer,
@@ -21,7 +23,7 @@ interface PreviewPanelProps {
   audioInputState: AudioInputState;
   videoInputState: VideoInputState;
   videoSource: HTMLVideoElement | HTMLImageElement | null;
-  videoModelSources: ReadonlyMap<string, HTMLImageElement>;
+  videoModelSources: ReadonlyMap<string, HTMLImageElement | HTMLVideoElement>;
   meterLevel: number;
   sampleAudio: (
     timeSeconds: number,
@@ -204,9 +206,13 @@ export function PreviewPanel({
     const renderHeldContextChange = () => renderIfHeld();
     canvas.addEventListener('webglcontextlost', renderHeldContextChange);
     canvas.addEventListener('webglcontextrestored', renderHeldContextChange);
+    canvas.addEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
+    canvas.addEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
     return () => {
       canvas.removeEventListener('webglcontextlost', renderHeldContextChange);
       canvas.removeEventListener('webglcontextrestored', renderHeldContextChange);
+      canvas.removeEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
+      canvas.removeEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
     };
   }, [renderIfHeld]);
 

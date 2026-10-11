@@ -17,7 +17,7 @@ const plannedAreas = [
   {
     title: 'Media and compositing',
     items:
-      'Image/video files, screen capture, shapes, text, color keying, displacement, transitions, and deeper image analysis',
+      'Screen capture, retained frame delay/hold, event-triggered timed transitions, and deeper image analysis',
   },
   {
     title: 'Audio',
@@ -46,6 +46,51 @@ interface HelpDialogProps {
 }
 
 const recipes = [
+  {
+    title: 'Color, channels, and luminance keys',
+    path: 'Gradient → Levels → HSV / HSL → Channel Shuffle → Luma Key → Composite → Display',
+    note: 'Open Color & Channel Lab. Levels normalizes black/white points, applies inverse gamma, then gain and lift, and clamps RGB. White at or below black becomes a near-hard cutoff. HSV / HSL changes hue in turns, multiplies saturation, and offsets value or lightness. Channel Shuffle routes RGBA, luminance, zero, or one into each channel. Luma Key multiplies existing alpha, and Invert keeps the opposite luminance range. All numeric inputs override saved sliders without discarding them. Each effect uses one pass and no history, permissions, or network.',
+  },
+  {
+    title: 'Chroma key with a local fallback',
+    path: 'Shape over green → Frame Switch → Chroma Key → Composite → Display',
+    note: 'Open Keyed Camera. Input A is a procedural green-screen fixture; no camera starts automatically. To use a camera, explicitly Start camera and set Frame Switch Index to 1. Set Key red/green/blue, then tune Tolerance, Softness, and Spill suppression. This basic chrominance-distance key multiplies source alpha and removes key-colored spill in its transition region; it does not provide advanced matte cleanup. Stop the camera when finished and return Index to 0 for the fixture.',
+  },
+  {
+    title: 'Displacement and edges',
+    path: 'Gradient + Noise → Displace → Edge → Display',
+    note: 'Open Displacement Map Lab. Map red and green offset source UV coordinates; Map neutral is 0.5, and X/Y amounts are fractions of frame dimensions. Disconnecting Map makes displacement neutral. Choose transparent, clamp, repeat, or mirror borders. Edge extracts a bounded 3-by-3 Sobel luminance gradient using alpha-weighted samples and retains source alpha. Neither processor changes resolution or retains a previous frame.',
+  },
+  {
+    title: 'Pixel patterns and crossfades',
+    path: 'Flow Field → Pixelate → Tile / Kaleidoscope → Crossfade ← Cells; Oscillator → Crossfade.Mix',
+    note: 'Open Pattern & Mix Lab. Pixelate samples square blocks in output pixels without allocating a smaller output. Tile / Kaleidoscope offers repeat, mirror, and polar folding with center, repeats, segment count, and clockwise rotation. Crossfade mixes premultiplied colors and alpha before returning straight alpha. Missing A or B is transparent. Mix is a saved or patched position from 0 to 1, with linear, smooth, ease-in, or ease-out shaping; it has no internal clock. Pause/reset has no retained effect state. Disconnect the slow Oscillator to edit Mix manually.',
+  },
+  {
+    title: 'Custom GLSL source',
+    path: 'Constant → Shader Source.uValue2; Shader Source → Display',
+    note: 'Open Shader Lab. Write a GLSL ES 3.00 fragment body that assigns outColor, then press Apply. The host declares vUv (normalized coordinates), uResolution (pixel dimensions), uTime (transport seconds unless connected), and float uniforms uValue1 through uValue4. Connected control inputs override saved sliders. Use scalar/vector expressions, local variables, swizzles, math functions, and ternaries; do not include main, uniform declarations, loops, arrays, custom functions, textures, or preprocessor directives. Limits are 4096 characters, 512 syntax nodes, 128 operations, and 32 structural nesting levels, plus the normal graph/GPU budgets. These are static complexity limits, not a guaranteed GPU time limit. Errors appear on the monitor; the last successfully compiled program stays active until correction. A newly loaded invalid shader renders transparent. Source and parameters persist; compiled programs do not. No permissions or network are needed.',
+  },
+  {
+    title: 'Text and typography',
+    path: 'AI Chat → Text; Text + Gradient → Composite → Display',
+    note: 'Open Poster Maker. Edit multiline text and press Apply to commit one undoable change; leaving the field keeps your draft without changing the output. A connected Text input overrides the saved fallback. Choose alignment, word or character wrapping, box size, and RGBA color. Import a local WOFF2, WOFF, TTF, or OTF font up to 384 KB; the font is embedded in exported projects. Built-in fonts need no file or network. Font size is measured against a 512-pixel shorter output dimension, and text outside its box is clipped.',
+  },
+  {
+    title: 'Procedural noise',
+    path: 'Transport Time → Noise → Display',
+    note: 'Open Noise Lab. Compare Value, Simplex, Cellular, Curl, and Fractal modes. Fractal offers fBm, turbulence, and ridged variants with up to six octaves. Seed, Scale, and time reproduce the same pattern after reset; Speed zero freezes animation. Curl encodes its XY field in red and green rather than emitting a vector wire. No permissions, assets, or network are needed.',
+  },
+  {
+    title: 'Multi-stop gradients',
+    path: 'Gradient + Solid Color → Composite → Display',
+    note: 'Open Gradient Lab. Choose Linear, Radial, or Conic; each supports 2–8 color stops. Each swatch opens a color picker, and Alpha controls its transparency. Position places a stop from 0 to 100%; stops blend in position order, and coincident positions make a hard edge. Plus adds a stop; minus removes the last numbered stop. Center uses normalized coordinates with Y increasing upward. Radius uses the shorter output dimension, and Angle rotates counterclockwise from the right. Connected angle, center, and radius signals override their saved sliders. All edits support undo and persist with the graph. No permissions are needed.',
+  },
+  {
+    title: 'Primitives and vector artwork',
+    path: 'Shape + Vector Shape → Composite → Display',
+    note: 'Open Shape Studio. Shape offers ellipses, rectangles, triangles, polygons, and stars with transparent backgrounds, fill or outline, and control-driven size, position, rotation, and RGBA. Width, height, and outline width use the shorter output dimension; equal width and height produce circles and squares. Vector Shape opens a drawing editor with freehand paths, object transforms, fill/stroke, layers, undo/redo, and SVG import/export. Apply artwork commits one undoable edit; Cancel keeps the original. Artwork is saved with the graph. Static SVG paths, shapes, gradients, and clipping are supported up to 150 KB and 512 elements; convert text to paths. Scripts, animation, embedded images, use references, and external resources are rejected. Neither node needs permissions or a server.',
+  },
   {
     title: 'Animated color field',
     path: 'Time → Flow Field → Color Grade → Display',
@@ -134,7 +179,7 @@ const recipes = [
   {
     title: 'Model connector preview',
     path: 'AI Chat → Video Model Prompt; visual source → Video Model → Display',
-    note: 'Preview is a built-in visual effect that does not interpret the prompt. Local/API adapters consume the text.',
+    note: 'Edit the AI Chat draft and press Apply to publish it. Preview is a built-in visual effect that does not interpret the prompt. Local/API adapters consume the applied text.',
   },
 ];
 

@@ -6,6 +6,7 @@ import {
   MAX_GRAPH_IDENTIFIER_LENGTH,
   MAX_GRAPH_JSON_BYTES,
   MAX_GRAPH_NODES,
+  OPERATOR_DEFINITIONS,
   cloneGraphDocument,
   createDefaultGraph,
   createGraphNode,
@@ -15,6 +16,39 @@ import {
 } from './index';
 
 describe('graph document model', () => {
+  it.each(OPERATOR_DEFINITIONS.filter(({ kind }) => ['levels', 'hsv', 'lumaKey', 'chromaKey', 'crossfade', 'displace', 'edge', 'pixelate', 'kaleidoscope', 'channelShuffle'].includes(kind)))(
+    'round-trips $kind and rejects malformed parameters', ({ kind, params }) => {
+      const node = createGraphNode(kind, { x: 0, y: 0 }, {}, 'effect');
+      const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION, nodes: [node], edges: [] };
+      expect(parseGraphDocument(serializeGraphDocument(document))).toEqual(document);
+      for (const [id, parameter] of Object.entries(params)) {
+        const invalid = parameter.type === 'number' ? parameter.max + 1 : 'invalid-option';
+        expect(() => parseGraphDocument({ ...document, nodes: [{ ...node, params: { ...node.params, [id]: invalid } }] })).toThrow(GraphDocumentError);
+      }
+    },
+  );
+
+  it('round-trips Text and Noise defaults and rejects external font URLs', () => {
+    const text = createGraphNode('text', { x: 0, y: 0 }, { text: 'Live\ntext', wrap: 'character', align: 'right' }, 'text');
+    const noise = createGraphNode('noise', { x: 0, y: 0 }, { mode: 'fractal', fractalType: 'ridged', seed: 42 }, 'noise');
+    const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION, nodes: [text, noise], edges: [] };
+    expect(parseGraphDocument(serializeGraphDocument(document))).toEqual(document);
+    text.params.fontAsset = 'https://example.org/font.woff2';
+    expect(() => parseGraphDocument(document)).toThrow('fontAsset');
+    text.params.fontAsset = '';
+    noise.params.octaves = 7;
+    expect(() => parseGraphDocument(document)).toThrow('octaves');
+  });
+  it('round-trips gradient stops and rejects invalid colors, counts, and modes', () => {
+    const node = createGraphNode('gradient', { x: 0, y: 0 }, { stopCount: 8, stop8Alpha: 0.35, mode: 'conic' }, 'gradient');
+    const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION, nodes: [node], edges: [] };
+    expect(parseGraphDocument(serializeGraphDocument(document))).toEqual(document);
+    for (const [paramId, value] of Object.entries({ stopCount: 9, stop1Red: 1.1, stop8Alpha: -0.1, stop2Position: NaN, mode: 'unknown' })) {
+      expect(() => parseGraphDocument({ ...document, nodes: [{ ...node, params: { ...node.params, [paramId]: value } }] })).toThrow(GraphDocumentError);
+    }
+    const normalized = parseGraphDocument({ ...document, nodes: [{ ...node, params: {} }] });
+    expect(normalized.nodes[0]?.params).toMatchObject({ stopCount: 2, stop1Position: 0, stop2Position: 1 });
+  });
   it('creates nodes with independent default parameters', () => {
     const first = createGraphNode('warp', { x: 10, y: 20 }, {}, 'first');
     const second = createGraphNode('warp', { x: 30, y: 40 }, {}, 'second');

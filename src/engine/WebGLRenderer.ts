@@ -14,12 +14,16 @@ import {
   type OperatorParamDefinition,
 } from '../graph';
 import { FRAME_FRAGMENT_SHADERS, FULLSCREEN_VERTEX_SHADER } from './shaders';
+import { getGradientStops } from '../graph/gradient';
+import { buildShaderSource, DEFAULT_SHADER_SOURCE } from '../graph/shaderSource';
 import { computeInverseProjectionMap } from './projection';
 import {
   evaluateAutoSelector,
   type AutoSelectorOrder,
 } from './autoSelector';
 import { RollingFrameRate } from './frameTiming';
+import { SvgFrameCache, VECTOR_FRAME_READY_EVENT } from './SvgFrameCache';
+import { TextFrameCache, TEXT_FRAME_READY_EVENT } from './TextFrameCache';
 import {
   createAudioBeatState,
   createAudioOnsetState,
@@ -83,7 +87,7 @@ interface ProgramInfo {
 }
 
 interface VideoModelTexture {
-  source: HTMLImageElement;
+  source: VideoSource;
   texture: WebGLTexture;
   dirty: boolean;
 }
@@ -111,6 +115,44 @@ const DEFAULT_POINTER: RenderPointer = Object.freeze({
   release: 0,
 });
 const TWO_PI = Math.PI * 2;
+
+function hasSameRuntimeGraph(
+  previous: GraphDocument,
+  next: GraphDocument,
+): boolean {
+  if (
+    previous.schemaVersion !== next.schemaVersion ||
+    previous.nodes.length !== next.nodes.length ||
+    previous.edges.length !== next.edges.length
+  ) {
+    return false;
+  }
+
+  return previous.nodes.every((node, index) => {
+    const candidate = next.nodes[index];
+    const paramIds = Object.keys(node.params);
+    return (
+      candidate !== undefined &&
+      node.id === candidate.id &&
+      node.kind === candidate.kind &&
+      paramIds.length === Object.keys(candidate.params).length &&
+      paramIds.every((paramId) =>
+        Object.hasOwn(candidate.params, paramId) &&
+        Object.is(node.params[paramId], candidate.params[paramId]),
+      )
+    );
+  }) && previous.edges.every((edge, index) => {
+    const candidate = next.edges[index];
+    return (
+      candidate !== undefined &&
+      edge.id === candidate.id &&
+      edge.source.nodeId === candidate.source.nodeId &&
+      edge.source.portId === candidate.source.portId &&
+      edge.target.nodeId === candidate.target.nodeId &&
+      edge.target.portId === candidate.target.portId
+    );
+  });
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -369,6 +411,8 @@ export class WebGLRenderer {
   private readonly maxTextureDimension: number;
   private plan: CompiledGraph | null = null;
   private programs = new Map<NodeKind, ProgramInfo>();
+  private shaderPrograms = new Map<string, { source: string; info: ProgramInfo | null; error: string | null }>();
+  private shaderError: RendererError | null = null;
   private nodeResources = new Map<string, NodeResources>();
   private outputTextures = new Map<string, WebGLTexture>();
   private controlValues = new Map<string, number>();
@@ -383,7 +427,7 @@ export class WebGLRenderer {
   private videoSource: VideoSource | null = null;
   private videoSourceWidth = 1;
   private videoSourceHeight = 1;
-  private videoModelSources = new Map<string, HTMLImageElement>();
+  private videoModelSources = new Map<string, VideoSource>();
   private videoModelTextures = new Map<string, VideoModelTexture>();
   private renderWidth = 1;
   private renderHeight = 1;
@@ -393,6 +437,13 @@ export class WebGLRenderer {
   private errorState: Error | null = null;
   private contextLost = false;
   private disposed = false;
+  private readonly vectorFrames = new SvgFrameCache(() => {
+    this.canvas.dispatchEvent(new Event(VECTOR_FRAME_READY_EVENT));
+  });
+  private readonly textValues = new Map<string, string>();
+  private readonly textFrames = new TextFrameCache(() => {
+    this.canvas.dispatchEvent(new Event(TEXT_FRAME_READY_EVENT));
+  });
 
   constructor(canvas: HTMLCanvasElement, options: RendererOptions = {}) {
     this.canvas = canvas;
@@ -459,7 +510,15 @@ export class WebGLRenderer {
 
   setGraph(document: GraphDocument): void {
     try {
-      this.setCompiledGraph(compileGraph(document));
+      this.assertActive();
+      if (
+        this.plan &&
+        !this.errorState &&
+        hasSameRuntimeGraph(this.plan.document, document)
+      ) {
+        return;
+      }
+      this.applyCompiledGraph(compileGraph(document));
     } catch (error) {
       this.errorState = this.asError(error);
       throw this.errorState;
@@ -480,7 +539,7 @@ export class WebGLRenderer {
   }
 
   setVideoModelSources(
-    sources: ReadonlyMap<string, HTMLImageElement>,
+    sources: ReadonlyMap<string, VideoSource>,
   ): void {
     this.assertActive();
     if (this.plan) {
@@ -505,7 +564,10 @@ export class WebGLRenderer {
 
   setCompiledGraph(graph: CompiledGraph): void {
     this.assertActive();
-    const validatedGraph = compileGraph(graph.document);
+    this.applyCompiledGraph(compileGraph(graph.document));
+  }
+
+  private applyCompiledGraph(validatedGraph: CompiledGraph): void {
     this.assertResourceBudget(validatedGraph);
     const previousPlan = this.plan;
     this.plan = validatedGraph;
@@ -646,6 +708,7 @@ export class WebGLRenderer {
       };
 
       this.controlValues.clear();
+      this.textValues.clear();
       this.outputTextures.clear();
       if (!this.plan || this.plan.displayNodes.length === 0) {
         this.clearDisplay();
@@ -665,6 +728,7 @@ export class WebGLRenderer {
         this.uploadVideoFrame();
       }
       const frameStateCommits: FrameStateCommit[] = [];
+      this.shaderError = null;
       for (const node of this.plan.frameNodes) {
         const commit = this.renderFrameNode(node, time);
         if (commit) {
@@ -684,7 +748,7 @@ export class WebGLRenderer {
       if (presentationTimestamp !== undefined) {
         this.frameRate.sample(presentationTimestamp);
       }
-      return this.result(true, null);
+      return this.result(true, this.shaderError);
     } catch (error) {
       this.errorState = this.asError(error);
       return this.result(false, this.errorState);
@@ -701,6 +765,8 @@ export class WebGLRenderer {
 
   reset(): void {
     this.assertActive();
+    this.vectorFrames.markDirty();
+    this.textFrames.markDirty();
     this.frameCount = 0;
     this.frameRate.reset();
     this.lastPassCount = 0;
@@ -730,6 +796,9 @@ export class WebGLRenderer {
     if (this.disposed) {
       return;
     }
+    this.vectorFrames.clear();
+    this.textFrames.clear();
+    this.textValues.clear();
     this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.removeEventListener(
       'webglcontextrestored',
@@ -740,6 +809,9 @@ export class WebGLRenderer {
       this.releaseVideoModelTextures();
       for (const info of this.programs.values()) {
         this.gl.deleteProgram(info.program);
+      }
+      for (const entry of this.shaderPrograms.values()) {
+        if (entry.info) this.gl.deleteProgram(entry.info.program);
       }
       if (this.blackTexture) {
         this.gl.deleteTexture(this.blackTexture);
@@ -756,6 +828,7 @@ export class WebGLRenderer {
     }
     this.programs.clear();
     this.outputTextures.clear();
+    this.shaderPrograms.clear();
     this.controlValues.clear();
     this.smoothControlStates.clear();
     this.audioOnsetStates.clear();
@@ -780,6 +853,9 @@ export class WebGLRenderer {
       return;
     }
     this.contextLost = true;
+    this.vectorFrames.clear();
+    this.textFrames.clear();
+    this.textValues.clear();
     this.errorState = new RendererError('The graphics context was lost.');
     this.nodeResources.clear();
     this.outputTextures.clear();
@@ -789,6 +865,7 @@ export class WebGLRenderer {
     this.audioBeatStates.clear();
     this.sourceSelectorStates.clear();
     this.programs.clear();
+    this.shaderPrograms.clear();
     this.blackTexture = null;
     this.transparentTexture = null;
     this.videoTexture = null;
@@ -949,7 +1026,7 @@ export class WebGLRenderer {
     }
     const activeNodeIds = new Set(
       this.plan?.frameNodes
-        .filter(({ node }) => node.kind === 'videoModel')
+        .filter(({ node }) => node.kind === 'videoModel' || node.kind === 'networkVideo')
         .map(({ node }) => node.id) ?? [],
     );
 
@@ -958,7 +1035,7 @@ export class WebGLRenderer {
     const created: VideoModelTexture[] = [];
     const sourceUpdates: Array<{
       entry: VideoModelTexture;
-      source: HTMLImageElement;
+      source: VideoSource;
     }> = [];
     try {
       for (const nodeId of activeNodeIds) {
@@ -1031,17 +1108,16 @@ export class WebGLRenderer {
     if (!entry) {
       return null;
     }
-    if (!entry.dirty) {
+    if (!entry.dirty && entry.source instanceof HTMLImageElement) {
       return entry.texture;
     }
-    const size = readImageFrameSize(
-      entry.source,
-      this.maxTextureDimension,
-      MAX_RENDER_PIXELS,
-    );
+    const size = entry.source instanceof HTMLImageElement
+      ? readImageFrameSize(entry.source, this.maxTextureDimension, MAX_RENDER_PIXELS)
+      : readVideoFrameSize(entry.source, this.maxTextureDimension, MAX_RENDER_PIXELS);
     if (!size) {
       return null;
     }
+    if (this.plan) this.assertResourceBudget(this.plan);
     const gl = this.gl;
     try {
       gl.bindTexture(gl.TEXTURE_2D, entry.texture);
@@ -1073,7 +1149,7 @@ export class WebGLRenderer {
     graph: CompiledGraph,
     width = this.renderWidth,
     height = this.renderHeight,
-    modelSources: ReadonlyMap<string, HTMLImageElement> = this.videoModelSources,
+    modelSources: ReadonlyMap<string, VideoSource> = this.videoModelSources,
     videoSize: RenderSize = {
       width: this.videoSourceWidth,
       height: this.videoSourceHeight,
@@ -1091,7 +1167,7 @@ export class WebGLRenderer {
     }
     const activeModelIds = new Set(
       graph.frameNodes
-        .filter(({ node }) => node.kind === 'videoModel')
+        .filter(({ node }) => node.kind === 'videoModel' || node.kind === 'networkVideo')
         .map(({ node }) => node.id),
     );
     let sourcePixels = graph.frameNodes.some(
@@ -1103,11 +1179,9 @@ export class WebGLRenderer {
       if (!activeModelIds.has(nodeId)) {
         continue;
       }
-      const size = readImageFrameSize(
-        image,
-        this.maxTextureDimension,
-        MAX_RENDER_PIXELS,
-      );
+      const size = image instanceof HTMLImageElement
+        ? readImageFrameSize(image, this.maxTextureDimension, MAX_RENDER_PIXELS)
+        : readVideoFrameSize(image, this.maxTextureDimension, MAX_RENDER_PIXELS);
       if (size) {
         sourcePixels += size.width * size.height;
       }
@@ -1118,6 +1192,13 @@ export class WebGLRenderer {
   }
 
   private reconcileNodeResources(): void {
+    const activeShaders = new Set(this.plan?.frameNodes.filter(({ node }) => node.kind === 'shaderSource').map(({ node }) => node.id));
+    for (const [nodeId, entry] of this.shaderPrograms) {
+      if (!activeShaders.has(nodeId)) {
+        if (entry.info) this.gl.deleteProgram(entry.info.program);
+        this.shaderPrograms.delete(nodeId);
+      }
+    }
     if (this.contextLost || !this.plan) {
       return;
     }
@@ -1165,6 +1246,12 @@ export class WebGLRenderer {
       }
     }
     this.nodeResources = next;
+    this.vectorFrames.retain(new Set(
+      this.plan.frameNodes.filter(({ node }) => node.kind === 'vectorShape').map(({ node }) => node.id),
+    ));
+    this.textFrames.retain(new Set(
+      this.plan.frameNodes.filter(({ node }) => node.kind === 'text').map(({ node }) => node.id),
+    ));
   }
 
   private createRenderTarget(): RenderTarget {
@@ -1245,6 +1332,9 @@ export class WebGLRenderer {
   ): void {
     const node = compiledNode.node;
     switch (node.kind) {
+      case 'aiPrompt':
+        this.textValues.set(this.controlKey(node.id, 'prompt'), this.textParam(compiledNode, 'text'));
+        return;
       case 'time': {
         const speed = this.numberParam(compiledNode, 'speed');
         const offset = this.numberParam(compiledNode, 'offset');
@@ -1662,9 +1752,42 @@ export class WebGLRenderer {
       throw new RendererError('The frame target is unavailable.');
     }
     const kind = compiledNode.node.kind;
-    const program = this.beginPass(kind, target);
+    const program = this.beginPass(kind, target, kind === 'shaderSource' ? this.customShaderProgram(compiledNode) : undefined);
 
     switch (kind) {
+      case 'levels':
+      case 'hsv':
+      case 'lumaKey':
+      case 'chromaKey':
+      case 'crossfade':
+      case 'displace':
+      case 'edge':
+      case 'pixelate':
+      case 'kaleidoscope':
+      case 'channelShuffle':
+        this.bindTexture(program, 'uSource', this.frameInput(compiledNode, 'source', true), 0);
+        this.bindTexture(program, 'uMap', this.frameInput(compiledNode, 'map', true), 1);
+        this.uniform1f(program, 'uHasMap', compiledNode.inputs.map ? 1 : 0);
+        for (const [id, parameter] of Object.entries(compiledNode.definition.params)) {
+          const uniform = `u${id.charAt(0).toUpperCase()}${id.slice(1)}`;
+          if (parameter.type === 'number') {
+            this.uniform1f(program, uniform, clamp(
+              this.controlInput(compiledNode, id, this.numberParam(compiledNode, id)),
+              parameter.min, parameter.max,
+            ));
+          } else if (parameter.type === 'select') {
+            this.uniform1f(program, uniform, parameter.options.findIndex(
+              ({ value }) => value === this.stringParam(compiledNode, id),
+            ));
+          }
+        }
+        break;
+      case 'shaderSource':
+        this.uniform1f(program, 'uTime', this.controlInput(compiledNode, 'time', time));
+        for (let index = 1; index <= 4; index++) {
+          this.uniform1f(program, `uValue${index}`, this.controlInput(compiledNode, `value${index}`, this.numberParam(compiledNode, `value${index}`)));
+        }
+        break;
       case 'videoInput':
         this.bindTexture(
           program,
@@ -1689,6 +1812,18 @@ export class WebGLRenderer {
           this.stringParam(compiledNode, 'mirror') === 'on' ? 1 : 0,
         );
         break;
+      case 'networkVideo': {
+        const texture = this.uploadVideoModelFrame(compiledNode.node.id);
+        const source = this.videoModelSources.get(compiledNode.node.id);
+        const size = source instanceof HTMLVideoElement
+          ? readVideoFrameSize(source, this.maxTextureDimension, MAX_RENDER_PIXELS)
+          : null;
+        this.bindTexture(program, 'uSource', texture ?? this.transparentTexture ?? this.fallbackTexture(), 0);
+        this.uniform2f(program, 'uSourceSize', size?.width ?? 1, size?.height ?? 1);
+        this.uniform1f(program, 'uFit', videoFitIndex(this.stringParam(compiledNode, 'fit')));
+        this.uniform1f(program, 'uMirror', this.stringParam(compiledNode, 'mirror') === 'on' ? 1 : 0);
+        break;
+      }
       case 'file':
         this.bindTexture(
           program,
@@ -1741,6 +1876,22 @@ export class WebGLRenderer {
         this.uniform1f(program, 'uSeed', this.numberParam(compiledNode, 'seed'));
         break;
       }
+      case 'gradient': {
+        const value = (paramId: string, min: number, max: number) => clamp(
+          this.controlInput(compiledNode, paramId, this.numberParam(compiledNode, paramId)), min, max,
+        );
+        this.uniform2f(program, 'uCenter', value('x', 0, 1), value('y', 0, 1));
+        this.uniform1f(program, 'uAngle', value('angle', -180, 180) * Math.PI / 180);
+        this.uniform1f(program, 'uRadius', value('radius', 0.01, 2));
+        this.uniform1f(program, 'uMode', Math.max(0, ['linear', 'radial', 'conic'].indexOf(this.stringParam(compiledNode, 'mode'))));
+        const stops = getGradientStops(compiledNode.node.params);
+        this.uniform1f(program, 'uStopCount', stops.length);
+        stops.forEach((stop, index) => {
+          this.uniform1f(program, `uPositions[${index}]`, stop.position);
+          this.uniform4f(program, `uColors[${index}]`, stop.red, stop.green, stop.blue, stop.alpha);
+        });
+        break;
+      }
       case 'solid':
         this.uniform4f(
           program,
@@ -1783,6 +1934,82 @@ export class WebGLRenderer {
           ),
         );
         break;
+      case 'text': {
+        const params = { ...compiledNode.node.params };
+        const binding = compiledNode.inputs.text;
+        params.text = binding
+          ? this.textValues.get(this.controlKey(binding.sourceNodeId, binding.sourcePortId)) ?? ''
+          : this.textParam(compiledNode, 'text');
+        for (const paramId of ['x', 'y', 'fontSize', 'alpha']) {
+          const parameter = compiledNode.definition.params[paramId];
+          if (parameter?.type === 'number') {
+            params[paramId] = clamp(this.controlInput(compiledNode, paramId, this.numberParam(compiledNode, paramId)), parameter.min, parameter.max);
+          }
+        }
+        const frame = this.textFrames.get(compiledNode.node.id, params, this.renderWidth, this.renderHeight);
+        const sourceTarget = resources.targets[1];
+        if (!sourceTarget) throw new RendererError('The text source texture is missing.');
+        if (frame.dirty) {
+          const gl = this.gl;
+          gl.bindTexture(gl.TEXTURE_2D, sourceTarget.texture);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          try {
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, frame.image);
+            frame.dirty = false;
+          } finally {
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+          }
+        }
+        this.bindTexture(program, 'uSource', sourceTarget.texture, 0);
+        break;
+      }
+      case 'vectorShape': {
+        const frame = this.vectorFrames.get(compiledNode.node.id, this.textParam(compiledNode, 'artwork'), this.renderWidth, this.renderHeight);
+        const sourceTarget = resources.targets[1];
+        if (!sourceTarget) throw new RendererError('The vector source texture is missing.');
+        if (frame?.dirty) {
+          const gl = this.gl;
+          gl.bindTexture(gl.TEXTURE_2D, sourceTarget.texture);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          try {
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, frame.image);
+            frame.dirty = false;
+          } finally {
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+          }
+        }
+        this.bindTexture(program, 'uSource', frame ? sourceTarget.texture : this.transparentTexture ?? this.fallbackTexture(), 0);
+        break;
+      }
+      case 'shape': {
+        const value = (paramId: string, min: number, max: number) => clamp(
+          this.controlInput(compiledNode, paramId, this.numberParam(compiledNode, paramId)), min, max,
+        );
+        this.uniform2f(program, 'uCenter', value('x', 0, 1), value('y', 0, 1));
+        this.uniform2f(program, 'uSize', value('width', 0.01, 2), value('height', 0.01, 2));
+        this.uniform1f(program, 'uRotation', value('rotation', -180, 180) * Math.PI / 180);
+        this.uniform1f(program, 'uPrimitive', Math.max(0, ['ellipse', 'rectangle', 'triangle', 'polygon', 'star'].indexOf(this.stringParam(compiledNode, 'primitive'))));
+        this.uniform1f(program, 'uSides', Math.round(value('sides', 3, 12)));
+        this.uniform1f(program, 'uOutline', this.stringParam(compiledNode, 'style') === 'outline' ? 1 : 0);
+        this.uniform1f(program, 'uThickness', value('thickness', 0.001, 0.2));
+        this.uniform4f(program, 'uColor', value('red', 0, 1), value('green', 0, 1), value('blue', 0, 1), value('alpha', 0, 1));
+        break;
+      }
+      case 'noise': {
+        this.uniform1f(program, 'uTime', this.controlInput(compiledNode, 'time', time) * this.numberParam(compiledNode, 'speed'));
+        this.uniform1f(program, 'uScale', clamp(this.controlInput(compiledNode, 'scale', this.numberParam(compiledNode, 'scale')), 0.1, 64));
+        this.uniform1f(program, 'uAlpha', clamp(this.controlInput(compiledNode, 'alpha', this.numberParam(compiledNode, 'alpha')), 0, 1));
+        this.uniform1f(program, 'uMode', Math.max(0, ['value', 'simplex', 'cellular', 'curl', 'fractal'].indexOf(this.stringParam(compiledNode, 'mode'))));
+        this.uniform1f(program, 'uFractalType', Math.max(0, ['fbm', 'turbulence', 'ridged'].indexOf(this.stringParam(compiledNode, 'fractalType'))));
+        this.uniform1f(program, 'uSeed', Math.round(this.numberParam(compiledNode, 'seed')));
+        this.uniform1f(program, 'uOctaves', Math.round(this.numberParam(compiledNode, 'octaves')));
+        for (const paramId of ['persistence', 'lacunarity', 'contrast', 'brightness']) {
+          this.uniform1f(program, `u${paramId.charAt(0).toUpperCase()}${paramId.slice(1)}`, this.numberParam(compiledNode, paramId));
+        }
+        break;
+      }
       case 'plasma': {
         const phase = this.controlInput(compiledNode, 'time', time);
         const speed = this.numberParam(compiledNode, 'speed');
@@ -2343,9 +2570,10 @@ export class WebGLRenderer {
   private beginPass(
     kind: NodeKind,
     target: RenderTarget | null,
+    override?: ProgramInfo,
   ): ProgramInfo {
     const gl = this.gl;
-    const program = this.programFor(kind);
+    const program = override ?? this.programFor(kind);
     gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer ?? null);
     gl.viewport(0, 0, this.renderWidth, this.renderHeight);
     gl.useProgram(program.program);
@@ -2357,6 +2585,25 @@ export class WebGLRenderer {
   private draw(program: ProgramInfo): void {
     this.gl.useProgram(program.program);
     this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
+  }
+
+  private customShaderProgram(compiledNode: CompiledNode): ProgramInfo {
+    const nodeId = compiledNode.node.id;
+    const source = String(compiledNode.node.params.source ?? DEFAULT_SHADER_SOURCE);
+    let entry = this.shaderPrograms.get(nodeId);
+    if (!entry || entry.source !== source) {
+      const previous = entry?.info ?? null;
+      try {
+        const info = { program: this.createProgram(FULLSCREEN_VERTEX_SHADER, buildShaderSource(source)), uniforms: new Map<string, WebGLUniformLocation | null>() };
+        entry = { source, info, error: null };
+        if (previous) this.gl.deleteProgram(previous.program);
+      } catch (error) {
+        entry = { source, info: previous, error: this.asError(error).message.slice(0, 2_048) };
+      }
+      this.shaderPrograms.set(nodeId, entry);
+    }
+    if (entry.error && !this.shaderError) this.shaderError = new RendererError(`Shader Source (${nodeId}): ${entry.error}`);
+    return entry.info ?? this.programFor('shaderSource');
   }
 
   private programFor(kind: NodeKind): ProgramInfo {
@@ -2611,6 +2858,15 @@ export class WebGLRenderer {
       );
     }
     return definition.defaultValue;
+  }
+
+  private textParam(compiledNode: CompiledNode, id: string): string {
+    const definition = compiledNode.definition.params[id];
+    if (definition?.type !== 'text') {
+      throw new RendererError(`Text parameter "${id}" is not defined on node "${compiledNode.node.id}".`);
+    }
+    const value = compiledNode.node.params[id];
+    return typeof value === 'string' ? value : definition.defaultValue;
   }
 
   private clearDisplay(): void {
