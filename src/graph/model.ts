@@ -1,3 +1,4 @@
+import { parseSchedule } from '../engine/eventTiming';
 import {
   MAX_GRAPH_EDGES,
   MAX_GRAPH_IDENTIFIER_LENGTH,
@@ -144,6 +145,10 @@ export function normalizeNodeParams(
     params[key] = param;
   }
 
+  if (kind === 'cueScheduler') {
+    try { parseSchedule(String(params.cues)); }
+    catch (error) { throw new GraphDocumentError(`${path}.cues: ${error instanceof Error ? error.message : 'Invalid schedule.'}`); }
+  }
   return params;
 }
 

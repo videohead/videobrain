@@ -201,6 +201,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const RunningPatch: Story = {};
+export const SignalTestLab: Story = { args: { presetId: 'signal-test-lab' } };
+export const CueLogicBasics: Story = { args: { presetId: 'cue-logic-basics' } };
+export const TimedTransitionLab: Story = { args: { presetId: 'timed-transition-lab' } };
+export const StepSequenceLab: Story = { args: { presetId: 'step-sequence-lab' } };
 export const Primitive3DLab: Story = { args: { presetId: 'primitive-3d-lab' } };
 export const VectorGridLab: Story = { args: { presetId: 'vector-grid-lab' } };
 export const JSONTextLab: Story = { args: { presetId: 'json-text-lab' } };

@@ -1,5 +1,6 @@
 import { cloneGraphDocument } from './model';
 import { MAX_3D_TRANSFORMS } from './scene3d';
+import { isSignalTest } from './signalTestOperators';
 import {
   MAX_GPU_RENDER_PASSES,
   MAX_GPU_RENDER_TARGETS,
@@ -201,7 +202,7 @@ function reachableFromOutputs(
 
   const reachable = new Set<string>();
   const pending = nodes
-    .filter((node) => node.kind === 'display' || node.kind === 'audioOutput' || node.kind === 'dataInspect')
+    .filter((node) => node.kind === 'display' || node.kind === 'audioOutput' || node.kind === 'dataInspect' || isSignalTest(node.kind))
     .map((node) => node.id)
     .sort()
     .reverse();

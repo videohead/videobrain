@@ -18,6 +18,10 @@ import { DataEvaluator, isDataNode, type DataValue } from './DataEvaluator';
 import { dataSessions } from './DataSessions';
 import { evaluateScene3D, isScene3DNode } from './Scene3DEvaluator';
 import { Scene3DRenderer } from './Scene3DRenderer';
+import { EventEvaluator, isEventNode, type EventValue } from './EventEvaluator';
+import { EMPTY_EVENTS } from './eventTiming';
+import { signalTests } from './SignalTests';
+import { isSignalTest } from '../graph/signalTestOperators';
 import type { Scene3DValue, Geometry3DValue, Material3DValue, Camera3DValue, Light3DValue } from '../graph/scene3d';
 import { getGradientStops } from '../graph/gradient';
 import { buildShaderSource, DEFAULT_SHADER_SOURCE } from '../graph/shaderSource';
@@ -424,6 +428,8 @@ export class WebGLRenderer {
   private dataValues = new Map<string, DataValue>();
   private dataEvaluator = new DataEvaluator();
   private sceneValues = new Map<string, Scene3DValue>();
+  private eventValues = new Map<string, EventValue>();
+  private eventEvaluator = new EventEvaluator();
   private sceneRenderer: Scene3DRenderer | null = null;
   private smoothControlStates = new Map<string, SmoothControlState>();
   private audioOnsetStates = new Map<string, AudioOnsetState>();
@@ -641,6 +647,8 @@ export class WebGLRenderer {
     }
     dataSessions.reconcile(this.plan);
     this.dataEvaluator.clear();
+    this.eventEvaluator.retain(new Set((this.plan?.controlNodes ?? []).filter(({ node }) => isEventNode(node.kind)).map(({ node }) => node.id)));
+    signalTests.retain(new Set((this.plan?.controlNodes ?? []).filter(({ node }) => isSignalTest(node.kind)).map(({ node }) => node.id)));
   }
 
   resize(width: number, height: number, pixelRatio = 1): void {
@@ -722,6 +730,7 @@ export class WebGLRenderer {
       this.textValues.clear();
       this.dataValues.clear();
       this.sceneValues.clear();
+      this.eventValues.clear();
       this.outputTextures.clear();
       for (const node of this.plan?.controlNodes ?? []) {
         this.evaluateControlNode(node, time, audio, safePointer);
@@ -777,6 +786,9 @@ export class WebGLRenderer {
   }
 
   reset(): void {
+    signalTests.reset();
+    this.eventEvaluator.clear();
+    this.eventValues.clear();
     this.assertActive();
     this.vectorFrames.markDirty();
     this.textFrames.markDirty();
@@ -806,6 +818,9 @@ export class WebGLRenderer {
   }
 
   dispose(): void {
+    signalTests.reset();
+    this.eventEvaluator.clear();
+    this.eventValues.clear();
     this.sceneRenderer?.dispose();
     this.sceneRenderer = null;
     this.sceneValues.clear();
@@ -872,6 +887,9 @@ export class WebGLRenderer {
       return;
     }
     this.contextLost = true;
+    signalTests.reset();
+    this.eventEvaluator.clear();
+    this.eventValues.clear();
     this.sceneRenderer?.dispose();
     this.sceneRenderer = null;
     this.sceneValues.clear();
@@ -1356,6 +1374,44 @@ export class WebGLRenderer {
     pointer: RenderPointer,
   ): void {
     const node = compiledNode.node;
+    if (isSignalTest(node.kind)) {
+      const binding = compiledNode.inputs.value;
+      const key = binding ? this.controlKey(binding.sourceNodeId, binding.sourcePortId) : '';
+      const output = this.controlKey(node.id, 'value');
+      signalTests.prepare(node.id, time, JSON.stringify(binding ?? null));
+      if (node.kind === 'signalNumber') {
+        const value = this.controlValues.get(key) ?? 0;
+        signalTests.number(node.id, value, Boolean(binding));
+        this.setControl(node.id, 'value', value);
+      } else if (node.kind === 'signalText') {
+        const value = this.textValues.get(key) ?? '';
+        signalTests.text(node.id, value, Boolean(binding));
+        this.textValues.set(output, value);
+      } else if (node.kind === 'signalEdge') {
+        const value = this.eventValues.get(key) === true;
+        signalTests.edge(node.id, value, Boolean(binding), time, this.numberParam(compiledNode, 'flash'));
+        this.eventValues.set(output, value);
+      } else {
+        const value = this.eventValues.get(key);
+        const events = Array.isArray(value) ? value : EMPTY_EVENTS;
+        this.eventValues.set(output, signalTests.bang(node.id, events, Boolean(binding), time, this.numberParam(compiledNode, 'flash')));
+      }
+      return;
+    }
+    if (isEventNode(node.kind)) {
+      const inputs: Record<string, EventValue> = {};
+      for (const [id, binding] of Object.entries(compiledNode.inputs)) {
+        const key = this.controlKey(binding.sourceNodeId, binding.sourcePortId);
+        inputs[id] = binding.type === 'control.f32' ? this.controlValues.get(key) ?? 0
+          : this.eventValues.get(key) ?? (binding.type === 'control.bool' ? false : EMPTY_EVENTS);
+      }
+      const outputs = this.eventEvaluator.evaluate(compiledNode, inputs, Math.max(0, time));
+      for (const [id, value] of Object.entries(outputs)) {
+        if (typeof value === 'number') this.setControl(node.id, id, value);
+        else this.eventValues.set(this.controlKey(node.id, id), value);
+      }
+      return;
+    }
     if (isScene3DNode(node.kind)) {
       const inputs: Record<string, Scene3DValue | number> = {};
       for (const [id, binding] of Object.entries(compiledNode.inputs)) {
@@ -1682,7 +1738,7 @@ export class WebGLRenderer {
         points: input('points') as Geometry3DValue | null,
         material: input('material') as Material3DValue | undefined ?? undefined,
         camera: input('camera') as Camera3DValue | undefined ?? undefined,
-        lights: [input('light'), input('light2')].filter((value) => value !== null) as Light3DValue[],
+        lights: [input('light'), input('light2'), input('light3')].filter((value) => value !== null) as Light3DValue[],
       }, this.renderWidth, this.renderHeight, intermediate.framebuffer, sourceTarget?.framebuffer);
       const program = this.beginPass('render3d', target);
       this.bindTexture(program, 'uSource', intermediate.texture, 0);

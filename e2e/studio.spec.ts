@@ -455,6 +455,117 @@ test('Server Events node receives bounded default messages and stops explicitly'
   await expect(page.locator('article[aria-label="Server Events node"]').getByRole('button', { name: 'Connect data', exact: true })).toBeEnabled();
 });
 
+test('signal tests monitor values and chained bangs without a Display', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('constant', { x: 0, y: 0 }, { value: -0.5 }, 'constant'),
+      createGraphNode('math', { x: 300, y: 0 }, { operation: 'multiply', b: 2 }, 'math'),
+      createGraphNode('mapRange', { x: 600, y: 0 }, { inMin: -2, inMax: 2, outMin: -10, outMax: 10 }, 'range'),
+      createGraphNode('smooth', { x: 900, y: 0 }, { rise: 0, fall: 0 }, 'smooth'),
+      createGraphNode('signalNumber', { x: 1200, y: 0 }, { min: -10, max: 10 }, 'number'),
+      createGraphNode('controlToBool', { x: 1500, y: 0 }, { threshold: 0 }, 'boolean'),
+      createGraphNode('signalEdge', { x: 1800, y: 0 }, {}, 'edge'),
+      createGraphNode('signalBang', { x: 0, y: 700 }, {}, 'bang'),
+      createGraphNode('signalBang', { x: 300, y: 700 }, {}, 'chain'),
+      createGraphNode('counter', { x: 600, y: 700 }, {}, 'counter'),
+      createGraphNode('signalNumber', { x: 900, y: 700 }, {}, 'count'),
+      createGraphNode('textSource', { x: 1200, y: 700 }, { text: 'Test <literal>\nSecond line' }, 'text'),
+      createGraphNode('signalText', { x: 1500, y: 700 }, {}, 'text-monitor'),
+    ], edges: [
+      ...[['constant', 'math', 'a'], ['math', 'range', 'value'], ['range', 'smooth', 'value'], ['smooth', 'number', 'value'], ['number', 'boolean', 'value'], ['boolean', 'edge', 'value'], ['bang', 'chain', 'value'], ['chain', 'counter', 'increment'], ['counter', 'count', 'value']].map(([source, target, port], index) => ({ id: `edge${index}`, source: { nodeId: source, portId: 'value' }, target: { nodeId: target, portId: port } })),
+      { id: 'text', source: { nodeId: 'text', portId: 'text' }, target: { nodeId: 'text-monitor', portId: 'value' } },
+    ],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  const numeric = page.locator('[data-id="number"]');
+  await expect(numeric.getByLabel('Numeric signal', { exact: true })).toHaveText('-5.000');
+  await expect(page.locator('[data-id="edge"]').getByLabel('Boolean signal', { exact: true })).toHaveText('LOW');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  const bang = page.locator('[data-id="bang"]');
+  const chain = page.locator('[data-id="chain"]');
+  await bang.getByRole('button', { name: 'Fire bang' }).click();
+  await expect(chain.getByLabel('Bang count', { exact: true })).toHaveText('1');
+  await expect(page.locator('[data-id="count"]').getByLabel('Numeric signal', { exact: true })).toHaveText('1.000');
+  await expect(bang.getByRole('button', { name: 'Fire bang' })).not.toHaveClass(/is-lit/);
+  await bang.getByRole('button', { name: 'Fire bang' }).press('Enter');
+  await expect(chain.getByLabel('Bang count', { exact: true })).toHaveText('2');
+  await page.locator('[data-id="constant"]').getByRole('slider', { name: 'Constant Value', exact: true }).fill('0.5');
+  await expect(numeric.getByLabel('Numeric signal', { exact: true })).toHaveText('5.000');
+  await expect(page.locator('[data-id="edge"]').getByLabel('Boolean signal', { exact: true })).toHaveText('HIGH');
+  await expect(page.locator('[data-id="edge"]').getByLabel('Rising count', { exact: true })).toHaveText('1');
+  await expect(page.locator('[data-id="text-monitor"]').getByLabel('Text signal', { exact: true })).toHaveText('Test <literal>\nSecond line');
+  await page.screenshot({ path: 'test-results/signal-tests-desktop.png' });
+  await page.getByRole('button', { name: 'Return to frame zero', exact: true }).click();
+  await expect(chain.getByLabel('Bang count', { exact: true })).toHaveText('0');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/signal-tests-mobile.png' });
+});
+
+test('event timing drives a crossfade and reset restores the initial frame', async ({ page }) => {
+  const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('cueScheduler', { x: 0, y: 0 }, { cues: '[{"id":"go","at":500,"value":1}]' }, 'cue'),
+      createGraphNode('timedTransition', { x: 350, y: 0 }, { duration: 1, curve: 'linear' }, 'transition'),
+      createGraphNode('solid', { x: 0, y: 600 }, { red: 1, green: 0, blue: 0 }, 'red'),
+      createGraphNode('solid', { x: 350, y: 600 }, { red: 0, green: 0, blue: 1 }, 'blue'),
+      createGraphNode('crossfade', { x: 700, y: 0 }, {}, 'mix'),
+      createGraphNode('display', { x: 1050, y: 0 }, {}, 'output'),
+    ], edges: [
+      { id: 'start', source: { nodeId: 'cue', portId: 'cue' }, target: { nodeId: 'transition', portId: 'start' } },
+      { id: 'value', source: { nodeId: 'transition', portId: 'value' }, target: { nodeId: 'mix', portId: 'mix' } },
+      { id: 'red', source: { nodeId: 'red', portId: 'frame' }, target: { nodeId: 'mix', portId: 'source' } },
+      { id: 'blue', source: { nodeId: 'blue', portId: 'frame' }, target: { nodeId: 'mix', portId: 'map' } },
+      { id: 'output', source: { nodeId: 'mix', portId: 'frame' }, target: { nodeId: 'output', portId: 'source' } },
+    ],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.getByText('Graph healthy')).toBeVisible();
+  const waitForBlue = async () => {
+    await expect.poll(async () => {
+      const pause = page.getByRole('button', { name: 'Pause', exact: true });
+      if (await pause.count()) await pause.click();
+      const blue = (await centerPixel(page))[2] ?? 0;
+      if (blue <= 245) await page.getByRole('button', { name: 'Play', exact: true }).click();
+      return blue;
+    }).toBeGreaterThan(245);
+  };
+  await waitForBlue();
+  const held = await centerPixel(page);
+  expect(await centerPixel(page)).toEqual(held);
+  await page.getByRole('button', { name: 'Return to frame zero', exact: true }).click();
+  await expect.poll(async () => (await centerPixel(page))[0]).toBeGreaterThan(245);
+  expect((await centerPixel(page))[2]).toBeLessThan(5);
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await waitForBlue();
+});
+
+test('event teaching patches render and sequence on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  page.on('dialog', (dialog) => void dialog.accept());
+  for (const [title, nodeTitle] of [['Cue Logic Basics', 'Logic'], ['Timed Transition', 'Timed Transition'], ['Step Sequence Lab', 'Step Sequencer']]) {
+    await page.getByRole('button', { name: 'New patch', exact: true }).click();
+    await page.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
+    await expect(page.locator(`article[aria-label="${nodeTitle} node"]`)).toBeVisible();
+    await expect(page.getByText('Graph healthy')).toBeVisible();
+    await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+  }
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.getByRole('button', { name: 'Return to frame zero', exact: true }).click();
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(20);
+  const before = (await sourceFrameStats(page)).hash;
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect.poll(async () => (await sourceFrameStats(page)).hash).not.toBe(before);
+  await page.screenshot({ path: 'test-results/events-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+  await page.screenshot({ path: 'test-results/events-mobile.png' });
+  expect(await cameraRequestCount(page)).toBe(0);
+});
+
 test('3D foundation renders textured geometry through frame effects and camera controls', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   page.on('dialog', (dialog) => void dialog.accept());
@@ -509,6 +620,30 @@ test('3D foundation renders textured geometry through frame effects and camera c
   await page.getByRole('button', { name: 'New patch', exact: true }).click();
   await page.getByRole('menuitem', { name: /^Beat-Synced Color/ }).click();
   await expect(page.locator('article[aria-label="Render 3D node"]')).toHaveCount(0);
+  await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(40);
+});
+
+test('Render 3D uses a third light independently of the first two inputs', async ({ page }) => {
+  const document: GraphDocument = {
+    schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('primitive3d', { x: 0, y: 0 }, {}, 'mesh'),
+      createGraphNode('light3d', { x: 0, y: 700 }, { mode: 'ambient', intensity: 0 }, 'third-light'),
+      createGraphNode('render3d', { x: 360, y: 0 }, {}, 'render'),
+      createGraphNode('display', { x: 720, y: 0 }, {}, 'output'),
+    ],
+    edges: [
+      { id: 'mesh', source: { nodeId: 'mesh', portId: 'geometry' }, target: { nodeId: 'render', portId: 'geometry' } },
+      { id: 'light', source: { nodeId: 'third-light', portId: 'light' }, target: { nodeId: 'render', portId: 'light3' } },
+      { id: 'frame', source: { nodeId: 'render', portId: 'frame' }, target: { nodeId: 'output', portId: 'source' } },
+    ],
+  };
+  await page.addInitScript((document) => localStorage.setItem('videobrain.project', JSON.stringify({ storageVersion: 1, document })), document);
+  await page.reload();
+  await expect(page.locator('canvas.preview-canvas')).toHaveAttribute('data-rendered', 'true');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect.poll(() => renderedColorSignal(page)).toBeLessThan(5);
+  await page.locator('article[aria-label="Light 3D node"]').getByRole('slider', { name: 'Light 3D Intensity', exact: true }).fill('3');
   await expect.poll(() => renderedColorSignal(page)).toBeGreaterThan(40);
 });
 

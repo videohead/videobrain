@@ -12,6 +12,8 @@ import {
 } from '../graph';
 import { NodeParameterControls } from './NodeParameterControls';
 import { DataNodeControls } from './DataNodeControls';
+import { SignalTestControls } from './SignalTestControls';
+import { isSignalTest } from '../graph/signalTestOperators';
 import { DATA_NODE_KINDS } from '../graph/dataOperators';
 import { NodeMediaControls } from './NodeMediaControls';
 import { DOMAIN_LABELS, OPERATOR_META } from './operatorMeta';
@@ -142,6 +144,7 @@ function OperatorNodeView({ id, data, selected, isConnectable }: NodeProps<Opera
         onSelect={data.onSelect}
       />
       {DATA_NODE_KINDS.includes(data.kind) ? <DataNodeControls nodeId={id} kind={data.kind} /> : null}
+      {isSignalTest(data.kind) ? <SignalTestControls nodeId={id} kind={data.kind} params={data.params} /> : null}
 
       {Object.keys(definition.params).length === 0 ? (
         <footer className="node-param-summary">

@@ -5,6 +5,20 @@ import { compileGraph, createGraphNode, GRAPH_SCHEMA_VERSION, inspectGraph, pars
 
 const box: Geometry3DValue = { shape: 'box', width: 1, height: 1, depth: 1, detail: 3, countX: 8, countY: 8, transforms: [] };
 describe('3D descriptor budgets', () => {
+  it('appends Light 3 without changing existing Render 3D input indexes', () => {
+    const definition = SCENE_3D_DEFINITIONS.find(({ kind }) => kind === 'render3d')!;
+    expect(definition.inputs.map(({ id }) => id)).toEqual(['geometry', 'points', 'material', 'camera', 'light', 'light2', 'texture', 'light3']);
+    expect(definition.inputs[7]).toMatchObject({ type: 'scene.light', optional: true });
+    const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION,
+      nodes: [createGraphNode('light3d', { x: 0, y: 0 }, {}, 'light'), createGraphNode('render3d', { x: 0, y: 0 }, {}, 'render'), createGraphNode('display', { x: 0, y: 0 }, {}, 'output')],
+      edges: [
+        { id: 'light', source: { nodeId: 'light', portId: 'light' }, target: { nodeId: 'render', portId: 'light3' } },
+        { id: 'frame', source: { nodeId: 'render', portId: 'frame' }, target: { nodeId: 'output', portId: 'source' } },
+      ],
+    };
+    expect(parseGraphDocument(serializeGraphDocument(document))).toEqual(document);
+    expect(inspectGraph(document).nodes.find(({ id }) => id === 'render')?.inputs[0]).toMatchObject({ targetPortId: 'light3', targetPortIndex: 7, type: 'scene.light' });
+  });
   it.each(SCENE_3D_DEFINITIONS)('round-trips $kind and rejects out-of-bound parameters', ({ kind, params }) => {
     const node = createGraphNode(kind, { x: 0, y: 0 });
     const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION, nodes: [node], edges: [] };

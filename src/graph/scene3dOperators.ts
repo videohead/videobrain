@@ -32,7 +32,7 @@ export const SCENE_3D_DEFINITIONS: readonly OperatorDefinition[] = [
     targetX: number('Target X', 0, -20, 20), targetY: number('Target Y', 0, -20, 20), targetZ: number('Target Z', 0, -20, 20),
     fov: number('Vertical FOV (deg)', 45, 5, 150, 1), span: number('Ortho height', 4, 0.1, 100), near: number('Near', 0.01, 0.01, 10), far: number('Far', 100, 11, 1000, 1),
   }),
-  node('light3d', 'Light 3D', 'Directional, point, or ambient light; Render 3D accepts two explicit light inputs.', [port('position', 'control.vec3'), port('color', 'control.vec3')], [port('light', 'scene.light')], {
+  node('light3d', 'Light 3D', 'Directional, point, or ambient light; Render 3D accepts three explicit light inputs.', [port('position', 'control.vec3'), port('color', 'control.vec3')], [port('light', 'scene.light')], {
     mode: select('Type', 'directional', ['directional', 'point', 'ambient']),
     red: number('Red', 1, 0, 1), green: number('Green', 1, 0, 1), blue: number('Blue', 1, 0, 1),
     intensity: number('Intensity', 3, 0, 20), x: number('X', 3, -50, 50), y: number('Y', 4, -50, 50), z: number('Z', 5, -50, 50),
@@ -42,9 +42,9 @@ export const SCENE_3D_DEFINITIONS: readonly OperatorDefinition[] = [
     wireframe: select('Wireframe', 'off', ['off', 'on']), pointSize: number('Point size', 0.06, 0.01, 1),
   }),
   {
-    kind: 'render3d', title: 'Render 3D', summary: 'Render one mesh and one point/line descriptor with two lights into a transparent frame. Optional frame input supplies the mesh base-color map.',
+    kind: 'render3d', title: 'Render 3D', summary: 'Render one mesh and one point/line descriptor with three lights into a transparent frame. Optional frame input supplies the mesh base-color map.',
     category: 'scene-3d', domain: 'frame',
-    inputs: [port('geometry', 'geometry.mesh'), port('points', 'geometry.points'), port('material', 'material.pbr'), port('camera', 'scene.camera'), port('light', 'scene.light'), port('light2', 'scene.light'), port('texture', 'frame.rgba')],
+    inputs: [port('geometry', 'geometry.mesh'), port('points', 'geometry.points'), port('material', 'material.pbr'), port('camera', 'scene.camera'), port('light', 'scene.light'), port('light2', 'scene.light'), port('texture', 'frame.rgba'), port('light3', 'scene.light')],
     outputs: [port('frame', 'frame.rgba')], params: {},
     execution: { visualPasses: 3, renderTargets: 5, stateful: false },
   },

@@ -2,10 +2,10 @@
 
 Two workstreams define the remaining scope for this version:
 
-1. **Transitions between events and sequencing:** perform, schedule, record,
-   and replay changes to patches, parameters, sources, and output mappings.
-2. **Geometry, particles, materials, and rendering:** a complete typed 3D
-   creation path feeding the existing frame effects and projection tools.
+1. **Show orchestration:** apply, record, and replay patch, parameter, source,
+  and output-layout commands on top of the implemented event/transition nodes.
+2. **Particles and richer 3D creation:** instancing, simulation, imported assets,
+  and environments on top of the implemented geometry/material/rendering foundation.
 
 Implemented capabilities belong in [Current State](CURRENT_STATE.md), not in
 this backlog. This plan replaces the broad future catalog. Former wave numbers
@@ -20,44 +20,27 @@ are historical references, not prerequisites for every new feature.
 | P2 | Follow-on product development; not a blocker for these version goals |
 | P3 | Advanced, experimental, or specialist work requiring separate justification |
 
-Backlog deliverables below are planned unless explicitly identified as source-implemented. A gateway requirement is a
-deployment constraint, not a completion mark. Release-blocking defects and
-verification of existing work remain mandatory at every priority.
+This document contains remaining work only. Implemented graph foundations and
+their verification status are in [Current State](CURRENT_STATE.md), with exact
+contracts in [Events](EVENTS.md) and [3D Scene Foundation](SCENE_3D.md).
+A gateway requirement is a deployment constraint, not a completion mark.
 
-## P0: Transitions, events, and sequencing
+## P0: Ordered show-command scheduler
 
-| Deliverable | Required scope |
-| --- | --- |
-| Typed decisions/events | `control.bool`, `event.trigger`, explicit bool/scalar conversion, Compare, Logic, and Trigger; distinguish edges from sustained state |
-| Event routing/state | Gate, Hold/Latch, Sample & Hold, Counter, and seeded Random with initialization, reset, and same-tick ordering |
-| Timer and Envelope | Duration, progress, completion event, repeat, pause, retrigger/cancel policy, and bounded curves |
-| Timed Transition | Event-driven progression and easing into existing Crossfade or parameter targets; start/end events, interruption, reversal/retrigger, and deterministic reset |
-| Step Sequencer | Ordered values/events, step duration, loop range, tempo/free-time clock choice, deterministic selection, and transport |
-| Ordered command scheduler | One authoritative show clock, stable equal-time ordering, bounded late-event processing, and live-control override policy |
+Build a transactional scheduler for patch, parameter, source, and output-layout
+commands, with one authoritative show clock, stable equal-time ordering,
+bounded late-event processing, and explicit live override/resume policy.
 
-Crossfade already supplies frame interpolation. The missing work is timing and
-event orchestration, not another blend shader. MIDI/Companion and Audio Trigger
-can feed explicit event/command adapters without redefining their current types.
+The existing Cue Scheduler emits bounded graph values/events; it does not
+mutate projects, reconstruct past show state, activate layouts, or record shows.
+Reuse its ordering principles and the validated event/transition foundation,
+but do not treat graph-value scheduling as completed show orchestration.
 
-Acceptance examples: **Cue Logic Basics**, **Timed Transition**, and **Step
-Sequence Lab**. Verify zero duration, duplicate triggers, equal-time ordering,
-pause/resume, reset, tempo changes, interruption, suspended tabs, and replay.
-All foundation examples must work without devices or network permissions.
-
-## P0: Geometry, materials, and rendering foundation
-
-Source implementation is now recorded in [Current State](CURRENT_STATE.md) and
-[3D Scene Foundation](SCENE_3D.md), rather than retained here as unbuilt work.
-It includes explicit vector/mesh/point/material/camera/light types, bounded
-primitives and grids/lines, transforms, cameras, lighting, and a shared-context
-Three.js Render 3D path. **3D Primitive Lab** and **Vector & Grid Lab** exercise
-the foundation through existing frame outputs.
-
-Release close-out still includes resolving the repository-wide verification
-blockers and testing broader physical GPU/browser performance. Source and
-automated GPU validation do not imply deployment. Public depth wires, general
-scene hierarchies, particles, instancing, imported assets, and environment maps
-are not part of this completed implementation scope; the P1 work below remains.
+Acceptance: permission-free command fixtures proving atomic rejection, target
+scope across patch replacement, seek reconstruction, duplicate handling,
+equal-time ordering, pause/reset, and live override. Historical external commands
+must not be retransmitted during scrubbing. This foundation supports the P1 show
+workflows below.
 
 ## P1: Show playback and recording
 
@@ -183,10 +166,10 @@ Refer to Current State rather than copying implemented catalogs into this plan.
 
 ## Delivery and completion gates
 
-1. Close out existing data/controller work: documentation, catalog builds,
-   tests, known verification blockers, and explicit deployment status.
-2. Deliver both P0 foundations as independently testable groups, without waiting
-   for the entire former module-wave sequence.
+1. Keep the implemented baseline verified; deploy deliberately and complete
+  physical browser/GPU/controller usability testing separately.
+2. Deliver the remaining P0 show-command scheduler using the existing graph
+  event/transition and 3D foundations.
 3. Complete P1 show/output/gateway workflows and P1 particles/assets. Test native
    protocols with controlled fixtures before real venue networks.
 4. Release this version when both tracks meet their acceptance criteria;

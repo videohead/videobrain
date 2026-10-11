@@ -12,6 +12,10 @@ const artifactDirectory = path.resolve(
 );
 const requiredFiles = ['index.html', 'iframe.html', 'index.json'];
 const requiredStories = [
+  ...['signal-number', 'signal-text', 'signal-edge', 'signal-bang'].map((name) => `nodes-operator-node--${name}`),
+  'workspace-graph-editor--signal-test-lab',
+  ...['control-to-bool', 'bool-to-control', 'compare', 'logic', 'trigger', 'event-to-control', 'gate', 'hold', 'sample-hold', 'counter', 'random', 'timer', 'envelope', 'timed-transition', 'step-sequencer', 'cue-scheduler'].map((name) => `nodes-operator-node--${name}`),
+  ...['cue-logic-basics', 'timed-transition-lab', 'step-sequence-lab'].map((name) => `workspace-graph-editor--${name}`),
   'foundations-visual-language--colors',
   'controls-inline-node-parameters--numeric-sliders',
   'controls-inline-node-parameters--mixed-parameters',

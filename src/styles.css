@@ -1,3 +1,17 @@
+.signal-test-controls { padding: 12px; display: grid; gap: 8px; font-size: 11px; min-width: 0; }
+.signal-test-heading, .signal-test-range { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.signal-test-heading strong { overflow-wrap: anywhere; min-width: 0; }
+.signal-test-heading span { color: #a6b9bd; }
+.signal-number { font-variant-numeric: tabular-nums; font-size: 18px; overflow-wrap: anywhere; min-height: 24px; }
+.signal-test-controls meter { width: 100%; height: 12px; }
+.signal-test-controls pre { height: 100px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; margin: 0; }
+.signal-bang { width: 56px; height: 56px; border-radius: 50%; border: 2px solid #ffc281; background: #242b30; color: #ffc281; display: grid; place-items: center; cursor: pointer; }
+.signal-bang.is-lit { background: #ffc281; color: #242b30; }
+.signal-bang:focus-visible { outline: 2px solid #e7edef; outline-offset: 3px; }
+.signal-edge-lamp { display: block; width: 16px; height: 16px; border-radius: 50%; border: 1px solid #8ce0c2; background: #242b30; }
+.signal-edge-lamp.is-lit { background: #8ce0c2; }
+.vb-handle.control-bool { background: #a5df8d; }
+.vb-handle.event-trigger { background: #ffbd73; border-radius: 0; }
 .vb-handle.control-vec2, .vb-handle.control-vec3, .vb-handle.control-vec4 { background: #c3df85; }
 .vb-handle.geometry-mesh, .vb-handle.geometry-points { background: #7de5c1; }
 .vb-handle.material-pbr { background: #e6a1ba; }

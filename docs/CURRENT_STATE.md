@@ -13,6 +13,7 @@ necessarily present on the running site.
 | Runtime | Output-root scheduling, ordinary cycle rejection, resource budgets, WebGL2 multipass rendering, visual transport, frame pacing, diagnostics, and fullscreen preview |
 | Signals | `control.f32`, `text.utf8`, `frame.rgba`, `audio.block`, `data.json`, `data.table`, explicit `control.vec2/vec3/vec4`, `geometry.mesh`, `geometry.points`, `material.pbr`, `scene.camera`, and `scene.light` |
 | Control | Transport Time, Beat Clock, Auto Selector, Oscillator, Pointer, XY Pad, Constant, Math, Map Range, and Smooth |
+| Events/sequencing | Explicit `control.bool` and `event.trigger`, Control to Bool, Bool to Control, Compare, Logic, Trigger, Event to Control, Gate, Hold/Latch, Sample & Hold, Counter, Random, Timer, Envelope, Timed Transition, Step Sequencer, and Cue Scheduler; see [Events](EVENTS.md) |
 | Inputs | Opt-in Video Input; session-local File image/video/audio; Network Video HLS/DASH/WHEP receiving |
 | Generators | Solid Color, multi-stop Gradient, Shape, Vector Shape/static SVG, Text/embedded fonts, seeded Noise, constrained Shader Source, Flow Field, and Cells |
 | Frame effects | Transform 2D, Warp, Blur, Threshold, Color Grade, Levels, HSV/HSL, Edge, Pixelate, Tile/Kaleidoscope, Channel Shuffle, and Displace |
@@ -25,13 +26,15 @@ necessarily present on the running site.
 | Controllers | Web MIDI notes/7-bit CC Learn, browser-local parameter/source/transport mappings, and optional authenticated Bitfocus Companion bridge |
 | Data/text | Text Source, Text Format, Number to Text, Text to Number, JSON Parse, JSON Select, JSON to Text, CSV Parse, Table to CSV, Table Transform, Table Cell, and Table Join |
 | Browser data I/O | Explicit Fetch, WebSocket, Server Events, namespaced Storage, and Inspect as a data demand root |
+| Signal troubleshooting | Signal Number, Signal Text, Signal Edge, and Signal Bang: typed zero-pass demand roots, pass-through outputs, labeled readouts, edge/event counts, and manual bangs; see [Signal tests](SIGNAL_TESTS.md) |
 | Education/inspection | Registry-derived catalog and graph inspection, teaching presets, production-component stories, Help, and shared test fixtures |
 
 ## Scope boundaries
 
-- Crossfade interpolates frames; timed transitions, event sequencing, and show
-  playback/recording are not implemented. Scalar triggers and controller actions
-  are not general `event.trigger` or `control.bool` graph types.
+- Timed Transition drives Crossfade and scalar parameters; Step Sequencer and
+  Cue Scheduler emit graph values/events. Transactional show-command scheduling,
+  historical seek reconstruction, and show recording remain planned. Legacy
+  scalar triggers and controller actions require explicit event conversion.
 - Trails/Spiral Feedback do not implement general Frame Delay/Feedback.
 - Projector Mapping is corner pinning, not named multi-display layouts, mesh
   warping, venue edge blending, or lighting output mapping.
@@ -55,8 +58,7 @@ The P0 3D foundation has thirteen nodes, two complete teaching patches,
 individual operator stories, serialization/compiler/descriptor tests, catalog
 budgets, and GPU checks for textures, alpha, camera modes, points/lines,
 animation/reset, desktop/mobile rendering, context restoration, and return to
-2D rendering. The combined app/catalog build and 627 unit tests passed during
-implementation. This records source validation, not production deployment.
+2D rendering. Render 3D additionally supports three independently wired lights.
 
 The recent stateless effects have runtime/registry integration, four teaching
 patches, individual stories, unit coverage, and GPU browser checks. Controller
@@ -66,17 +68,26 @@ physical controllers and a live Companion installation still need testing.
 The data batch has 17 registered nodes, four teaching patches, individual
 stories, parser/session tests, and focused browser checks. Shared JSON/CSV
 fixtures exercise quoting, joins, pointers, malformed input, and exact limits.
-Final data documentation/catalog verification and release close-out remain
-necessary before calling that batch fully released.
+Its node stories are included in the current catalog build; detailed data-node
+contract documentation and release close-out remain separate follow-up work.
 
-Repository-wide verification previously encountered unrelated lint failures.
-Targeted tests and a successful build do not mean `npm run verify` is green.
-Verify the intended revision and record deployment independently. Do not
-re-propose existing operators merely because deployment or verification is pending.
+The latest validation passes `npm run verify`: lint, typechecking, 677 tests,
+and production build. Storybook build and its 140-entry artifact check also
+pass. The event foundation includes three complete teaching patches, individual
+node stories, serialization/type tests, timing-state tests, and two focused
+browser workflows for transitions/reset and teaching-patch rendering.
+
+The earlier lint blockers are resolved. Existing non-failing test `act(...)`
+warnings and bundle-size warnings remain visible. Physical GPU/controller tests
+and live Companion validation are separate from simulated/browser fixtures.
+The web deployment was rebuilt before the latest lint/event/third-light changes;
+these newer changes require a separate deployment. No Git commit is implied.
 
 ## References
 
 - [Architecture](ARCHITECTURE.md): runtime ownership, types, budgets, and contracts.
+- [Events](EVENTS.md): implemented boolean/event, transition, and sequencing semantics.
+- [3D Scene Foundation](SCENE_3D.md): geometry, three-light rendering, and GPU ownership.
 - [Graph Protocol Strategy](GRAPH_PROTOCOL_STRATEGY.md): compatibility, inspection, and commands.
 - [Design System](DESIGN_SYSTEM.md): production UI and Storybook conventions.
 - [Controllers](CONTROLLERS.md): MIDI, Bitfocus Companion, and Stream Deck setup.

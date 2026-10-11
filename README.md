@@ -29,6 +29,10 @@ The proof of concept opens into a working composition and runs locally without a
   pointer position/held/press/release, editable XY pad, and opt-in microphone
   controls
 - Reusable Constant, Math, Map Range, and Smooth control building blocks
+- Explicit boolean/event wires, decisions, retained controls, timers/envelopes,
+  timed transitions, step sequencing, and bounded value cues; see [Events and sequencing](docs/EVENTS.md)
+- [Signal test nodes](docs/SIGNAL_TESTS.md) for numeric/text readouts, boolean
+  edges, and visible/manual bangs, including monitoring without a Display
 - MIDI notes/CC Learn and Bitfocus Companion action mappings for parameters,
   frame-source selection/advance, and visual transport; optional Stream Deck
   control through Companion or a MIDI plugin
@@ -254,10 +258,10 @@ drift. The FPS readout is a rolling measurement of monitor renders.
 
 [Current State](docs/CURRENT_STATE.md) records implemented capabilities and
 distinguishes source implementation, verification, and deployment.
-[Planned Development](docs/PLANNED_DEVELOPMENT.md) defines the two remaining
-version goals: **transitions/events/sequencing** and
-**geometry/particles/materials/rendering**. Their foundations are P0 and their
-complete show/3D workflows are P1. Other unfinished work is explicitly P2/P3,
+[Planned Development](docs/PLANNED_DEVELOPMENT.md) defines the remaining
+**show orchestration/recording** and **particles/richer 3D** workflows on the
+implemented event and 3D foundations. The transactional show-command scheduler
+remains P0; complete workflows are P1. Other unfinished work is explicitly P2/P3,
 not a competing release requirement. Implemented nodes are not repeated as
 future tasks.
 

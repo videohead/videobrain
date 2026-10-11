@@ -143,7 +143,9 @@ export function GraphEditor({
             )
           : undefined;
         const color =
-          sourcePort?.type === 'control.f32'
+          sourcePort?.type === 'event.trigger' ? '#ffbd73'
+            : sourcePort?.type === 'control.bool' ? '#a5df8d'
+            : sourcePort?.type === 'control.f32'
             ? '#d8ff5f'
             : sourcePort?.type === 'text.utf8'
               ? '#ffcf6a'

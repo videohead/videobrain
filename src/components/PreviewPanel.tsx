@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { Camera, Maximize2 } from 'lucide-react';
 import type { GraphDocument } from '../graph';
 import { VECTOR_FRAME_READY_EVENT } from '../engine/SvgFrameCache';
@@ -209,12 +209,14 @@ export function PreviewPanel({
     canvas.addEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
     canvas.addEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
     window.addEventListener('videobrain:data-ready', renderHeldContextChange);
+    window.addEventListener('videobrain:signal-test', renderHeldContextChange);
     return () => {
       canvas.removeEventListener('webglcontextlost', renderHeldContextChange);
       canvas.removeEventListener('webglcontextrestored', renderHeldContextChange);
       canvas.removeEventListener(VECTOR_FRAME_READY_EVENT, renderHeldContextChange);
       canvas.removeEventListener(TEXT_FRAME_READY_EVENT, renderHeldContextChange);
       window.removeEventListener('videobrain:data-ready', renderHeldContextChange);
+      window.removeEventListener('videobrain:signal-test', renderHeldContextChange);
     };
   }, [renderIfHeld]);
 
@@ -296,6 +298,8 @@ export function PreviewPanel({
     return () => observer.disconnect();
   }, [applyMeasuredCanvasSize, renderIfHeld]);
 
+  const redrawAfterReset = useEffectEvent(() => renderIfHeld());
+
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) {
@@ -305,8 +309,8 @@ export function PreviewPanel({
     previousTimestampRef.current = null;
     framePacerRef.current.reset();
     renderer.reset();
-    renderIfHeld();
-  }, [renderIfHeld, resetToken]);
+    redrawAfterReset();
+  }, [resetToken]);
 
   useEffect(() => {
     framePacerRef.current.setMode(framePacing);

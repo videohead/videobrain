@@ -1,6 +1,7 @@
 import { createDefaultGraph } from './defaultGraph';
 import { DATA_PRESETS, DATA_PRESET_FACTORIES } from './dataPresets';
 import { SCENE_3D_PRESETS, SCENE_3D_PRESET_FACTORIES } from './scene3dPresets';
+import { EVENT_PRESETS, EVENT_PRESET_FACTORIES } from './eventPresets';
 import { createGraphNode } from './model';
 import {
   GRAPH_SCHEMA_VERSION,
@@ -22,6 +23,7 @@ export const GRAPH_PRESETS = [
   },
   ...DATA_PRESETS,
   ...SCENE_3D_PRESETS,
+  ...EVENT_PRESETS,
   { id: 'color-channel-lab', title: 'Color & Channel Lab', description: 'Remap levels, adjust HSV/HSL, shuffle channels, and key luminance over a background.' },
   { id: 'keyed-camera', title: 'Keyed Camera', description: 'Key a procedural green screen first, then explicitly switch to an opt-in camera.' },
   { id: 'displacement-map-lab', title: 'Displacement Map Lab', description: 'Use a seeded red/green noise field to displace a gradient before extracting edges.' },
@@ -1456,6 +1458,7 @@ const PRESET_FACTORIES: Readonly<
 > = {
   ...DATA_PRESET_FACTORIES,
   ...SCENE_3D_PRESET_FACTORIES,
+  ...EVENT_PRESET_FACTORIES,
   'color-channel-lab': () => graph(
     [
       createGraphNode('gradient', { x: 0, y: 0 }, {}, 'color-source'),

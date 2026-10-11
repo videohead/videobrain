@@ -33,7 +33,8 @@ attenuation. Neither example requests permissions or a network connection.
 | `frame.rgba` | Render 3D / existing frame nodes | Output-sized straight-alpha RGBA frame; depth is internal only |
 
 Each port's index is its registry order. Render 3D inputs are geometry, points,
-material, camera, light, light2, texture (indexes 0..6); output frame is index 0.
+material, camera, light, light2, texture, light3 (indexes 0..7); output frame is index 0.
+Light 3 is appended after texture to preserve all existing input indexes.
 Transform 3D carries separate mesh and point inputs/outputs without coercion.
 Numeric scalar inputs follow structured inputs in parameter declaration order.
 Vector inputs take precedence over the matching scalar inputs and saved
@@ -42,7 +43,7 @@ defaults, bounds, steps, and select IDs are authoritative.
 
 Missing mesh/points render transparent. Missing material/camera use the defaults
 below. With no connected lights, Render 3D uses one default directional light;
-with either light connected, only the supplied lights apply. Missing frame
+with any of the three lights connected, only the supplied lights apply. Missing frame
 texture means no map. Split Vector without input emits zero components;
 Transform without geometry emits an empty descriptor. There is no implicit
 mesh-to-points, scalar-to-vector, or frame-to-depth conversion.
@@ -77,7 +78,7 @@ mesh-to-points, scalar-to-vector, or frame-to-depth conversion.
 
 Three.js r180 shares the existing WebGL2 context and is created lazily when a
 reachable Render 3D runs. Each Render 3D accepts at most one mesh and one
-point/line stream, one material, one camera, two lights, and one frame texture.
+point/line stream, one material, one camera, three lights, and one frame texture.
 Geometry/material objects are cached per input slot; changing geometry replaces
 and disposes it, while numeric material/transform changes update existing objects.
 
@@ -114,8 +115,9 @@ working RGB values for material sampling; this is not a new color-managed
 linear-light graph contract. Tone mapping is disabled. Alpha is converted back
 to the straight-alpha convention used by existing compositors.
 
-The operator catalog advances to 17 with additive kinds, ports, and a `scene-3d`
-category; project schema stays 1. Existing projects require no migration.
+The 3D foundation was introduced in catalog 17; catalog 18 appends optional
+Light 3 without changing existing port indexes. Project schema stays 1 and
+existing projects require no migration.
 Older applications reject unknown kinds rather than silently rewriting them.
 Runtime Three.js objects and GPU handles are never serialized.
 

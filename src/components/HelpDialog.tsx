@@ -12,22 +12,22 @@ const plannedAreas = [
   {
     title: 'Control and mapping',
     items:
-      'Compare, logic, gates, triggers, envelopes, counters, timers, sequencing, vectors, and automation curves',
+      'Transactional show-command scheduling, automation curves, advanced clocks, and controller pickup/feedback',
   },
   {
     title: 'Media and compositing',
     items:
-      'Screen capture, retained frame delay/hold, event-triggered timed transitions, and deeper image analysis',
+      'Screen capture, retained frame delay/hold, durable media assets, and deeper image analysis',
   },
   {
     title: 'Audio',
     items:
-      'Audio Device In, pitch and transient analysis, spectral visualization, explicit Audio Output/Monitor, effects, and recording',
+      'Device/channel selection, public spectrum wires, sample-critical processing, pitch, effects, and recording',
   },
   {
     title: 'Devices and networking',
     items:
-      'MIDI, gamepad, sensors, OSC and lighting bridges, WebRTC, peer control, publishing, and broadcast gateways',
+      'MIDI extensions, gamepad, sensors, OSC and lighting bridges, peer data channels, publishing, and broadcast gateways',
   },
   {
     title: 'Vision and spatial media',
@@ -37,7 +37,7 @@ const plannedAreas = [
   {
     title: 'Creation and show control',
     items:
-      'Reusable subgraphs, launch grids, cue and effect scenes, presets, macro panels, assets, 3D, particles, projection mapping, multi-display, collaboration, and extension packages',
+      'Show player/recorder, reusable subgraphs, launch grids, cue/effect scenes, macros, particles, instancing, glTF, environments, named output layouts, collaboration, and packages',
   },
 ] as const;
 
@@ -47,9 +47,19 @@ interface HelpDialogProps {
 
 const recipes = [
   {
+    title: 'Signal troubleshooting',
+    path: 'Math → Map Range → Smooth → Signal Number; Control to Bool → Signal Edge → Trigger → Signal Bang',
+    note: 'Open Signal Test Lab. Signal Number shows the actual scalar plus a configurable-range meter; Signal Text shows literal text. Signal Edge shows HIGH/LOW and rising/falling counts, seeding the initial state without counting it. Signal Bang flashes and forwards incoming events; click its circle or press Enter/Space to fire manually, including while paused. All four are demand roots and work without Display, with typed pass-through outputs for chaining and branching. Flash duration changes only the visual indicator. Label probes to identify MIDI or external data paths; the monitors do not open device sessions or implement an OSC gateway. See docs/SIGNAL_TESTS.md for limits and examples.',
+  },
+  {
+    title: 'Events and sequencing',
+    path: 'Compare → Logic → Trigger → Timer / Envelope / Timed Transition; Step Sequencer → Frame Switch',
+    note: 'Open Cue Logic Basics, Timed Transition, or Step Sequence Lab. Boolean wires carry sustained state; event wires carry ordered occurrences. Use Control to Bool and Trigger for scalar edges, and Event to Control for legacy scalar inputs. Trigger seeds without firing on first evaluation. Timed Transition drives existing Crossfade Mix, starts from its current value, and supports reverse/cancel. Timer and Envelope use the visual transport clock; pause freezes progression and Return to frame zero clears state. Cue Scheduler accepts bounded JSON value cues with integer millisecond timestamps; it does not load patches or record shows. Late event batches are bounded, and the scheduling nodes expose Dropped counts. See docs/EVENTS.md for ordering, retrigger, override, and limitations.',
+  },
+  {
     title: '3D primitives and materials',
     path: 'Primitive 3D → Transform 3D → Render 3D → Color Grade → Display; Camera / Light / PBR Material → Render 3D',
-    note: 'Open 3D Primitive Lab. Choose a box, sphere, plane, or cylinder; move/rotate/scale it and compare perspective with orthographic camera projection. World coordinates are right-handed with Y up; rotations use degrees in XYZ order. Gradient feeds the optional Render 3D texture input. Two lights and a material control the mesh. Missing geometry is transparent; missing camera/material/light use documented defaults. Pause freezes the control-driven motion and Return to frame zero reproduces it. One mesh and one point/line stream are supported per renderer, with bounded detail and 16 transform levels. No permissions or assets are required. Instancing, particles, imported glTF, environment maps, and public depth wires remain planned.',
+    note: 'Open 3D Primitive Lab. Choose a box, sphere, plane, or cylinder; move/rotate/scale it and compare perspective with orthographic camera projection. World coordinates are right-handed with Y up; rotations use degrees in XYZ order. Gradient feeds the optional Render 3D texture input. Up to three lights and a material control the mesh. Missing geometry is transparent; missing camera/material/light use documented defaults. Pause freezes the control-driven motion and Return to frame zero reproduces it. One mesh and one point/line stream are supported per renderer, with bounded detail and 16 transform levels. No permissions or assets are required. Instancing, particles, imported glTF, environment maps, and public depth wires remain planned.',
   },
   {
     title: 'Vectors and point grids',
@@ -600,9 +610,10 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             <h2>Not built yet</h2>
             <p className="help-intro">
               Planned Development prioritizes two remaining version goals:
-              transitions, events, and sequencing; and geometry, particles,
-              materials, and rendering. Foundations are P0 and complete workflows
-              are P1. Other unfinished areas below are deferred to P2/P3.
+              show orchestration and recording; and particles and richer 3D
+              creation. Event/transition and 3D graph foundations are implemented.
+              The show-command scheduler remains P0, with complete workflows in P1.
+              Other unfinished areas below are deferred to P2/P3.
               Implemented capabilities are documented separately in Current State.
             </p>
             <div className="help-recipe-list">
