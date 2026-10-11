@@ -109,7 +109,7 @@ genuinely new explicit contracts:
 | 🧭 Auto Advance | Refines Playlist / Clip Deck and Auto Selector | Next/previous/random/first/last/specific/stop actions plus seconds, beats, media-end, shortest/longest, top/bottom, and master-source duration hierarchy |
 | 🧭 Effect Scene | Refines Preset, Scene / Bank, and Bypass / Mute | Launch an ordered processor-chain snapshot with scoped parameters, dry/wet or bypass, transition time, and no duplicated frame source |
 | 🧭 Layer Tap | Genuinely new explicit routing role | Read a named visual bus pre/post-fader and optionally before/after bypass or solo, with cycle-safe scope rules |
-| 🧭 Slice Layout / Route | Refines Projection Warp, LED Output, and Multi Display | Store regions, masks, input selections, per-slice routes, transforms, and calibration as versioned project resources |
+| 🧭 Slice Layout / Route | Extends Projector Mapping, LED Output, and Multi Display | Store regions, masks, input selections, per-slice routes, transforms, and calibration as versioned project resources |
 | 🧭 Output Layout Presets | Genuinely new separation of content and venue setup | Save, validate, share, and swap output layouts independently from a composition while preserving stable route IDs |
 | 🧭 Media Prepare / Relink | Refines file nodes and Asset Bin | Inspect codec/profile/resolution/frame rate, build optional proxies, locate/replace missing assets, collect portable copies, and retain hash-backed identity |
 | 🔬 Wide Color / 10-bit Negotiation | Refines Tone Map and output capability work | Declare source/working/output space and depth, verify every browser/GPU/display link, and expose fallbacks |
@@ -761,7 +761,7 @@ Keep these paths distinct in product language and implementation:
 
 ## Example patch and preset library
 
-Arrows show the primary signal path. A semicolon separates modulation. Nodes not yet shipped are marked with their roadmap status. The current New patch menu ships Blank Canvas plus fifteen named examples below: Full Studio, Beat-Synced Color, Spiral Feedback Lab, Two-World Mixer, Control Math, Smooth Pointer, Transform Playground, Mask & Composite Lab, Beat Switcher, Live Cut Lab, Audio Soft Focus, Pointer Bend, Mic Pulse Trails, Camera Dream, and Prompted Visual Preview. Choosing one is an undoable, validated graph replacement; it stops device/model sessions and clears transient credentials. A future gallery should add thumbnails, learning goals, required capabilities, expected GPU cost, output aspect, and a "restore original" action.
+Arrows show the primary signal path. A semicolon separates modulation. Nodes not yet shipped are marked with their roadmap status. The New patch menu ships Blank Canvas plus 29 starter graphs; the registry-backed menu is the authoritative inventory. Recipes below distinguish bundled starters, manual recipes using existing nodes, and future demonstrations. Choosing a starter is an undoable, validated graph replacement; it stops device/model sessions and clears transient credentials. A future gallery should add thumbnails, learning goals, required capabilities, expected GPU cost, output aspect, and a "restore original" action.
 
 ### Beginner: learn one idea at a time
 
@@ -769,7 +769,7 @@ Arrows show the primary signal path. A semicolon separates modulation. Nodes not
 
    `Transport Time → Beat Clock → Oscillator; Flow Field + Cells/Warp → Blend → Trails → Color Grade → Video Model → Display; AI Chat → Video Model.Prompt`
 
-   Tour all three shipped signal types. Video Model begins in its built-in procedural preview and needs no model service.
+   Tour control, text, and frame routing; audio-block routing has separate File and audio examples. Video Model begins in its built-in procedural preview and needs no model service.
 
 2. **Beat-Synced Color — available in New patch**
 
@@ -800,8 +800,9 @@ Arrows show the primary signal path. A semicolon separates modulation. Nodes not
 
    `Flow Field → Trails → Color Grade → Display; Audio Level → Flow Field.Energy, Trails.Feedback, Color Grade.Hue`
 
-   Shows one honest audio-level control driving three visible roles. It works
-   with a demo signal first; enable the microphone only when desired.
+   Shows one audio-level control driving three visible roles. The procedural
+   visual works without a microphone; audio-driven modulation reads silence
+   until the microphone is explicitly enabled.
 
 7. **Two-World Mixer — available in New patch**
 
@@ -865,8 +866,9 @@ Arrows show the primary signal path. A semicolon separates modulation. Nodes not
 
     `Audio Level → Map Range 0–18 → Blur.Radius; Flow Field → Blur → Display`
 
-    Demonstrates that audio analysis remains a control signal rather than an
-    audio frame. The deterministic demo pulse works before microphone opt-in.
+   Demonstrates that audio analysis remains a control signal rather than an
+   audio frame. Before microphone opt-in the source still renders, but the
+   audio control reads silence rather than a synthetic demo pulse.
 
 16. **Spiral Feedback Lab — available in New patch**
 
@@ -907,6 +909,15 @@ Arrows show the primary signal path. A semicolon separates modulation. Nodes not
     Teaches local assets and non-destructive image processing.
 
 ### Live visuals and performance
+
+**Projection Mapping Lab — available in New patch**
+
+`Procedural source → Projector Mapping → Display`
+
+Edit the four quad corners, move, scale, and rotate a planar projection. This
+already covers corner-pin warping without devices or permissions. Editable
+meshes, projector edge blending, and named venue output layouts are separate
+extensions, not additional names for this shipped processor.
 
 **Color & Channel Lab — available in New patch**
 
@@ -1093,7 +1104,7 @@ in [Architecture](ARCHITECTURE.md#architecture-review-gate).
 7. **Gaussian Splat Flythrough:** splat asset → camera controls → render → tone map.
 8. **Generative Architecture:** rules/scatter/instances → PBR material → multi-camera render.
 9. **XR Light Sculpture:** particle/geometry graph → immersive WebXR output.
-10. **Custom Shader Lab:** declared inputs/uniforms → compile diagnostics → safe fallback frame.
+10. **Shader processor extensions:** texture inputs and broader validated GLSL beyond the shipped Shader Lab source/uniform workflow.
 11. **Hybrid Venue Router:** browser composition + gateway video ingest + lighting + remote control, all with capability status.
 12. **Deterministic Render Study:** fixed-step clock + seeded random + render queue; compare live and offline frames.
 
