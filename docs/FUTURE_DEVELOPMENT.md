@@ -124,7 +124,7 @@ adapters expose only the capabilities they can honestly support.
 
 ## Current proof of concept
 
-The app currently opens the permission-free **Signal Graph** with frame, control, text, and audio-block signal types, a demand-rooted execution plan, WebGL2 multipass renderer, editor history, bounded JSON persistence, live diagnostics, responsive UI, and an accessible New patch menu with Blank Canvas plus sixteen complete starter graphs. Its model node defaults to a built-in visual preview; compatible external adapters are optional. File, Audio Mixer, and Audio Output provide browser-local media playback and explicit audio routing; media handles remain session state.
+The app currently opens the permission-free **Signal Graph** with frame, control, text, and audio-block signal types, a demand-rooted execution plan, WebGL2 multipass renderer, editor history, bounded JSON persistence, live diagnostics, responsive UI, and an accessible New patch menu with Blank Canvas plus 29 complete starter graphs. Its model node defaults to a built-in visual preview; compatible external adapters are optional. File, Audio Mixer, and Audio Output provide browser-local media playback and explicit audio routing; media handles remain session state.
 
 ### Implemented node catalog
 
@@ -136,13 +136,16 @@ The app currently opens the permission-free **Signal Graph** with frame, control
 | Control | ✅ Oscillator | Sine, triangle, saw, and square modulation with frequency, phase, amplitude, and offset |
 | Control | ✅ Pointer | Normalized X/Y, held state, and one-tick press/release pulses from the output stage |
 | Control | ✅ XY Pad | Editable normalized X and Y outputs with direct two-axis control inside the node |
-| Control | ✅ Audio Level | Feedback-safe visual control only: normalized microphone energy with gain/floor controls and deterministic fallback; no playback, monitoring, recording, or audio pass-through |
+| Control / audio input | ✅ Audio Level | Opt-in microphone or patched audio level with gain/floor controls and an audio-block output; monitoring requires explicit Audio Output routing |
+| Audio analysis | ✅ Audio Spectrum, Audio Trigger, Audio Beat Clock | FFT-derived scalar bands, onset envelope/trigger controls, and inferred tempo/phase; no public spectrum wire |
 | Control | ✅ Constant | Reusable numeric value with a typed control output |
 | Control | ✅ Math | Add, subtract, multiply, divide, minimum, and maximum with input fallbacks |
 | Control | ✅ Map Range | Linear remapping with none, clamp, wrap, and fold boundary modes |
 | Control | ✅ Smooth | Frame-rate-independent rise/fall filtering with deterministic reset |
 | Text | ✅ AI Chat | Bounded positive/negative prompt authoring with a `text.utf8` prompt output |
 | Frame input | ✅ Video Input | Opt-in live camera frames with front/rear preference, cover/contain/stretch fit, and mirroring |
+| Frame input | ✅ File | Browser-local image/video frames; audio shares the same File node, not a separate serialized kind |
+| Frame input | ✅ Network Video | One node with HLS, MPEG-DASH, and WebRTC WHEP receiver modes |
 | Audio input | ✅ File audio path | Local image, video, or audio selection; audio playback is session-only and exposes an `audio.block` path for explicit routing |
 | Audio processing | ✅ Audio Mixer | Two, four, or eight connected audio sources with per-source gain and shared three-band EQ |
 | Audio output | ✅ Audio Output | Explicit browser-tab monitoring with user activation, relative dBFS metering, and muted-by-default routing |
@@ -162,12 +165,14 @@ The app currently opens the permission-free **Signal Graph** with frame, control
 | Frame process | ✅ Mask | Applies luminance or an RGBA channel to source alpha with amount and inversion |
 | Frame process | ✅ Composite | Six Porter-Duff operations with a controllable foreground opacity |
 | Frame process | ✅ Frame Switch | Index-selects one of four frame inputs |
+| Frame process | ✅ Source Selector | Four-source manual selection or rising-edge advancement from a scalar trigger input |
 | Frame process | ✅ Blur | Bounded, control-driven soft focus radius |
 | Frame process | ✅ Trails | Retained-frame accumulation with feedback control |
 | Frame process | ✅ Spiral Feedback | Internally retained prior output transformed by per-second rotation and zoom around a movable center |
 | Frame process | ✅ Strobe | Partial black, white, transparent, or invert gating with internal 0–3 Hz clock or externally bound phase |
 | Frame process | ✅ Color Grade | Hue, exposure, contrast, and saturation adjustment |
 | Frame process | ✅ Transform 2D | Translation, scale, rotation, pivot, and transparent/clamp/repeat/mirror edge behavior |
+| Frame process | ✅ Projector Mapping | Editable four-corner planar warp with move, scale, rotation, and edge modes; no mesh or multi-output layout |
 | Frame process | ✅ Levels, HSV / HSL, Channel Shuffle | Single-pass color remapping and explicit RGBA routing with preserved or deliberately reassigned alpha |
 | Frame process | ✅ Luma Key, Chroma Key | Luminance or chosen-color keying with soft alpha and basic chroma spill suppression |
 | Frame process | ✅ Displace, Edge, Pixelate, Tile / Kaleidoscope | Map-driven UV offsets, Sobel edges, pixel blocks, and repeated/mirrored/polar symmetry |
@@ -182,14 +187,14 @@ node's serialized kind, signal type, port compatibility, or runtime domain.
 
 | Stable ID | Library label | Current nodes | Growth boundary |
 | --- | --- | --- | --- |
-| `timing` | Timing | Transport Time, Beat Clock, Auto Selector, Oscillator | Transport, phase, rhythm, schedules, and synchronization sources |
-| `control` | Control | Constant, Math, Map Range, Smooth | Numeric/boolean/event manipulation, conversion, sequencing, and state |
+| `timing` | Timing | Transport Time, Beat Clock, Auto Selector, Oscillator, Audio Beat Clock | Transport, phase, rhythm, schedules, and synchronization sources |
+| `control` | Control | Constant, Math, Map Range, Smooth, Audio Trigger | Numeric/boolean/event manipulation, conversion, sequencing, and state |
 | `interaction-ai` | Interaction & AI | Pointer, XY Pad, AI Chat, Video Model | Direct human controls and model-oriented interaction |
-| `inputs` | Inputs | Audio Level, Video Input | Browser media, files, sensors, devices, and gateway ingress |
+| `inputs` | Inputs | Audio Level, Audio Spectrum, Video Input, File, Network Video | Browser media, files, sensors, devices, and gateway ingress |
 | `generators` | Generators | Solid, Gradient, Shape, Vector Shape, Text, Noise, Shader Source, Flow Field, Cells | Permission-free visual creation and procedural sources |
-| `image-processing` | Image Processing | Transform 2D, Warp, Blur, Threshold, Trails, Spiral Feedback, Strobe, Color Grade, Levels, HSV / HSL, Channel Shuffle, Luma Key, Chroma Key, Displace, Edge, Pixelate, Tile / Kaleidoscope | Spatial, color, filter, and temporal image work; Displace uses a second frame as a coordinate map |
-| `compositing` | Compositing | Mask, Composite, Frame Switch, Blend, Crossfade | Multi-frame masking, layering, mixing, and routing |
-| `output` | Output | Display | Demand roots for display, recording, streaming, and gateways |
+| `image-processing` | Image Processing | Transform 2D, Projector Mapping, Warp, Blur, Threshold, Trails, Spiral Feedback, Strobe, Color Grade, Levels, HSV / HSL, Channel Shuffle, Luma Key, Chroma Key, Displace, Edge, Pixelate, Tile / Kaleidoscope | Spatial, color, filter, and temporal image work; Displace uses a second frame as a coordinate map |
+| `compositing` | Compositing | Mask, Composite, Frame Switch, Source Selector, Blend, Crossfade, Audio Mixer | Multi-source masking, layering, mixing, and routing |
+| `output` | Output | Display, Audio Output | Demand roots for display, monitoring, recording, streaming, and gateways |
 
 The IDs and membership are already catalog-visible and share the operator
 registry with the editor, so they remain stable. New categories require an
@@ -249,8 +254,8 @@ aid, not a separate commitment or priority system.
 | Vision and ML | Motion/blobs, face/hand/body tracking, segmentation, depth, point clouds, detection, and advanced model effects | [Computer vision, tracking, and ML](#computer-vision-tracking-and-ml) |
 | 3D and particles | Geometry, materials, lighting, instancing, particles, physics, glTF, and 3D rendering | [Geometry, particles, materials, and rendering](#geometry-particles-materials-and-rendering) |
 | Workflow and reuse | Groups, reusable subgraphs, named controls, presets, performance panels, asset bin, scenes, packages, and collaboration | [Components, UI, reuse, and show control](#components-ui-reuse-and-show-control) |
-| Output and distribution | Snapshot, recorder, multi-display, WebRTC publishing, projection/LED mapping, encoding, broadcast gateways, and XR | [Outputs, recording, mapping, and distribution](#outputs-recording-mapping-and-distribution) |
-| Control | Keyboard, MIDI, external control | [Control Systems](#control-systems) |
+| Output and distribution | Snapshot, recorder, multi-display, WebRTC publishing, projection mesh/edge-blend extensions, LED mapping, encoding, broadcast gateways, and XR | [Outputs, recording, mapping, and distribution](#outputs-recording-mapping-and-distribution) |
+| External control | Keyboard, MIDI, and device input | [Browser and bridge I/O matrix](#browser-and-bridge-io-matrix) |
 
 For practical demonstrations that exercise these ideas, jump to the
 [example patch and preset library](#example-patch-and-preset-library). For
@@ -281,10 +286,10 @@ Three filters order the work:
 | Foundation B — compositing loop | ✅ | Solid, Threshold, Mask, Composite, Frame Switch, and Blur | *Mask & Composite Lab*, *Beat Switcher*, and *Audio Soft Focus* |
 | Visual feedback study | ✅ | Purpose-built Spiral Feedback with bounded per-second retention, spatial transformation, pause behavior, and deterministic reset | *Spiral Feedback Lab* |
 | Live performance study | ✅ | Deterministic Auto Selector plus internally rate-capped Strobe with external phase binding and explicit flashing-imagery guidance | *Live Cut Lab* |
-| 1 — local media and framing | ✅ | Image File, Video File, Screen Capture, Crop/Fit, Resize, and Test Card | *Image Color Lab*, *Clip Framing*, and *Screen Layout & Test*; every new node must be output-reachable across the set |
+| 1 — local media and framing | 🚧 Partial | Shipped: File image/video/audio selection and playback. Remaining: Screen Capture, dedicated Crop/Fit, Resize, Test Card, and durable asset records | Shipped: *Local File Preview*. Planned: *Image Color Lab*, *Clip Framing*, and *Screen Layout & Test* |
 | 2 — explicit frame state | 🚧 Next | General Frame Delay/Feedback with visible initialization, read/commit, pause, seek, and reset rules | *Feedback Laboratory* |
 | 3 — decisions and events | 🚧 Next | `control.bool`, `event.trigger`, explicit bool/control conversion, Compare, Logic, Trigger, Gate, Hold, Frame Hold, Counter, Timer, and seeded Random | *Cue Logic Basics*, *Freeze & Release*, *Beat-cut Montage*, *Timed Transition*, and *Triggered Variations* |
-| 4 — buffered audio | ✅ | Shipped `audio.block` file playback, Mixer, explicit Audio Output/Monitor, and patched analysis through Audio Spectrum, Audio Trigger, and Audio Beat Clock; a public `audio.spectrum` wire, and sample-rate analysis | *Audio Patch 101*, *Spectrum Color Bands*, and *Onset Switcher* |
+| 4 — buffered audio | 🚧 Partial | Shipped: `audio.block` file/microphone paths, Mixer, Audio Output, Audio Spectrum, Audio Trigger, and Audio Beat Clock. Remaining: device/channel selection, public `audio.spectrum` wires, and sample-critical processing | Shipped: *Local File Preview* and *Audio Beat Pulse*. Planned extensions: *Audio Patch 101*, *Spectrum Color Bands*, and *Onset Switcher* |
 | 5 — stateless frame effects | ✅ | Ten single-pass processors: Levels, HSV/HSL, Channel Shuffle, Luma/Chroma Key, Displace, Edge, Pixelate, Tile/Kaleidoscope, and control-driven Crossfade; built on existing frame/control contracts | *Color & Channel Lab*, *Keyed Camera* with a procedural fallback, *Displacement Map Lab*, and *Pattern & Mix Lab*; every new node is output-reachable across the set |
 | 6 — reusable boundaries | 🧭 | Public Input/Output/Parameter contracts, nested Module/Subgraph, instances, presets, and scene routing | *Reusable Performance Rig* and *Scene Bank Basics* |
 | 7 — broader typed systems | 🔬 | Structured data, vision/depth, geometry/materials, and output/gateway families, introduced only after their types and clocks are inspectable | At least one permission-free or recorded-fixture tutorial per new family before live-device examples |
@@ -353,6 +358,14 @@ Conversions should be explicit nodes: scalar-to-vector, spectrum-band-to-scalar,
 
 ## Node and module catalog
 
+Rows name shipped operators where possible. A capability implemented as a mode
+or output of an existing operator is not a separate node proposal. Cross-domain
+tables may reference that same capability, but planned rows describe only the
+remaining work. In particular, File owns image/video/audio selection, Network
+Video owns HLS/DASH/WHEP ingest, Audio Spectrum owns scalar band analysis, and
+Projector Mapping owns four-corner planar warping. Their broader extensions
+below remain distinct work, not duplicate implementations.
+
 ### Control, events, and timing
 
 | Priority | Node/module | Purpose |
@@ -397,12 +410,11 @@ Conversions should be explicit nodes: scalar-to-vector, spectrum-band-to-scalar,
 | P1 | ✅ Solid | Flat RGBA color with optional control inputs for each channel |
 | P1 | ✅ Gradient | Linear, radial, and conic gradients with 2–8 positionable color stops, RGB pickers, and independent alpha sliders |
 | P1 | ✅ Shape | Rectangle, ellipse, triangle, polygon, and star; modulated geometry/color and fill/outline. Dedicated line and rounded primitives remain planned. |
-| P1 | ✅ Video File | Local clip playback with loop, rate, seek, and frame metadata |
+| P1 | ✅ File (image / video / audio) | One browser-local file node with image/video frames, media playback controls, and an explicit audio output path; durable asset storage and richer clip transport remain planned |
 | P1 | ✅ Vector Shape / SVG | Static paths, shapes, gradients, and clipping; 150 KB / 512-element limit, no scripts, animation, embedded images, or external references. Convert text and use instances to paths before import. |
 | P1 | ✅ Text | Embedded font asset, alignment, word/character wrapping, live string input, and Apply-to-commit drafts |
 | P1 | ✅ Noise | Seeded value, simplex, cellular, curl-field, and fractal variants; fBm, turbulence, and ridged fractals |
-| P1 | ✅ HLS/DASH Player | Browser/media-element stream ingest where platform codecs permit |
-| P1 | ✅ WebRTC Receiver | Low-latency remote camera/screen source |
+| P1 | ✅ Network Video (HLS / DASH / WebRTC WHEP) | One receiver node with three protocol modes, explicit connect/disconnect, fit, and mirror; generic peer signaling and publishing remain planned |
 | P1 | ✅ Shader Source | GLSL ES 3.00 fragment bodies with four patchable float uniforms; 4096 characters, 512 AST nodes, 128 operations, and 32 nesting levels. No loops, custom functions, arrays, or textures; static limits are not GPU-time guarantees. |
 | P2 | 🚧 Checker / Grid | Calibration, mapping, and debugging pattern |
 | P2 | 🚧 Test Card | Resolution, color, frame number, and sync diagnostics |
@@ -448,11 +460,13 @@ effect is inexpensive to implement.
 | P1 | ✅ Matte / Mask | Apply a selected mask channel to source alpha |
 | P1 | ✅ Composite | Source/destination Over, source In/Out/Atop, and XOR Porter-Duff operations |
 | P1 | ✅ Frame Switch | Select one of four frame inputs with an integer index |
+| P1 | ✅ Source Selector | Four-input routing with manual buttons or scalar rising-edge advancement; not a general event-type implementation |
+| P1 | ✅ Projector Mapping | Four-corner planar projection with editable quad, move, scale, rotation, and edge modes |
 | P1 | ✅ Spiral Feedback | Rotate and zoom an internally retained prior output around a movable center, then blend in the live source |
 | P1 | ✅ Strobe | Partially gate a frame to black, white, transparent, or invert from an internally capped clock or external phase |
 | P1 | 🚧 Frame Delay / Feedback | Explicit previous-tick read/commit boundary with deterministic initialization and reset |
 | P1 | 🚧 Frame Hold | Retain or release a frame from an explicit event/control input without creating an ordinary graph cycle |
-| P1 | 🚧 Crop / Fit | Crop, letterbox, cover, contain, and safe-area guides |
+| P1 | 🚧 Crop / Fit | Dedicated frame processor with explicit crop and safe-area guides; Video Input and Network Video already provide cover/contain/stretch fit |
 | P1 | 🚧 Resize | Explicit resolution and filtering boundary |
 | P1 | ✅ Levels | Black/white points, inverse gamma, lift, gain, and clamped output |
 | P1 | ✅ HSV / HSL | Hue turns, saturation multiplier, and value/lightness offset with source alpha |
@@ -478,7 +492,7 @@ effect is inexpensive to implement.
 | P2 | 🧭 Motion Blur | Frame- or velocity-assisted temporal blur |
 | P2 | 🧭 Optical Flow Warp | Motion-aware feedback and interpolation |
 | P2 | 🧭 Multi-view Layout | Grid, picture-in-picture, split, and monitor wall |
-| P2 | 🧭 Projection Warp | Corner pin, mesh warp, blend mask, and calibration points |
+| P2 | 🧭 Projection mesh extensions | Extend Projector Mapping beyond its shipped four-corner warp to editable meshes; venue edge blending and calibration belong to Projection Output below |
 | P2 | 🧭 LED Pixel Map | Sample a canvas into fixture/channel ordering |
 | P3 | 🔬 Reaction Diffusion | Persistent compute simulation |
 | P3 | 🔬 Fluid | GPU velocity/dye simulation with deterministic reset |
@@ -542,10 +556,9 @@ downsampled analysis values.
 | P0 | ✅ Audio Output / Monitor | Explicit browser-tab destination with user activation, muted-by-default startup, and relative dBFS metering |
 | P0 | ✅ Mixer | Two, four, or eight source inputs with per-source gain and shared low/mid/high EQ; routing is explicit and session-only |
 | P1 | 🚧 Audio Device In | Select device and channels and expose an `audio.block`; monitoring remains off until routed explicitly |
-| P1 | ✅ Spectrum / FFT | Audio Spectrum reads `getFloatFrequencyData` from any patched block and publishes normalized magnitudes for downstream shaping |
-| P1 | ✅ Band Energy | Bass, mid, and treble outputs weighted by three inline resonant bands, each with its own draggable center frequency and Q |
-| P1 | ✅ Envelope Follower | Audio Trigger emits a decaying Envelope alongside its gate, with inline Hold and Decay controls |
-| P1 | ✅ Onset / Beat | Audio Trigger fires against a band's own rolling average; Audio Beat Clock infers BPM, phase, bar, and confidence from trigger spacing |
+| P1 | ✅ Audio Spectrum (FFT / Band Energy) | Reads patched audio FFT data and exposes scalar Level/Bass/Mid/Treble outputs with per-band frequency and Q; no standalone Band Energy node or spectrum wire |
+| P1 | ✅ Audio Trigger (Onset / Envelope) | Scalar trigger and decaying envelope from a band's rolling average, with Hold and Decay; not a sample-accurate ADSR or general envelope follower |
+| P1 | ✅ Audio Beat Clock (Tempo Estimate) | Infers BPM, phase, bar, and confidence from scalar trigger spacing |
 | P1 | 🚧 Pitch | Fundamental estimate plus confidence |
 | P1 | 🚧 Waveform | Time-domain block for scope and geometry conversion |
 | P2 | 🧭 Gain / Pan | Audio-rate amplitude and stereo placement |
@@ -555,7 +568,7 @@ downsampled analysis values.
 | P2 | 🧭 Delay / Reverb | Time effects with tail lifecycle |
 | P2 | 🧭 Oscillator / Noise Audio | Sound generation distinct from visual-rate control |
 | P2 | 🧭 Recorder | Audio buffer/file capture with clear duration limits |
-| P2 | 🧭 Tempo Estimate | BPM and phase from an audio stream |
+| P2 | 🧭 Tempo analysis extensions | Direct audio-based tempo tracking beyond Audio Beat Clock's shipped trigger-spacing estimate |
 | P3 | 🔬 Spatial Audio | Listener/source graph and multi-channel layouts |
 | P3 | 🧩 DAW Bridge | Transport, tracks, parameters, and audio routing through a companion |
 | P3 | 🧩 Plug-in Host | Native-only plug-in hosting exposed through a constrained bridge |
@@ -595,7 +608,7 @@ downsampled analysis values.
 | P1 | 🚧 Grayscale / Normalize | Predictable pre-processing for vision nodes |
 | P1 | 🚧 Frame Difference | Motion regions without a large model |
 | P1 | 🚧 Background Model | Foreground mask for fixed-camera installations |
-| P1 | 🚧 Blur / Morphology | Denoise, erode, dilate, open, and close masks |
+| P1 | 🚧 Morphology | Erode, dilate, open, and close masks; the existing Blur already supplies basic denoising |
 | P1 | 🚧 Contours / Blobs | Regions, centroids, area, bounds, and tracking IDs |
 | P2 | 🧭 Optical Flow | Dense or sparse motion vectors |
 | P2 | 🧭 Face Landmarks | Face pose and expression features |
@@ -681,7 +694,7 @@ Automation should use a typed command protocol—create node, connect ports, set
 | P1 | 🚧 Snapshot | Download a still with size, alpha, and color metadata |
 | P1 | 🚧 Recorder | Capture canvas/audio through supported browser codecs |
 | P1 | 🚧 Multi Display | Named program, preview, confidence, and utility outputs |
-| P2 | 🧭 Projection Output | Mesh warp, edge blend, masks, test patterns, and per-project calibration |
+| P2 | 🧭 Projection Output | Venue output orchestration, edge-blend masks, test patterns, and per-output calibration; reuse Projector Mapping and future mesh extensions rather than another corner-pin processor |
 | P2 | 🧭 Slice Layout / Route | Versioned input regions, masks, source routes, transforms, and calibration |
 | P2 | 🧭 Output Layout Presets | Venue layouts saved and swapped independently from composition content |
 | P2 | 🔬 Wide Color / 10-bit Negotiation | Source/working/output color metadata, capability probing, fallback, and end-to-end verification |
@@ -703,7 +716,7 @@ Automation should use a typed command protocol—create node, connect ports, set
 | Camera | Webcam, phone cameras, UVC capture card | Direct, stable | ✅ HTTPS + explicit `getUserMedia` permission. Device labels often appear only after grant. |
 | Microphone | Built-in, USB interface input | Direct, stable | ✅ level analysis. HTTPS + explicit permission; echo/noise processing constraints must be visible. |
 | Screen/window/tab | Screen, app window, browser tab | Direct, stable | 🚧 Explicit chooser every session; system-audio capture varies by browser/OS. |
-| Local media | Image, video, audio, font, 3D asset | Direct, stable | 🚧 Picker/drop. Persist imported bytes deliberately; object URLs are session-only. |
+| Local media | Image, video, audio, font, 3D asset | Direct, stable | ✅ File image/video/audio selection and embedded Text fonts. 🚧 Durable media asset records, portable media collection, and 3D assets; object URLs remain session-only. |
 | Game controller | Gamepad, joystick, some wheels | Direct, stable | 🚧 Usually requires a user interaction before data is exposed; mappings vary. |
 | Device motion/orientation | Phone rotation, acceleration | Direct with platform variance | 🧭 Permission/user-gesture requirements differ; sensor access may be unavailable in embedded contexts. |
 | MIDI | Notes, CC, clock, MTC, surfaces | Direct but limited | 🧭 Web MIDI support/permissions vary. SysEx needs stronger permission; always learn/map by stable user choice. |
@@ -721,8 +734,8 @@ Automation should use a typed command protocol—create node, connect ports, set
 | MQTT | Venue/IoT messages | Direct through WebSocket | 🧭 Requires a broker WebSocket endpoint and appropriate authentication. |
 | OSC | UDP messages from music/control tools | Gateway | 🧩 Browsers cannot open arbitrary UDP sockets. Translate OSC ↔ authenticated WebSocket/WebTransport locally. |
 | Raw TCP/UDP | Device protocols | Not direct | ⛔ Use a narrowly scoped bridge; never expose a general network socket proxy to untrusted patches. |
-| WebRTC media/data | Peer camera, screen, program video, controls | Direct, stable foundation | 🧭 Production needs signaling plus TURN for difficult networks; permission and reconnect state are session data. |
-| HLS/DASH playback | CDN live/VOD streams | Direct where codecs/player permit | 🧭 Latency varies; CORS and media autoplay rules apply. Use native playback or a bounded demux path. |
+| WebRTC media/data | Peer camera, screen, program video, controls | Direct, stable foundation | ✅ Network Video WHEP receiving. 🧭 Publishing, generic peer signaling, data channels, and TURN configuration; connection state remains session-only. |
+| HLS/DASH playback | CDN live/VOD streams | Direct where codecs/player permit | ✅ Network Video HLS/DASH modes. Codec support, latency, CORS, and media autoplay rules still apply. |
 | MediaRecorder | Canvas, camera, audio capture | Direct, stable foundation | 🧭 Container/codec combinations vary; test capabilities and memory duration before recording. |
 | WebCodecs | Low-level encode/decode | Direct but platform-dependent | 🔬 Powerful for worker pipelines, but codec availability and hardware paths vary. It is not a network protocol. |
 | WebTransport | HTTP/3 low-latency data | Direct to a compatible server | 🔬 Not arbitrary UDP and not universally available; requires purpose-built infrastructure. |
@@ -887,9 +900,9 @@ Arrows show the primary signal path. A semicolon separates modulation. Nodes not
    vector objects over them. Import or export bounded static SVG, and use Apply
    artwork to commit one undoable project edit or Cancel to keep the original.
 
-20. **Image Remix — P1**
+20. **Image Remix — available as a manual recipe**
 
-    `Image File 🚧 → Kaleidoscope 🚧 → Color Grade → Display`
+   `File → Tile / Kaleidoscope → Color Grade → Display`
 
     Teaches local assets and non-destructive image processing.
 
@@ -956,11 +969,11 @@ in [Architecture](ARCHITECTURE.md#architecture-review-gate).
 
 1. **A/B Clip Deck — P1/P2**
 
-   `Playlist A 🧭 + Playlist B 🧭 → Crossfade 🚧 → Grade → Program Display; MIDI 🧭 → Crossfade.Mix`.
+   `Playlist A 🧭 + Playlist B 🧭 → Crossfade → Color Grade → Display; MIDI 🧭 → Crossfade.Mix`.
 
 2. **Audio Spectrum City — P1/P2**
 
-   `Audio Device In 🚧 → Spectrum 🚧 → Band Energy 🚧 → Instance 🧭 → Render 3D 🧭 → Bloom 🧭 → Display`.
+   `Audio Level.Audio → Audio Spectrum.Bass/Mid/Treble → Instance 🧭 → Render 3D 🧭 → Bloom 🧭 → Display`.
 
 3. **Camera Feedback Tunnel — available as a manual recipe**
 
@@ -976,7 +989,7 @@ in [Architecture](ARCHITECTURE.md#architecture-review-gate).
 
 6. **Beat-cut Montage — P1/P2**
 
-   `Playlist 🧭 → Frame Switch → Display; Onset 🚧 → Counter 🚧 → Frame Switch.Index`.
+   `Playlist 🧭 → Frame Switch → Display; Audio Spectrum.Bass → Audio Trigger → Counter 🚧 → Frame Switch.Index`. Existing Source Selector can already advance from Audio Trigger's scalar rising edges; a general typed-event Counter remains future work.
 
 7. **MIDI Performance Rack — P1/P2**
 
@@ -1032,7 +1045,7 @@ in [Architecture](ARCHITECTURE.md#architecture-review-gate).
 
 6. **Projection-mapped Memory Wall — P2**
 
-   `Camera motion → Zones → particle/flower scene → Projection Warp 🧭 → Display` with saved calibration.
+   `Video Input → Frame Difference 🚧 → Zones 🧭 → particle scene 🧭 → Projector Mapping → Display`. Four-corner mapping is available; motion analysis, particles, and venue calibration remain future work.
 
 7. **Interactive Floor — P2/bridge**
 
@@ -1263,8 +1276,8 @@ are authoritative; wave numbering does not impose a sequential release order.
 
 ### Phase 1 — durable browser instrument (P1)
 
-- Deliver Wave 1 local media and framing: image/video files, screen capture,
-  Crop/Fit, Resize, and Test Card, plus a first-class asset record.
+- Complete Wave 1 beyond the shipped File node: screen capture, dedicated
+   Crop/Fit, Resize, Test Card, and a first-class durable media asset record.
 - Wave 5's independent stateless frame-effects batch is implemented with four
    teaching patches, individual operator stories, registry/serialization tests,
    and GPU pixel checks. It did not require Waves 2 or 3.
@@ -1273,10 +1286,9 @@ are authoritative; wave numbering does not impose a sequential release order.
 - Deliver Wave 3 typed decisions and events: `control.bool`, `event.trigger`,
   explicit converters, Compare, Logic, Trigger, Gate, Hold, Frame Hold, Counter,
   Timer, and seeded Random.
-- Deliver the remaining Wave 4 buffered-audio work on an audio clock: device
-   input, spectrum, band/onset analysis, and sample-rate analysis snapshots. The
-   browser-local File, Mixer, and explicit opt-in Audio Output foundation is
-   already shipped.
+- Complete Wave 4 with device/channel selection, public spectrum wires, and
+   sample-critical processing. File, Mixer, Audio Output, and scalar
+   spectrum/band/onset/tempo analysis are already shipped.
 - Add event-triggered timed transitions through Wave 3's control/event path,
    reusing stateless frame interpolation rather than coupling it to a new clock.
 - Harden the current model adapter contract with conformance fixtures, cancellation, capability negotiation, and explicit source-upload semantics.
@@ -1290,9 +1302,11 @@ are authoritative; wave numbering does not impose a sequential release order.
 
 - Deliver Wave 6 reusable public boundaries, then scene banks, cue stack,
   preview/program, and preflight.
-- Add MIDI/gamepad/device mapping and browser-friendly WebSocket/WebRTC I/O.
+- Add MIDI/gamepad/device mapping, general data WebSocket I/O, and WebRTC
+   publishing/data channels beyond the shipped Network Video receiver.
 - Add CV landmarks/segmentation/zones and first GPU particle/3D render pipeline.
-- Add projection warp, multi-output concepts, LED pixel map, and a paired gateway protocol.
+- Extend Projector Mapping with mesh warping; add multi-output layouts,
+  venue edge blending/calibration, LED pixel mapping, and a paired gateway protocol.
 - Add player/kiosk mode, offline asset caching, watchdog behavior, and remote health.
 
 ### Phase 3 — advanced creation (P3)
@@ -1370,7 +1384,7 @@ These references define the capabilities and constraints behind the I/O plan:
 - Which first gateway platform and protocols unlock the most installations.
 - Whether modules can contain device permissions or must receive devices through explicit outer ports.
 - How custom shaders and third-party nodes earn trust.
-- Which next examples best expand the current 15-patch teaching set without
+- Which next examples best expand the current teaching set without
   sacrificing clarity or coverage.
 
 This document should stay honest: move a line to ✅ only when it is usable, cleaned up, tested, and documented in the shipping app.
