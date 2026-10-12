@@ -585,13 +585,33 @@ function parseSurface(value: unknown, path: string): SurfaceLayout {
       (entry, index) => {
         const maskPath = `${path}.maskPaths[${index}]`;
         const mask = expectRecord(entry, maskPath);
+        const points = expectArray(mask.points, `${maskPath}.points`).map(
+          (point, pointIndex) =>
+            parsePoint(point, `${maskPath}.points[${pointIndex}]`),
+        );
+        const closed = mask.closed === true;
+        const feather = expectNumber(mask.feather, `${maskPath}.feather`);
+        if (mask.nodes === undefined || mask.nodes === null) {
+          return { points, closed, feather };
+        }
         return {
-          points: expectArray(mask.points, `${maskPath}.points`).map(
-            (point, pointIndex) =>
-              parsePoint(point, `${maskPath}.points[${pointIndex}]`),
+          points,
+          closed,
+          feather,
+          nodes: expectArray(mask.nodes, `${maskPath}.nodes`).map(
+            (node, nodeIndex) => {
+              const nodePath = `${maskPath}.nodes[${nodeIndex}]`;
+              const entryNode = expectRecord(node, nodePath);
+              return {
+                point: parsePoint(entryNode.point, `${nodePath}.point`),
+                handleIn: parsePoint(entryNode.handleIn, `${nodePath}.handleIn`),
+                handleOut: parsePoint(
+                  entryNode.handleOut,
+                  `${nodePath}.handleOut`,
+                ),
+              };
+            },
           ),
-          closed: mask.closed === true,
-          feather: expectNumber(mask.feather, `${maskPath}.feather`),
         };
       },
     ),

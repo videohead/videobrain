@@ -516,9 +516,9 @@ Handoff: pending; children and provider/modality coverage matrix required.
 
 ```task
 id: M1
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: C2, C3
 scope: isolated layout/warp geometry modules/tests; src/engine/projection.ts only if needed
 ```
@@ -527,19 +527,48 @@ Outcome: stable surface/output IDs, source endpoints and UVs, bounded mesh grids
 mask paths, layers and layout validation. Preserve old four-corner semantics.
 Reject invalid/folded geometry and explicitly convert screen/UV coordinates.
 
+**Delivered (2026-10-11):**
+- [surfaceLayout.ts](../../src/engine/surfaceLayout.ts) (+44 tests): central
+  `screenToFrameUv`/`frameUvToScreen` conversion, stable surface/output ids,
+  bounded mesh grids, mask path and surface/output validation, deterministic
+  layer ordering, validated edits, and strict serialize/parse round-trip
+- Fold and degeneracy are rejected by a single cross-product sign test per cell
+- New ceilings: `MAX_SURFACE_MESH_SPAN` 32/axis, `MAX_SURFACE_MASK_PATHS` 16,
+  `MAX_OUTPUT_DIMENSION` 7680, `MAX_TOTAL_OUTPUT_PIXELS` 7680x4320
+- Four-corner compatibility: `meshFromProjectionCorners` /
+  `projectionCornersFromMesh` preserve the shipped screen-space corner order
+  (top-left, top-right, bottom-right, bottom-left) exactly
+
+**Defect found and fixed in the shipped Projector Mapping node.** It had no test
+coverage. [projection.ts](../../src/engine/projection.ts) read the Gaussian
+solution in the wrong order (`h[6]`/`h[7]` as `m02`/`m12`), so the identity quad
+and the node's own default corners returned `null` and silently rendered an
+unwarped frame; non-default quads mapped to the wrong place. The
+`projectorMapping` shader also rebuilt the matrix with `mat3(row0,row1,row2)`,
+which fills columns and transposed the map. Both are corrected, with
+[projection.test.ts](../../src/engine/projection.test.ts) (10 tests) locking
+corner order, move/scale/rotation and degeneracy, and
+[e2e/projector-mapping.spec.ts](../../e2e/projector-mapping.spec.ts) asserting
+the quad lands in the intended screen quadrant. The pixel test was confirmed
+discriminating by re-running it against the pre-fix files.
+
+Verify: lint + typecheck + 942 unit tests + build pass; projector-mapping e2e passes.
+
 Acceptance: round-trip layouts, corner/order/orientation fixtures, degenerate cells,
 maximum grid/path limits and invalid edits retaining old layout. No UI or physical
 calibration claim. Procedural sources permit progress independently of A1/G work.
 
-Handoff: pending; geometry/serialization tests and budget evidence required.
+Handoff: review — the geometry module is standalone; `MAX_SURFACE_MESH_SPAN`,
+`MAX_SURFACE_MASK_PATHS`, `MAX_OUTPUT_DIMENSION` and `MAX_TOTAL_OUTPUT_PIXELS`
+are M1 proposals that still need C3 measurement sign-off.
 
 ## M2 - Build manual surface and mask editor
 
 ```task
 id: M2
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: M1
 scope: mapping editor/controls/tests; assigned stories/e2e; renderer integration by shared-file lease
 ```
@@ -552,11 +581,54 @@ the C1 decision; painted content needs an approved asset-backed child task if ch
 **C1 decision:** FreeDraw = painted content. Child task required for brush/stroke
 asset-backed painted output. This adds to M2 scope or becomes M2a per coordinator.
 
+**Delivered (2026-10-11):**
+- [surfaceMask.ts](../../src/engine/surfaceMask.ts) (+24 tests): cubic Bezier
+  nodes with handles, curvature-driven tessellation bounded to
+  `MAX_SURFACE_MASK_POINTS`, rectangle/ellipse primitives, freehand capture
+  (Ramer-Douglas-Peucker then Catmull-Rom handle fitting) and feathered
+  coverage. A flat segment costs one point; a dense path loses detail rather
+  than breaching the budget.
+- [surfaceEditor.ts](../../src/engine/surfaceEditor.ts) (+29 tests): UI-free
+  editor state. Every mutation is routed through the M1 validator, so a fold or
+  an off-surface node leaves the previous layout untouched and is not recorded
+  in history. Selection (additive), per-surface lock, fine/coarse nudge, mesh
+  resolution, mask add/remove/feather, reset, and bounded undo/redo.
+- [surfaceRaster.ts](../../src/engine/surfaceRaster.ts) (+16 tests): mesh
+  triangulation, per-triangle affine solve, mask projection and feather radius.
+  `drawSurface` composites a real frame through the mesh and masks on a 2D
+  context, so no WebGLRenderer lease was consumed.
+- [SurfaceMappingEditor.tsx](../../src/components/SurfaceMappingEditor.tsx)
+  (+17 tests): pointer drag, keyboard nudge, Escape, tool switching, mask
+  drawing, lock, calibration overlay, undo/redo, and a `cleanOutput` mode that
+  renders the mapped frame with no toolbar, overlay or focusable control.
+- [surface-mapping-editor story](../../stories/surface-mapping-editor.stories.tsx)
+  with Editing and CleanOutput entries over a procedural test pattern.
+- `SurfaceMaskNode` and an optional `nodes` field were added additively to
+  `SurfaceMaskPath`; `points` stays the tessellated form renderers consume.
+
+**Seam defect found and fixed.** Canvas clip paths are antialiased, so adjacent
+mesh triangles each covered part of the shared boundary pixels and left a
+translucent diagonal seam (alpha 198/255 at the centre of an unwarped surface).
+`expandTriangle` now grows each clip so every edge moves a full pixel outward,
+making neighbours overlap instead of abut. The affine still comes from the true
+corners, so the overlap samples slightly beyond the cell without distorting it.
+
+Verify: lint + typecheck + 1025 unit tests + build pass;
+[e2e/surface-mapping.spec.ts](../../e2e/surface-mapping.spec.ts) asserts an
+unmapped surface blits exactly, a mesh moves the frame into one quadrant and
+leaves the rest clear, a hard mask keeps only its interior, feathering ramps
+alpha, and warp plus mask compose. Desktop and mobile screenshots captured.
+
 Acceptance: real graph frames warp/mask correctly; no UI in clean output; pointer/
 keyboard edits, undo/redo, invalid edits and desktop/mobile screenshots/pixels tested.
 No arbitrary SVG/script execution or silent coordinate-space changes.
 
-Handoff: pending; FreeDraw decision, visual review and single-output demo required.
+Handoff: review — outstanding for full acceptance: (1) the editor is driven by a
+2D-canvas compositor, not the production WebGL renderer, so routing live graph
+frames through it needs the M3 shared-file lease; (2) the mask tool places a
+rectangle and freehand fits a closed path, but there is no direct on-canvas
+handle editing for Bezier tangents yet; (3) FreeDraw painted content remains the
+separate C1 child task and is **not** implemented here.
 
 ## M3 - Deliver named outputs and persisted mapping baseline
 

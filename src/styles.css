@@ -120,6 +120,29 @@
 .vector-editor-footer { flex-wrap: wrap; margin-top: 12px; }
 .vector-editor-spacer { flex: 1; }
 .vector-error { color: #ffab97; font-size: 12px; overflow-wrap: anywhere; }
+.surface-mapping-editor { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
+.surface-mapping-editor[data-clean="true"] { gap: 0; }
+.surface-mapping-toolbar, .surface-mapping-group, .surface-mapping-status { display: flex; align-items: center; gap: 8px; }
+.surface-mapping-toolbar { flex-wrap: wrap; }
+.surface-mapping-group { gap: 4px; }
+.surface-mapping-editor .icon-button { width: 28px; height: 28px; flex: 0 0 28px; }
+.surface-mapping-editor [aria-pressed="true"] { background: #36574c; color: #b5f4d4; border-color: #76bf9f; }
+.surface-mapping-field { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.surface-mapping-field input[type="number"] { width: 52px; height: 26px; padding: 4px; }
+.surface-mapping-field input[type="range"] { width: 86px; }
+.surface-mapping-stage { position: relative; max-width: 100%; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background-color: #25282c; background-image: conic-gradient(#34383d 25%, transparent 0 50%, #34383d 0 75%, transparent 0); background-size: 20px 20px; }
+.surface-mapping-frame, .surface-mapping-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.surface-mapping-overlay { touch-action: none; outline-offset: -2px; }
+.surface-mapping-mesh { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.65; }
+.surface-mapping-mask { fill: rgb(255 121 92 / 12%); stroke: var(--coral); stroke-width: 1; stroke-dasharray: 4 3; }
+.surface-mapping-stroke { fill: none; stroke: var(--acid); stroke-width: 2; }
+.surface-mapping-calibration line, .surface-mapping-calibration rect { fill: none; stroke: var(--acid); stroke-width: 1; opacity: 0.45; }
+.surface-mapping-handle { fill: var(--surface-raised); stroke: var(--cyan); stroke-width: 2; cursor: grab; }
+.surface-mapping-node { fill: var(--surface-raised); stroke: var(--coral); stroke-width: 2; cursor: grab; }
+.surface-mapping-handle[data-selected="true"], .surface-mapping-node[data-selected="true"] { fill: var(--acid); stroke: var(--ink); }
+.surface-mapping-status { flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.surface-mapping-error { margin: 0; color: #ffab97; font-size: 12px; overflow-wrap: anywhere; }
+.surface-mapping-empty { margin: 0; font-size: 12px; color: var(--muted); }
 :root {
   color: #f3f5ed;
   background: #080a0f;
