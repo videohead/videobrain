@@ -157,6 +157,7 @@ export const OPERATOR_META: Record<NodeKind, OperatorMeta> = {
   light3d: { accent: '#ecd988', icon: Sparkles, shortLabel: 'Light' },
   material3d: { accent: '#e6a1ba', icon: Palette, shortLabel: 'PBR' },
   asset3d: { accent: '#7de5c1', icon: Package, shortLabel: 'Asset' },
+  instance3d: { accent: '#7de5c1', icon: LayoutGrid, shortLabel: 'Inst' },
   render3d: { accent: '#7de5c1', icon: MonitorUp, shortLabel: 'Render' },
   textSource: { accent: '#efcd80', icon: Type, shortLabel: 'Text' },
   textFormat: { accent: '#efcd80', icon: Type, shortLabel: 'Format' },

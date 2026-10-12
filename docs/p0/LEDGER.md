@@ -123,4 +123,3 @@ None.
 | M4 | Overlap blending | waiting | M3 | Blocked on M3 |
 | M5 | 3D calibration | waiting | D3,M3 | Blocked on D3, M3 |
 | I1 | Combined integration | waiting | D3,G2,M3 | Blocked on D3, G2, M3 |
-| O0 | Router discovery | waiting | none | Independent; user investigation |

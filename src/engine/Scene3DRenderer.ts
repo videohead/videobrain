@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DEFAULT_CAMERA, DEFAULT_LIGHT, DEFAULT_MATERIAL, validateGeometry, type Camera3DValue, type Geometry3DValue, type Light3DValue, type Material3DValue } from '../graph/scene3d';
+import { planInstanceBatch, type BatchSourceStats, type ScenePlacement } from '../graph/sceneInstancing';
 
 interface SceneEntry {
   target: THREE.WebGLRenderTarget;
@@ -9,6 +10,7 @@ interface SceneEntry {
 export interface Scene3DAssetInstance {
   object: THREE.Object3D;
   placement: { position: readonly number[]; rotation: readonly number[]; scale: readonly number[] };
+  placements?: readonly { position: readonly number[]; rotation: readonly number[]; scale: readonly number[] }[];
 }
 export interface Scene3DInput {
   geometry: Geometry3DValue | null;
@@ -17,6 +19,42 @@ export interface Scene3DInput {
   camera?: Camera3DValue;
   lights: Light3DValue[];
   asset?: Scene3DAssetInstance | null;
+}
+/** Aggregate batch report surfaced for diagnostics and budgets. */
+export interface Scene3DBatchReport {
+  instances: number;
+  drawCalls: number;
+  instancedDrawCalls: number;
+  triangles: number;
+  diagnostics: readonly string[];
+}
+
+function collectBatchStats(object: THREE.Object3D): BatchSourceStats {
+  let drawCalls = 0;
+  let triangles = 0;
+  let textures = 0;
+  const seenTextures = new Set<unknown>();
+  object.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!(mesh as unknown as { isMesh?: boolean }).isMesh) {
+      return;
+    }
+    drawCalls += 1;
+    const position = mesh.geometry.getAttribute('position');
+    if (position) {
+      const index = mesh.geometry.getIndex();
+      triangles += index ? index.count / 3 : position.count / 3;
+    }
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      const map = (material as THREE.MeshStandardMaterial).map ?? null;
+      if (map && !seenTextures.has(map)) {
+        seenTextures.add(map);
+        textures += 1;
+      }
+    }
+  });
+  return { drawCalls, triangles: Math.round(triangles), textures };
 }
 
 function geometryFor(value: Geometry3DValue): THREE.BufferGeometry {
@@ -43,15 +81,114 @@ function disposeObject(object: THREE.Mesh | THREE.Points | THREE.Line) {
   materials.forEach((material) => material.dispose());
 }
 
+/** Dispose only batch-created InstancedMeshes; source geometry is shared. */
+function disposeInstancedGroup(group: THREE.Group): void {
+  for (const child of group.children) {
+    const instanced = child as THREE.InstancedMesh;
+    if ((instanced as unknown as { isInstancedMesh?: boolean }).isInstancedMesh !== true) continue;
+    instanced.dispose();
+  }
+  group.clear();
+}
+
+function applyPlacement(object: THREE.Object3D, placement: ScenePlacement): void {
+  object.position.set(placement.position[0] ?? 0, placement.position[1] ?? 0, placement.position[2] ?? 0);
+  object.rotation.set(
+    THREE.MathUtils.degToRad(placement.rotation[0] ?? 0),
+    THREE.MathUtils.degToRad(placement.rotation[1] ?? 0),
+    THREE.MathUtils.degToRad(placement.rotation[2] ?? 0),
+    'XYZ',
+  );
+  object.scale.set(placement.scale[0] ?? 1, placement.scale[1] ?? 1, placement.scale[2] ?? 1);
+  object.updateMatrixWorld(true);
+}
+
+function placementMatrix(placement: ScenePlacement): THREE.Matrix4 {
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3(placement.position[0] ?? 0, placement.position[1] ?? 0, placement.position[2] ?? 0),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(
+      THREE.MathUtils.degToRad(placement.rotation[0] ?? 0),
+      THREE.MathUtils.degToRad(placement.rotation[1] ?? 0),
+      THREE.MathUtils.degToRad(placement.rotation[2] ?? 0),
+      'XYZ',
+    )),
+    new THREE.Vector3(placement.scale[0] ?? 1, placement.scale[1] ?? 1, placement.scale[2] ?? 1),
+  );
+}
+
+function applyInstancedPlacements(group: THREE.Group, placements: readonly ScenePlacement[]): void {
+  const children = group.children as THREE.InstancedMesh[];
+  for (const batch of children) {
+    if ((batch as unknown as { isInstancedMesh?: boolean }).isInstancedMesh !== true) {
+      continue;
+    }
+    const sourceMatrix = batch.userData.sourceMatrix as THREE.Matrix4 | undefined;
+    for (let index = 0; index < batch.count; index += 1) {
+      const placement = placements[index];
+      if (!placement) {
+        batch.setMatrixAt(index, new THREE.Matrix4().makeScale(0, 0, 0));
+        continue;
+      }
+      batch.setMatrixAt(
+        index,
+        sourceMatrix
+          ? placementMatrix(placement).multiply(sourceMatrix)
+          : placementMatrix(placement),
+      );
+    }
+    batch.instanceMatrix.needsUpdate = true;
+  }
+}
+
 export class Scene3DRenderer {
   private renderer: THREE.WebGLRenderer;
   private entries = new Map<string, SceneEntry>();
+  /** Cached stats per decoded scene object, keyed by object identity. */
+  private batchStatsByObject = new WeakMap<THREE.Object3D, BatchSourceStats>();
+  /** Cached InstancedMesh groups keyed by source object + instance count. */
+  private instancedGroups = new Map<string, { key: string; group: THREE.Group }>();
   constructor(private gl: WebGL2RenderingContext, canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, context: gl, alpha: true, antialias: false, premultipliedAlpha: false });
     this.renderer.autoClear = true;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.setClearColor(0, 0);
+  }
+  private collectStats(object: THREE.Object3D): BatchSourceStats {
+    const cached = this.batchStatsByObject.get(object);
+    if (cached) return cached;
+    const stats = collectBatchStats(object);
+    this.batchStatsByObject.set(object, stats);
+    return stats;
+  }
+  /**
+   * Build or reuse one InstancedMesh per static mesh in the source scene.
+   * One GPU draw per distinct mesh regardless of instance count. Batches are
+   * cached by source object + count and disposed when the count changes or the
+   * source scene is released.
+   */
+  private instancedGroupFor(source: THREE.Object3D, count: number): THREE.Group | null {
+    const key = `${count}`;
+    let cached = this.instancedGroups.get(source.uuid);
+    if (!cached || cached.key !== key) {
+      if (cached) disposeInstancedGroup(cached.group);
+      const group = new THREE.Group();
+      source.updateMatrixWorld(true);
+      source.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if ((mesh as unknown as { isMesh?: boolean }).isMesh !== true) {
+          return;
+        }
+        const instanced = new THREE.InstancedMesh(mesh.geometry, mesh.material as THREE.Material, count);
+        instanced.userData.sourceMatrix = mesh.matrixWorld.clone();
+        instanced.userData.sourceOffset = [child.position.x, child.position.y, child.position.z];
+        group.add(instanced);
+      });
+      if (group.children.length === 0) return null;
+      cached = { key, group };
+      this.instancedGroups.set(source.uuid, cached);
+    }
+    return cached.group;
   }
   retain(ids: Set<string>) {
     for (const [id, entry] of this.entries) if (!ids.has(id)) {
@@ -60,8 +197,13 @@ export class Scene3DRenderer {
       this.entries.delete(id);
     }
   }
-  dispose() { this.retain(new Set()); this.renderer.dispose(); }
-  render(id: string, input: Scene3DInput, width: number, height: number, output: WebGLFramebuffer, textureSource?: WebGLFramebuffer): void {
+  dispose() {
+    this.retain(new Set());
+    for (const { group } of this.instancedGroups.values()) disposeInstancedGroup(group);
+    this.instancedGroups.clear();
+    this.renderer.dispose();
+  }
+  render(id: string, input: Scene3DInput, width: number, height: number, output: WebGLFramebuffer, textureSource?: WebGLFramebuffer): Scene3DBatchReport {
     const gl = this.gl;
     this.renderer.resetState();
     let entry = this.entries.get(id);
@@ -126,13 +268,43 @@ export class Scene3DRenderer {
         scene.add(object);
       }
       const asset = input.asset;
+      const batchReport: Scene3DBatchReport = { instances: 0, drawCalls: 0, instancedDrawCalls: 0, triangles: 0, diagnostics: [] };
       if (asset?.object) {
-        const p = asset.placement;
-        asset.object.position.set(p.position[0] ?? 0, p.position[1] ?? 0, p.position[2] ?? 0);
-        asset.object.rotation.set(THREE.MathUtils.degToRad(p.rotation[0] ?? 0), THREE.MathUtils.degToRad(p.rotation[1] ?? 0), THREE.MathUtils.degToRad(p.rotation[2] ?? 0), 'XYZ');
-        asset.object.scale.set(p.scale[0] ?? 1, p.scale[1] ?? 1, p.scale[2] ?? 1);
-        asset.object.updateMatrixWorld(true);
-        scene.add(asset.object);
+        const placements = (asset.placements ?? [asset.placement]) as unknown as readonly ScenePlacement[];
+        const stats = this.collectStats(asset.object);
+        const batch = planInstanceBatch(placements, stats);
+        batchReport.instances = batch.placements.length;
+        batchReport.drawCalls = batch.drawCalls;
+        batchReport.triangles = batch.triangles;
+        batchReport.diagnostics = batch.diagnostics;
+        if (batch.instancing) {
+          const group = this.instancedGroupFor(asset.object, batch.placements.length);
+          if (group) {
+            applyInstancedPlacements(group, batch.placements);
+            batchReport.instancedDrawCalls = group.children.length;
+            scene.add(group);
+          } else {
+            batchReport.diagnostics = [
+              ...batchReport.diagnostics,
+              'The scene meshes are not compatible with GPU instancing; rendering duplicated placements instead.',
+            ];
+            for (const placement of batch.placements) {
+              const wrapper = new THREE.Group();
+              applyPlacement(wrapper, placement);
+              wrapper.add(asset.object.clone());
+              scene.add(wrapper);
+            }
+          }
+        } else {
+          // Fallback: duplicated placements, one group per instance, sharing
+          // geometry/materials through clones. Diagnostics already explain why.
+          for (const placement of batch.placements) {
+            const wrapper = new THREE.Group();
+            applyPlacement(wrapper, placement);
+            wrapper.add(asset.object.clone());
+            scene.add(wrapper);
+          }
+        }
       }
       for (const value of input.lights.length ? input.lights : [DEFAULT_LIGHT]) {
         const color = new THREE.Color().setRGB(value.color[0] ?? 1, value.color[1] ?? 1, value.color[2] ?? 1, THREE.SRGBColorSpace);
@@ -155,6 +327,7 @@ export class Scene3DRenderer {
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
       const error = gl.getError();
       if (error !== gl.NO_ERROR) throw new Error(`3D GPU transfer failed (${error}).`);
+      return batchReport;
     } finally {
       this.renderer.setRenderTarget(null);
       this.renderer.resetState();

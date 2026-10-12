@@ -62,7 +62,7 @@ export const NODE_KINDS = [
   'tableTransform', 'tableSelect', 'tableJoin',
   'httpFetch', 'dataSocket', 'serverEvents', 'dataStorage', 'dataInspect',
   'vector2', 'vector3', 'vector4', 'splitVector2', 'splitVector3', 'splitVector4',
-  'primitive3d', 'grid3d', 'transform3d', 'camera3d', 'light3d', 'material3d', 'asset3d', 'render3d',
+  'primitive3d', 'grid3d', 'transform3d', 'camera3d', 'light3d', 'material3d', 'asset3d', 'instance3d', 'render3d',
   'controlToBool', 'boolToControl', 'compare', 'logic', 'trigger', 'eventToControl',
   'gate', 'hold', 'sampleHold', 'counter', 'random', 'timer', 'envelope', 'timedTransition', 'stepSequencer', 'cueScheduler',
   'signalNumber', 'signalText', 'signalEdge', 'signalBang',

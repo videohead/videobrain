@@ -39,12 +39,19 @@ export interface Light3DValue {
   position: VectorValue;
   intensity: number;
 }
+export interface ScenePlacement {
+  position: VectorValue;
+  rotation: VectorValue;
+  scale: VectorValue;
+}
 export interface SceneAssetValue {
   kind: 'asset-scene';
   assetId: string;
   assetHash: string;
   assetKind: 'glb' | 'gltf';
-  placement: { position: VectorValue; rotation: VectorValue; scale: VectorValue };
+  placement: ScenePlacement;
+  /** Bounded per-instance transforms; single placement when unset. */
+  placements?: readonly ScenePlacement[];
 }
 export type Scene3DValue = VectorValue | Geometry3DValue | Material3DValue | Camera3DValue | Light3DValue | SceneAssetValue | null;
 
@@ -54,6 +61,8 @@ export const DEFAULT_LIGHT: Light3DValue = { mode: 'directional', color: [1, 1, 
 export const MAX_3D_TRANSFORMS = 16;
 export const MAX_3D_TRIANGLES = 8192;
 export const MAX_3D_POINTS = 4096;
+/** Maximum instances in one asset batch (matches MAX_SCENE_PLACEMENTS). */
+export const MAX_ASSET_INSTANCES = 64;
 
 export function geometryCost(value: Geometry3DValue): { triangles: number; points: number } {
   const detail = value.detail;

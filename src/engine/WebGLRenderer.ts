@@ -17,7 +17,7 @@ import { FRAME_FRAGMENT_SHADERS, FULLSCREEN_VERTEX_SHADER } from './shaders';
 import { DataEvaluator, isDataNode, type DataValue } from './DataEvaluator';
 import { dataSessions } from './DataSessions';
 import { evaluateScene3D, isScene3DNode } from './Scene3DEvaluator';
-import { Scene3DRenderer } from './Scene3DRenderer';
+import { Scene3DRenderer, type Scene3DBatchReport } from './Scene3DRenderer';
 import { decodeGlbScene, preflightGlb } from './SceneAssetCache';
 import { LiquidSimulation } from './LiquidSimulation';
 import { ParticleTransition } from './ParticleTransition';
@@ -445,6 +445,10 @@ export class WebGLRenderer {
   private programs = new Map<NodeKind, ProgramInfo>();
   private shaderPrograms = new Map<string, { source: string; info: ProgramInfo | null; error: string | null }>();
   private shaderError: RendererError | null = null;
+  /** Non-fatal per-frame instance-batch diagnostic; first notice wins. */
+  private sceneBatchNotice: RendererError | null = null;
+  /** Latest aggregate instance-batch report, for performance evidence. */
+  private lastBatchReport: Scene3DBatchReport | null = null;
   private nodeResources = new Map<string, NodeResources>();
   private outputTextures = new Map<string, WebGLTexture>();
   private controlValues = new Map<string, number>();
@@ -838,6 +842,7 @@ export class WebGLRenderer {
       }
       const frameStateCommits: FrameStateCommit[] = [];
       this.shaderError = null;
+      this.sceneBatchNotice = null;
       for (const node of this.plan.frameNodes) {
         const commit = this.renderFrameNode(node, time);
         if (commit) {
@@ -857,7 +862,7 @@ export class WebGLRenderer {
       if (presentationTimestamp !== undefined) {
         this.frameRate.sample(presentationTimestamp);
       }
-      return this.result(true, this.shaderError);
+      return this.result(true, this.shaderError ?? this.sceneBatchNotice);
     } catch (error) {
       this.errorState = this.asError(error);
       return this.result(false, this.errorState);
@@ -870,6 +875,11 @@ export class WebGLRenderer {
 
   resetFrameRate(): void {
     this.frameRate.reset();
+  }
+
+  /** Latest instance-batch aggregate: instances, draws, triangles, notices. */
+  getLastBatchReport(): Scene3DBatchReport | null {
+    return this.lastBatchReport;
   }
 
   reset(): void {
@@ -1855,14 +1865,26 @@ export class WebGLRenderer {
       const assetValue = input('assetScene') as SceneAssetValue | null;
       const assetObject = assetValue && assetValue.kind === 'asset-scene' ? this.sceneAssetGroups.get(assetValue.assetHash) : undefined;
       this.sceneRenderer ??= new Scene3DRenderer(this.gl, this.canvas);
-      this.sceneRenderer.render(compiledNode.node.id, {
+      const batchReport = this.sceneRenderer.render(compiledNode.node.id, {
         geometry: input('geometry') as Geometry3DValue | null,
         points: input('points') as Geometry3DValue | null,
         material: input('material') as Material3DValue | undefined ?? undefined,
         camera: input('camera') as Camera3DValue | undefined ?? undefined,
         lights: [input('light'), input('light2'), input('light3')].filter((value) => value !== null) as Light3DValue[],
-        asset: assetValue && assetObject ? { object: assetObject, placement: assetValue.placement } : null,
+        asset: assetValue && assetObject
+          ? {
+              object: assetObject,
+              placement: assetValue.placement,
+              placements: assetValue.placements,
+            }
+          : null,
       }, this.renderWidth, this.renderHeight, intermediate.framebuffer, sourceTarget?.framebuffer);
+      if (batchReport.diagnostics.length > 0) {
+        this.sceneBatchNotice ??= new RendererError(
+          `Instance 3D (${compiledNode.node.id}): ${batchReport.diagnostics[0]}`,
+        );
+      }
+      this.lastBatchReport = batchReport;
       const program = this.beginPass('render3d', target);
       this.bindTexture(program, 'uSource', intermediate.texture, 0);
       this.draw(program);

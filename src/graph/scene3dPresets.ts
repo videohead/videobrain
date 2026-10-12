@@ -7,6 +7,7 @@ export const SCENE_3D_PRESETS = [
   { id: 'primitive-3d-lab', title: '3D Primitive Lab', description: 'Light and texture a rotating 3D primitive, then process its transparent frame.' },
   { id: 'vector-grid-lab', title: 'Vector & Grid Lab', description: 'Compose and split explicit vectors to position a bounded 3D point grid or line.' },
   { id: 'local-glb-stage', title: 'Local GLB Stage', description: 'Import a local GLB/glTF model with the Asset 3D node and light it in a scene.' },
+  { id: 'instance-glb-stage', title: 'Instance GLB Stage', description: 'Duplicate an imported model into a bounded GPU instance batch in a grid or ring.' },
 ] as const;
 
 export const SCENE_3D_PRESET_FACTORIES = {
@@ -53,5 +54,17 @@ export const SCENE_3D_PRESET_FACTORIES = {
       createGraphNode('display', { x: 1110, y: 0 }, {}, 'output'),
     ],
     edges: [wire('asset', 'assetScene', 'render', 'assetScene'), wire('camera', 'camera', 'render', 'camera'), wire('light', 'light', 'render', 'light'), wire('ambient', 'light', 'render', 'light2'), wire('render', 'frame', 'output', 'source')],
+  }),
+  'instance-glb-stage': (): GraphDocument => ({ schemaVersion: GRAPH_SCHEMA_VERSION,
+    nodes: [
+      createGraphNode('asset3d', { x: 0, y: 0 }, { scaleX: 1, scaleY: 1, scaleZ: 1 }, 'asset'),
+      createGraphNode('instance3d', { x: 370, y: 0 }, { count: 6, spacing: 1.5 }, 'instances'),
+      createGraphNode('camera3d', { x: 740, y: 450 }, { x: 3.5, y: 2.2, z: 4.5 }, 'camera'),
+      createGraphNode('light3d', { x: 740, y: 850 }, {}, 'light'),
+      createGraphNode('light3d', { x: 1110, y: 950 }, { mode: 'ambient', intensity: 0.6 }, 'ambient'),
+      createGraphNode('render3d', { x: 1110, y: 0 }, {}, 'render'),
+      createGraphNode('display', { x: 1480, y: 0 }, {}, 'output'),
+    ],
+    edges: [wire('asset', 'assetScene', 'instances', 'assetScene'), wire('instances', 'assetScene', 'render', 'assetScene'), wire('camera', 'camera', 'render', 'camera'), wire('light', 'light', 'render', 'light'), wire('ambient', 'light', 'render', 'light2'), wire('render', 'frame', 'output', 'source')],
   }),
 };

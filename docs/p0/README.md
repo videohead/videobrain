@@ -160,29 +160,6 @@ and 155 catalog entries. C0 re-establishes checks on the actual snapshot; counts
 are not acceptance targets. The known three high-severity npm audit findings
 require triage before a release-security claim, not blind dependency upgrades.
 
-## LiteLLM and Metis handoff
-
-The user identifies the host service at <https://videohead.duckdns.org/litellm>.
-Discovery on 2026-10-11 found a reachable prefixed OpenAPI schema advertising
-LiteLLM API 1.100.1, MCP routes, agent routes and workflow records. Public MCP and
-agent hubs returned empty arrays. Private Metis configuration, authentication,
-model aliases, executor behavior and repository access remain unverified.
-
-Advertised route candidates relative to that base: `/mcp`,
-`/toolset/{toolset_name}/mcp`, `/v1/mcp/tools`, `/mcp-rest/tools/list`,
-`/v1/agents`, `/v1/models`, and `/v1/workflows/runs`. Verify transport, prefix,
-permissions and schemas rather than treating these as tested client settings.
-Workflow record APIs alone do not establish a task scheduler or coding-agent loop.
-The in-repository MCP server is not the host Metis Router and is not this plan's
-orchestration dependency.
-
-O0 establishes a least-privilege executor profile. Separate coding-agent keys
-from product-generation credentials. Never put secrets in this package, prompts,
-artifacts or task reports. No broad host filesystem, unrestricted shell, Docker
-socket or production deployment access for track workers. Use a constrained test
-runner when container access is required. Discover tools read-only first; any
-write smoke test runs only in an approved disposable workspace.
-
 ## References
 
 - Internal: [Architecture](../ARCHITECTURE.md), [Graph Protocol](../GRAPH_PROTOCOL_STRATEGY.md),

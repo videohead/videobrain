@@ -49,6 +49,12 @@ export const SCENE_3D_DEFINITIONS: readonly OperatorDefinition[] = [
     rotationX: number('Rotate X (deg)', 0, -360, 360, 1), rotationY: number('Rotate Y (deg)', 0, -360, 360, 1), rotationZ: number('Rotate Z (deg)', 0, -360, 360, 1),
     scaleX: number('Scale X', 1, 0.001, 1000), scaleY: number('Scale Y', 1, 0.001, 1000), scaleZ: number('Scale Z', 1, 0.001, 1000),
   }),
+  node('instance3d', 'Instance 3D', 'Expand one imported scene placement into a bounded GPU instance batch (64 maximum) in a grid or ring layout; placement stays editable per node.', [port('assetScene', 'scene.asset')], [port('assetScene', 'scene.asset')], {
+    mode: select('Layout', 'grid', ['grid', 'ring']),
+    count: number('Instances', 4, 1, 64, 1),
+    spacing: number('Spacing', 1.5, 0.01, 100),
+    radius: number('Ring radius', 2, 0.01, 100),
+  }),
   {
     kind: 'render3d', title: 'Render 3D', summary: 'Render one mesh and one point/line descriptor with three lights into a transparent frame. Optional frame input supplies the mesh base-color map.',
     category: 'scene-3d', domain: 'frame',

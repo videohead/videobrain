@@ -174,6 +174,7 @@ export const FOUNDATION_NODE_EXAMPLES = {
 export const NODE_EXAMPLES = {
   ...FOUNDATION_NODE_EXAMPLES,
   chromaticAberration: ['prism-glow-lab', 'infinity-mirror-lab'],
+  instance3d: ['instance-glb-stage'],
   bloom: ['prism-glow-lab'],
   scanlines: ['prism-glow-lab'],
   liquidMorph: ['liquid-surface-lab'],
@@ -214,6 +215,7 @@ export const NODE_EXAMPLES = {
   audioBeat: ['audio-beat-pulse'],
 } as const satisfies Record<
   | 'chromaticAberration' | 'bloom' | 'scanlines' | 'liquidMorph' | 'liquidMetaballs' | 'particleTransition'
+  | 'instance3d'
   | 'levels' | 'hsv' | 'channelShuffle' | 'lumaKey' | 'chromaKey'
   | 'displace' | 'edge' | 'pixelate' | 'kaleidoscope' | 'crossfade'
   | 'constant'
