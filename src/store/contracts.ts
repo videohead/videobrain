@@ -195,6 +195,42 @@ export interface SurfaceLayout {
   opacity: number;
 }
 
+/**
+ * Overlap blend widths for one output, as a fraction of the output's own
+ * width or height. Each edge is the region shared with a neighbouring
+ * projector; zero means that edge does not overlap anything.
+ */
+export interface OutputEdgeBlend {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Manual edge-blend settings for one output.
+ *
+ * These describe an operator's alignment of overlapping projectors. They are
+ * a signal-domain adjustment, not a photometric calibration: see
+ * docs/MAPPING.md for the black-level limitation and the physical
+ * verification that is required before any seamlessness claim.
+ */
+export interface OutputBlendSettings {
+  edges: OutputEdgeBlend;
+  /** Blend curve exponent. 1 is linear in light; higher is more abrupt. */
+  curve: number;
+  /** Display gamma used to encode the linear-light blend weight. */
+  gamma: number;
+  /** Overall output brightness trim, applied after blending. */
+  brightness: number;
+  /**
+   * Black-level lift applied outside the overlap, to approximate the raised
+   * floor inside it. Trades contrast for uniformity; it cannot remove the
+   * overlap's doubled black.
+   */
+  blackLevelLift: number;
+}
+
 /** One logical output (screen / projector). */
 export interface OutputLayout {
   id: string;
@@ -205,6 +241,8 @@ export interface OutputLayout {
   layoutX: number;
   layoutY: number;
   surfaces: readonly SurfaceLayout[];
+  /** Absent when the output does not overlap another projector. */
+  blend?: OutputBlendSettings;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -256,6 +294,17 @@ export const MAX_SURFACE_MESH_CELLS = 32 * 32;
 
 /** Logical outputs per project. */
 export const MAX_OUTPUT_LAYOUTS = 8;
+
+/** Largest overlap width per edge, as a fraction of the output axis. */
+export const MAX_BLEND_EDGE_FRACTION = 0.5;
+
+/** Blend curve exponent range. */
+export const MIN_BLEND_CURVE = 0.1;
+export const MAX_BLEND_CURVE = 8;
+
+/** Display gamma range accepted for blend encoding. */
+export const MIN_BLEND_GAMMA = 1;
+export const MAX_BLEND_GAMMA = 3.2;
 
 /** Surface layers per output. */
 export const MAX_SURFACE_LAYERS_PER_OUTPUT = 16;

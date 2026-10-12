@@ -51,9 +51,13 @@ const subtract = (
   b: SurfaceMaskPoint,
 ): SurfaceMaskPoint => ({ x: a.x - b.x, y: a.y - b.y });
 
+/**
+ * Adding zero normalizes `-0` to `0`. JSON has no negative zero, so without
+ * this a mirrored handle would not survive a save/reopen cycle unchanged.
+ */
 const scale = (point: SurfaceMaskPoint, factor: number): SurfaceMaskPoint => ({
-  x: point.x * factor,
-  y: point.y * factor,
+  x: point.x * factor + 0,
+  y: point.y * factor + 0,
 });
 
 const distance = (a: SurfaceMaskPoint, b: SurfaceMaskPoint): number =>

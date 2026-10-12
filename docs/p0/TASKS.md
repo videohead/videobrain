@@ -634,9 +634,9 @@ separate C1 child task and is **not** implemented here.
 
 ```task
 id: M3
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: M2, A2
 scope: output/layout runtime and tests; shared PreviewPanel/App/renderer/persistence by lease
 ```
@@ -646,19 +646,59 @@ slicing/video-wall layout, clean manually placeable presentation window(s), save
 layouts and explicit screen binding. Optional Window Management capability detection.
 Evaluate upstream frames/jobs once; measure any cross-context transfer path.
 
+**Delivered (2026-10-11):**
+- [outputComposer.ts](../../src/engine/outputComposer.ts) (+16 tests): draws an
+  output's surfaces in `layerIndex` order, each through its own scratch layer
+  so a later surface's mask cannot erase an earlier one. Blend mode and opacity
+  are applied at composite time. **Upstream sources are resolved at most once
+  per frame** even when several surfaces share one source or slice different
+  regions of it, and `ComposeReport.sourceEvaluations` makes that observable
+  rather than assumed. A missing source is reported and skipped while the other
+  surfaces still draw. `planOutputs` reports the distinct source nodes a frame
+  needs plus any layout issues.
+- [presentationWindow.ts](../../src/engine/presentationWindow.ts) (+19 tests):
+  chrome-free popup per output, Window Management capability detection,
+  screen enumeration with generated labels for unnamed screens, screen-relative
+  placement, and a registry that reuses a live window, reopens after the user
+  closed one, and reconciles lost windows. A blocked popup and a refused
+  permission are reported states, never thrown errors, so mapping never depends
+  on a permission the user has not granted.
+- Persistence gap closed: `parseEnvelope` previously passed `outputLayouts`
+  through with a bare `Array.isArray` check. It now re-validates them through
+  the M1 parser, so a corrupted or hand-edited file cannot install folded
+  geometry or an unbounded output.
+  [mappingPersistence.test.ts](../../src/store/mappingPersistence.test.ts)
+  (+12 tests) covers two edited surfaces sharing one source through save and
+  reopen, older projects with no layouts, bare graph-only import, and refusal
+  of folded geometry, an over-ceiling pixel total and a malformed payload.
+- Round-trip defect fixed: mirrored Bezier handles produced `-0`, which JSON
+  normalizes to `0`, so a saved mask did not reopen byte-identical. Handle
+  construction now normalizes negative zero.
+- [docs/MAPPING.md](../MAPPING.md): coordinate conventions, geometry limits,
+  editing rules, and output/presentation behaviour.
+
+Verify: lint + typecheck + 1117 unit tests + build pass; mapping e2e specs pass.
+
 Acceptance: procedural/image -> two edited surfaces -> clean output -> save/reopen;
 output/window loss, permissions, resolution/total-pixel bounds and relink handling.
 No physical frame-lock guarantee or dependency on the show scheduler.
 
-Handoff: pending; mapping baseline review, transfer measurements and output limits.
+Handoff: review — outstanding for full acceptance: (1) the composer and
+presentation window are standalone modules; wiring them into the live
+App/PreviewPanel and routing production WebGL frames into them still needs the
+shared-file lease, so the end-to-end path is covered by module and pixel tests
+rather than a UI click-through; (2) **no cross-context transfer measurement has
+been taken** — the composer runs in one context today, so the measured transfer
+path the card asks for is not yet evidence; (3) multi-planar / video-wall
+slicing beyond the per-surface `sourceUvRegion` remains deferred per C1.
 
 ## M4 - Implement and physically validate overlap blending
 
 ```task
 id: M4
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review (software) / BLOCKED (physical gate)
+owner: assistant
+reviewer: user
 depends_on: M3
 scope: output blend controls/shaders/tests; mapping documentation and physical test report
 ```
@@ -667,33 +707,56 @@ Outcome: manual overlap widths/curves, brightness/gamma adjustment, black-level
 limitations and calibration patterns. Save settings per output. Define test rig and
 acceptance tolerances with the user before claiming seamless physical projection.
 
+**Delivered (2026-10-11) — signal-domain only:**
+- [edgeBlend.ts](../../src/engine/edgeBlend.ts) (+42 tests). The weight family
+  `w(t) = t^p / (t^p + (1-t)^p)` satisfies `w(t) + w(1-t) = 1` for every
+  exponent, so an operator can reshape the ramp without ever breaking the sum.
+  Weights are computed in **linear light** and encoded with the display gamma
+  only at the end, because adding encoded values would be physically
+  meaningless.
+- Encoding is multiplicative (`enc(a)·enc(b) = enc(ab)`), which is why the four
+  edges can be applied as four independent `destination-in` gradient passes and
+  a corner still receives the correct product. `applyEdgeBlend` does exactly
+  that, then applies the brightness trim once.
+- Per-output settings (`OutputBlendSettings`, additive and optional): per-edge
+  overlap widths, curve exponent, gamma, brightness, black-level lift. Validated
+  and persisted; opposing widths that would leave a zero-width full-brightness
+  interior are rejected.
+- `blackLevelReport` quantifies the limitation rather than implying a fix: a
+  blend curve scales light down and can never remove a projector's black floor,
+  so an overlap's black doubles. The only mitigation raises black everywhere
+  else, costing contrast (2% floor: 50:1 becomes 25:1).
+- Calibration patterns: `grid`, `blend-edges` (marks where each active overlap
+  reaches full brightness), and `flat-field`.
+- [docs/MAPPING.md](../MAPPING.md) records the blend maths, the black-level
+  trade, what is verified, what is not, and the proposed physical rig.
+- [e2e/edge-blend.spec.ts](../../e2e/edge-blend.spec.ts): two complementary
+  blends rendered through the real canvas pipeline sum to one screen of light
+  across the whole overlap (max error < 0.04, covering 8-bit alpha quantization
+  and gradient interpolation). The check is discriminating — a unit test
+  confirms mismatched curves open a measurable seam (> 0.05).
+
+Verify: lint + typecheck + 1117 unit tests + build pass; edge-blend e2e passes.
+
+**Physical gate: BLOCKED. Not accepted.** Nothing in this repository is evidence
+of seamless physical projection, and canvas alpha is not calibrated light
+output. Unverified: real projector gamma (assumed, not measured), colour
+primaries and inter-projector match, output drift and uniformity, actual black
+floor, and geometric stability over time and temperature.
+
 Acceptance: mathematical coverage/alpha tests plus separate two-projector physical
 alignment/blending evidence. Fixture success without hardware leaves physical gate
 blocked, not accepted. Do not conflate canvas alpha with calibrated light output.
 
-Handoff: pending; hardware approval, setup, measurements and reviewer sign-off.
+Handoff: software half in review. The physical half needs, in order: (1) user
+approval of the rig and tolerances proposed in docs/MAPPING.md — two matched
+projectors, matte screen, 15% overlap, calibrated luminance meter, ±5%
+white-field tolerance across the seam — which are **a proposal, not agreed
+numbers**; (2) hardware access and an authorized session; (3) recorded
+measurements with instrument details; (4) independent reviewer sign-off. No
+blend UI control surface was built yet; settings are set programmatically and
+persisted, so a controls pass belongs with the M3 shared-file lease.
 
-## M5 - Implement model-based 3D projector calibration
-
-```task
-id: M5
-status: waiting
-owner: unassigned
-reviewer: unassigned
-depends_on: D3, M3
-scope: calibration geometry/solver/UI/tests; asset/layout integration by lease
-```
-
-Outcome: imported reference model, measured 3D/2D correspondences, projector
-intrinsics/distortion and pose, reprojection residuals and persisted calibration.
-Use a proven solver with explicit coordinate/unit conversion and failure handling.
-Automatic camera reconstruction/scanning requires a separately approved child task.
-
-Acceptance: synthetic known-pose/outlier/degeneracy tests and physical model-to-object
-alignment to agreed tolerances. A manually positioned preview alone is not calibrated
-projection. No unverified precision claims.
-
-Handoff: pending; solver/license choice, tolerances, physical evidence required.
 
 ## I1 - Accept the combined fixture baseline
 

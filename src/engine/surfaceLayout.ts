@@ -24,8 +24,10 @@ import {
   type SurfaceLayout,
   type SurfaceMaskPath,
   type SurfaceMaskPoint,
+  type OutputBlendSettings,
   type SurfaceMeshWarp,
 } from '../store/contracts';
+import { validateBlendSettings } from './edgeBlend';
 import type { ProjectionShape } from './projection';
 
 /** Point in screen space (y-down, top-left origin). */
@@ -397,6 +399,11 @@ export function validateOutputLayout(output: OutputLayout): LayoutValidation {
   if (!Number.isFinite(output.layoutX) || !Number.isFinite(output.layoutY)) {
     errors.push('Output layout coordinates must be finite.');
   }
+  if (output.blend !== undefined) {
+    for (const error of validateBlendSettings(output.blend).errors) {
+      errors.push(error);
+    }
+  }
   const seen = new Set<string>();
   for (const surface of output.surfaces) {
     if (seen.has(surface.id)) {
@@ -623,6 +630,26 @@ function parseSurface(value: unknown, path: string): SurfaceLayout {
   };
 }
 
+function parseBlend(value: unknown, path: string): OutputBlendSettings {
+  const record = expectRecord(value, path);
+  const edges = expectRecord(record.edges, `${path}.edges`);
+  return {
+    edges: {
+      left: expectNumber(edges.left, `${path}.edges.left`),
+      right: expectNumber(edges.right, `${path}.edges.right`),
+      top: expectNumber(edges.top, `${path}.edges.top`),
+      bottom: expectNumber(edges.bottom, `${path}.edges.bottom`),
+    },
+    curve: expectNumber(record.curve, `${path}.curve`),
+    gamma: expectNumber(record.gamma, `${path}.gamma`),
+    brightness: expectNumber(record.brightness, `${path}.brightness`),
+    blackLevelLift: expectNumber(
+      record.blackLevelLift,
+      `${path}.blackLevelLift`,
+    ),
+  };
+}
+
 /** Parses serialized layouts. Throws `SurfaceLayoutError` when invalid. */
 export function parseOutputLayouts(text: string): readonly OutputLayout[] {
   let raw: unknown;
@@ -634,7 +661,7 @@ export function parseOutputLayouts(text: string): readonly OutputLayout[] {
   const outputs = expectArray(raw, 'layouts').map((entry, index) => {
     const path = `layouts[${index}]`;
     const record = expectRecord(entry, path);
-    return {
+    const base = {
       id: expectString(record.id, `${path}.id`),
       name: expectString(record.name, `${path}.name`),
       width: expectNumber(record.width, `${path}.width`),
@@ -645,6 +672,13 @@ export function parseOutputLayouts(text: string): readonly OutputLayout[] {
         (surface, surfaceIndex) =>
           parseSurface(surface, `${path}.surfaces[${surfaceIndex}]`),
       ),
+    };
+    if (record.blend === undefined || record.blend === null) {
+      return base satisfies OutputLayout;
+    }
+    return {
+      ...base,
+      blend: parseBlend(record.blend, `${path}.blend`),
     } satisfies OutputLayout;
   });
   const result = validateOutputLayouts(outputs);

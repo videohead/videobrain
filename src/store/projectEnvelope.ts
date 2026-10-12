@@ -20,6 +20,7 @@ import {
   serializeGraphDocument,
   type GraphDocument,
 } from '../graph';
+import { parseOutputLayouts } from '../engine/surfaceLayout';
 import {
   type AssetStore,
 } from './assetStore';
@@ -163,9 +164,26 @@ export function parseEnvelope(value: unknown): EnvelopeParseResult {
         }
       }
 
-      const outputLayouts = Array.isArray(value.outputLayouts)
-        ? (value.outputLayouts as OutputLayout[])
-        : [];
+      // M3: saved mapping layouts are re-validated on reopen, so a corrupted
+      // or hand-edited file cannot install folded geometry or an unbounded
+      // output. Absent layouts stay an empty list, preserving older projects.
+      let outputLayouts: readonly OutputLayout[] = [];
+      if (value.outputLayouts !== undefined) {
+        if (!Array.isArray(value.outputLayouts)) {
+          return { ok: false, error: 'outputLayouts must be an array.' };
+        }
+        try {
+          outputLayouts = parseOutputLayouts(JSON.stringify(value.outputLayouts));
+        } catch (error) {
+          return {
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Invalid output layouts.',
+          };
+        }
+      }
       const generationJobs = Array.isArray(value.generationJobs)
         ? (value.generationJobs as GenerationJob[])
         : [];
