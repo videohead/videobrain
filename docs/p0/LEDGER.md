@@ -7,9 +7,14 @@
 
 | ID | Status | Owner | Started | Evidence |
 |----|--------|-------|---------|----------|
-| D3 | review | assistant | 2026-10-11 | Import UI + hook + renderer bridge; 829 tests + catalog + e2e pass |
+| D5 | review | assistant | 2026-10-11 | GPU instance batches; catalog 23; unit + e2e pixel evidence |
 
 **Delivered work (2026-10-11) — real code, not documentation:**
+- ✅ D5: [src/graph/sceneInstancing.ts](../../src/graph/sceneInstancing.ts) + tests — GPU-free batch planner with grid/ring layouts, 64-instance bound, aggregate triangle/draw/texture budgets, and incompatibility diagnostics
+- ✅ D5: `instance3d` node kind (catalog 22→23), evaluator expansion of one Asset 3D placement into a bounded batch, `instance-glb-stage` preset, OPERATOR_META entry
+- ✅ D5: [src/engine/Scene3DRenderer.ts](../../src/engine/Scene3DRenderer.ts) — one `InstancedMesh` per static mesh (instance count does not multiply draw calls), cached per source scene + count, disposed on release; duplicated-placement fallback with surfaced diagnostics
+- ✅ D5: `WebGLRenderer.getLastBatchReport()` exposes instances/draw calls/triangles/diagnostics; e2e pixel test `e2e/scene-instance.spec.ts` verifies 8 placements render as 1 instanced draw call with visible pixels
+- ✅ D3: Import UI + hook + renderer bridge; 829 tests + catalog + e2e pass (prior record retained below)
 - ✅ C2: [src/store/contracts.ts](../../src/store/contracts.ts) + [src/store/contracts.test.ts](../../src/store/contracts.test.ts) (20 tests)
 - ✅ C3: 7 real fixtures via [scripts/generate-fixtures.mjs](../../scripts/generate-fixtures.mjs); GLBs are valid glTF 2.0 geometry (24 verts, 36 indices), hash-recorded in fixture-manifest.json
 - ✅ A1: [src/store/assetStore.ts](../../src/store/assetStore.ts) + [src/store/assetStore.test.ts](../../src/store/assetStore.test.ts) (16 tests): ingest/resolve/reopen, dedup, quota, validation, failure isolation, retain/release, relink mismatch, remove
@@ -111,7 +116,7 @@ None.
 | D2 | Graph integration | **review** | A1,D1 | Live asset3d + renderer + preset; 820 tests + Playwright pixel test pass |
 | D3 | 3D import baseline | **review** | D2,A2 | useSceneAssets + SceneAssetControl + Inspector/renderer bridge; 829 tests + catalog gate |
 | D4 | Format adapters | waiting | D3 | Deferred per C1 (OBJ/FBX/STL/3MF/3DS/USD) |
-| D5 | GPU instancing | waiting | D3 | Blocked on D3 |
+| D5 | GPU instancing | **review** | D3 | Instance 3D + batch planner + InstancedMesh renderer + e2e pixel evidence |
 | G1 | Generation jobs | waiting | C2,C3 | Blocked on contracts |
 | G2 | Generation UI | waiting | G1,A2 | Blocked on G1, A2 |
 | G3 | Hosted adapter | waiting | G2 | Blocked on G2 |

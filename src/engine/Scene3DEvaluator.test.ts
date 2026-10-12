@@ -16,4 +16,24 @@ describe('scene descriptor evaluation', () => {
     expect(primitive.geometry).toMatchObject({ transforms: [] });
     expect(evaluateScene3D(compiled('transform3d'), {})).toEqual({ geometry: null, points: null });
   });
+  it('expands an asset placement into a bounded instance batch', () => {
+    const asset = {
+      kind: 'asset-scene',
+      assetId: 'fixture',
+      assetHash: 'a'.repeat(64),
+      assetKind: 'glb',
+      placement: { position: [1, 0, 1], rotation: [0, 0, 0], scale: [1, 1, 1] },
+    } as const;
+    const batch = evaluateScene3D(compiled('instance3d'), { assetScene: asset });
+    const batched = batch.assetScene as typeof asset & { placements: readonly unknown[] };
+    expect(batched.assetHash).toBe(asset.assetHash);
+    expect(batched.placements).toHaveLength(4);
+    expect(batched.placement).toEqual(asset.placement);
+    const ring = evaluateScene3D(
+      { node: createGraphNode('instance3d', { x: 0, y: 0 }, { mode: 'ring' }), definition: getOperatorDefinition('instance3d'), inputs: {} },
+      { assetScene: asset },
+    );
+    expect((ring.assetScene as typeof batched).placements).toHaveLength(4);
+    expect(evaluateScene3D(compiled('instance3d'), { assetScene: null })).toEqual({ assetScene: null });
+  });
 });

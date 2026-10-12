@@ -61,4 +61,29 @@ describe('3D descriptor budgets', () => {
     expect(() => validateGeometry({ ...box, transforms: Array.from({ length: 17 }, () => transform) })).toThrow();
     expect(() => validateGeometry({ ...box, transforms: [{ ...transform, position: [NaN, 0, 0] }] })).toThrow();
   });
+  it('wires Instance 3D between Asset 3D and Render 3D and bounds instance counts', () => {
+    const definition = SCENE_3D_DEFINITIONS.find(({ kind }) => kind === 'instance3d')!;
+    expect(definition.inputs[0]).toMatchObject({ id: 'assetScene', type: 'scene.asset', optional: true });
+    expect(definition.inputs.map(({ id }) => id)).toEqual(['assetScene', 'count', 'spacing', 'radius']);
+    expect(definition.outputs.map(({ id, type }) => [id, type])).toEqual([['assetScene', 'scene.asset']]);
+    expect(definition.params.count).toMatchObject({ min: 1, max: 64 });
+    const document: GraphDocument = { schemaVersion: GRAPH_SCHEMA_VERSION,
+      nodes: [
+        createGraphNode('asset3d', { x: 0, y: 0 }, {}, 'asset'),
+        createGraphNode('instance3d', { x: 300, y: 0 }, {}, 'instances'),
+        createGraphNode('render3d', { x: 600, y: 0 }, {}, 'render'),
+        createGraphNode('display', { x: 900, y: 0 }, {}, 'output'),
+      ],
+      edges: [
+        { id: 'asset-instances', source: { nodeId: 'asset', portId: 'assetScene' }, target: { nodeId: 'instances', portId: 'assetScene' } },
+        { id: 'instances-render', source: { nodeId: 'instances', portId: 'assetScene' }, target: { nodeId: 'render', portId: 'assetScene' } },
+        { id: 'frame', source: { nodeId: 'render', portId: 'frame' }, target: { nodeId: 'output', portId: 'source' } },
+      ],
+    };
+    expect(parseGraphDocument(serializeGraphDocument(document))).toEqual(document);
+    const compiled = compileGraph(document);
+    expect(compiled.reachableNodeIds.has('instances')).toBe(true);
+    const bad = { ...document, edges: [{ id: 'bad', source: { nodeId: 'instances', portId: 'assetScene' }, target: { nodeId: 'output', portId: 'source' } }] };
+    expect(() => compileGraph(bad)).toThrow('scene.asset');
+  });
 });

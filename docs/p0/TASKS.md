@@ -349,7 +349,7 @@ Handoff: pending; child IDs, format matrix, licensing and fidelity evidence requ
 
 ```task
 id: D5
-status: waiting
+status: review
 owner: unassigned
 reviewer: unassigned
 depends_on: D3
@@ -361,11 +361,18 @@ per-instance transforms. Distinguish scene duplication from GPU instancing.
 Define animation/skinning/morph support or approved exclusions; independent
 character animation is not implied by static instancing.
 
+**Delivered (2026-10-11):**
+- [sceneInstancing.ts](../../../src/graph/sceneInstancing.ts) (+10 tests): grid/ring instance layout generation (64 max), aggregate batch budgets (65,536 triangles / 64 draws / 64 textures), incompatibility diagnostics without silent freezing
+- `instance3d` node (catalog 22→23): expands one Asset 3D placement into a bounded batch; duplication of Asset 3D nodes remains independent scene duplication
+- [Scene3DRenderer.ts](../../../src/engine/Scene3DRenderer.ts): one `InstancedMesh` per static mesh so instance count does not multiply draw calls; batches cached per source scene + count; disposed on release/context teardown; duplicated-placement fallback with surfaced diagnostics
+- `WebGLRenderer.getLastBatchReport()` for aggregate GPU draw/instance/triangle evidence; `instance-glb-stage` preset; docs/SCENE_3D.md instancing section
+- e2e pixel test `scene-instance.spec.ts`: 8 placements render as 1 instanced draw call with visible, independently placed pixels
+
+Verify: lint + typecheck + unit tests + build; e2e scene-instance pixel test.
+
 Acceptance: visible independent placement, aggregate geometry/draw/memory budgets,
 batch incompatibility diagnostics, shared-resource cleanup and performance evidence.
 No general particle simulation or unlimited scene hierarchy scope.
-
-Handoff: pending; compatibility matrix and GPU draw/resource measurements required.
 
 ## G1 - Implement fixture-backed generation jobs
 

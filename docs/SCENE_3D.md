@@ -1,10 +1,11 @@
 # 3D Scene Foundation
 
-The 3D Scene category adds fourteen nodes: Vector 2/3/4, Split Vector 2/3/4,
+The 3D Scene category adds fifteen nodes: Vector 2/3/4, Split Vector 2/3/4,
 Primitive 3D, Grid / Line 3D, Transform 3D, Camera 3D, Light 3D, PBR Material,
-Asset 3D, and Render 3D. These are source-implemented features; deployment is
-separate. Particles, instancing, and general scene hierarchies remain P1/P-later;
-static GLB/glTF import now ships via Asset 3D.
+Asset 3D, Instance 3D, and Render 3D. These are source-implemented features;
+deployment is separate. Particles, general scene hierarchies, and animated
+instancing remain P1/P-later; static GLB/glTF import and bounded static GPU
+instancing now ship via Asset 3D and Instance 3D.
 
 ## Teaching patches
 
@@ -144,6 +145,33 @@ Decoding uses the pinned Three.js GLTFLoader with an empty resource path, so no
 implicit network fetch occurs. Imported cameras and lights are not activated;
 graph Camera 3D and Light 3D remain authoritative. The `local-glb-stage` preset
 demonstrates the import-to-render path.
+
+## GPU instance batches (Instance 3D)
+
+Catalog 23 adds the **Instance 3D** node. It consumes one `scene.asset`
+placement and emits a bounded batch of per-instance transforms in a grid or
+ring layout (1..64 instances, controlled spacing/radius). The source placement
+transform is applied under every instance, so the Asset 3D node stays the
+single editable placement authority; duplicating an Asset 3D node remains
+independent scene duplication, not GPU instancing.
+
+Rendering builds one `InstancedMesh` per static mesh in the decoded scene, so
+instance count does not multiply draw calls: 64 instances of a one-mesh model
+are one GPU draw. Batches are validated before rendering against aggregate
+budgets (65,536 triangles, 64 distinct mesh draws, 64 texture slots, 64
+placements). Incompatible or over-budget batches never freeze or strip
+content: the renderer reports the first diagnostic on the render result and
+falls back to duplicated placements sharing geometry and materials. Skins and
+animation remain outside the static subset (rejected at import), so instanced
+characters are not implied by static batches.
+
+Shared-resource cleanup keeps a single decoded scene per content hash. Batch
+`InstancedMesh`es are cached per source scene and instance count, rebuilt when
+the count changes, and disposed when the last Render 3D releases the scene or
+the renderer is disposed. `WebGLRenderer.getLastBatchReport()` exposes the
+latest aggregate (instances, draw calls, instanced draw calls, triangles,
+diagnostics) as performance evidence for tests and tooling. The
+`instance-glb-stage` preset demonstrates the import → instance → render path.
 
 ## Verification
 

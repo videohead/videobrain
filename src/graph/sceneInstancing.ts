@@ -11,6 +11,9 @@ import {
   type ScenePlacement,
 } from './scene3d';
 
+export { MAX_ASSET_INSTANCES } from './scene3d';
+export type { ScenePlacement } from './scene3d';
+
 /** Aggregate per-batch caps shared with the renderer. */
 export const MAX_BATCH_TRIANGLES = 65536;
 export const MAX_BATCH_DRAW_CALLS = 64;

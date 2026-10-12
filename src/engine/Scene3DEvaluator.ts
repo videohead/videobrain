@@ -1,6 +1,6 @@
 import type { CompiledNode } from '../graph';
 import { SCENE_3D_DEFINITIONS } from '../graph/scene3dOperators';
-import { instancePlacements, type InstanceLayout } from '../graph/sceneInstancing';
+import { instancePlacements } from '../graph/sceneInstancing';
 import { validateGeometry, type Geometry3DValue, type Scene3DValue, type VectorValue } from '../graph/scene3d';
 
 const kinds = new Set(SCENE_3D_DEFINITIONS.filter(({ domain }) => domain === 'control').map(({ kind }) => kind));
@@ -67,17 +67,18 @@ export function evaluateScene3D(compiled: CompiledNode, input: Record<string, Sc
     }
     case 'instance3d': {
       const source = input.assetScene;
-      if (!source || source.kind !== 'asset-scene') {
+      const assetScene = source && typeof source === 'object' && 'kind' in source && source.kind === 'asset-scene' ? source : null;
+      if (!assetScene) {
         return { assetScene: null };
       }
       const params = {
-        layout: (node.params.mode === 'ring' ? 'ring' : 'grid') as InstanceLayout,
+        layout: node.params.mode === 'ring' ? 'ring' as const : 'grid' as const,
         count: number('count'),
         spacing: number('spacing'),
         radius: number('radius'),
       };
-      const placements = instancePlacements(source.placement, params);
-      return { assetScene: { ...source, placements } };
+      const placements = instancePlacements(assetScene.placement, params);
+      return { assetScene: { ...assetScene, placements } };
     }
     default: return {};
   }
