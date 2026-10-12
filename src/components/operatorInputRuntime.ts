@@ -6,9 +6,11 @@ import type {
 } from '../hooks/useVideoInput';
 import type { AudioMixerConfig, FileInputController } from '../hooks/useFileInput';
 import type { NetworkVideoRuntime } from '../hooks/useNetworkVideo';
+import type { ComfyGenerateRuntime } from '../hooks/useComfyGenerate';
 
 export interface OperatorInputRuntime {
   networkVideo?: NetworkVideoRuntime;
+  comfyGenerate?: ComfyGenerateRuntime;
   mixerConfig?: AudioMixerConfig | null;
   audioRouteConnected?: boolean;
   audio: {

@@ -5,6 +5,7 @@ import {
   Pause,
   Play,
   Radio,
+  Sparkles,
   Square,
   Video,
   Volume2,
@@ -113,6 +114,106 @@ export function NodeMediaControls({
           }}>
           {connected ? <Square aria-hidden="true" /> : <Radio aria-hidden="true" />}
           {connected ? 'Disconnect stream' : 'Connect stream'}
+        </button>
+      </section>
+    );
+  }
+
+  if (kind === 'comfyGenerate') {
+    const comfy = runtime.comfyGenerate;
+    const id = nodeId ?? '';
+    const status = comfy?.getStatus(id);
+    const state = status?.state ?? 'idle';
+    const busy = [
+      'connecting',
+      'submitting',
+      'queued',
+      'running',
+      'fetching',
+      'cancel-requested',
+    ].includes(state);
+    const blocker = status?.error ?? status?.readiness ?? null;
+    const slots = status?.template?.modelSlots ?? [];
+    return (
+      <section
+        className="node-input-runtime nodrag nopan nowheel"
+        aria-label="ComfyUI generate controls"
+      >
+        <span
+          className={`node-input-state ${state === 'ready' ? 'is-live' : ''}`}
+          aria-live="polite"
+        >
+          <i aria-hidden="true" />
+          {state}
+        </span>
+        {status?.capabilities ? (
+          <p className="node-input-hint">
+            ComfyUI {status.capabilities.comfyVersion} ·{' '}
+            {status.capabilities.devices[0]?.name ?? 'cpu'}
+          </p>
+        ) : null}
+        {blocker ? (
+          <p className="node-input-hint" role="alert">
+            {blocker}
+          </p>
+        ) : null}
+        {slots.map((slot) => {
+          const options = status?.capabilities?.models.get(slot.folder) ?? [];
+          return (
+            <label key={slot.id} className="node-input-field">
+              <span>{slot.label}</span>
+              <select
+                value={status?.models[slot.id] ?? ''}
+                onPointerDown={(event) => event.stopPropagation()}
+                onChange={(event) => {
+                  onSelect();
+                  comfy?.selectModel(id, slot.id, event.target.value);
+                }}
+              >
+                <option value="">Choose…</option>
+                {options.map((filename) => (
+                  <option key={filename} value={filename}>
+                    {filename}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        })}
+        <button
+          type="button"
+          className="node-input-button"
+          disabled={busy}
+          title="Read server capabilities and installed models"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect();
+            void comfy?.discover(id);
+          }}
+        >
+          <Radio aria-hidden="true" />
+          {status?.capabilities ? 'Refresh server' : 'Connect server'}
+        </button>
+        <button
+          type="button"
+          className={`node-input-button ${busy ? 'is-stop' : ''}`}
+          disabled={!busy && !(comfy?.canGenerate(id) ?? false)}
+          title={
+            busy
+              ? 'Cancel this generation'
+              : blocker ?? 'Queue this workflow on the server'
+          }
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect();
+            if (busy) comfy?.cancel(id);
+            else void comfy?.generate(id);
+          }}
+        >
+          {busy ? <Square aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
+          {busy ? 'Cancel' : 'Generate'}
         </button>
       </section>
     );

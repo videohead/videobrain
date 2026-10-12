@@ -84,6 +84,7 @@ export const OPERATOR_META: Record<NodeKind, OperatorMeta> = {
   audioOutput: { accent: '#ff795c', icon: Volume2, shortLabel: 'Audio' },
   audioMixer: { accent: '#f59e6b', icon: SlidersHorizontal, shortLabel: 'Mixer' },
   videoModel: { accent: '#70e4ff', icon: Cpu, shortLabel: 'Model' },
+  comfyGenerate: { accent: '#9d7bff', icon: Sparkles, shortLabel: 'Comfy' },
   solid: { accent: '#5fe6ff', icon: Circle, shortLabel: 'Solid' },
   gradient: { accent: '#f0a6cc', icon: Blend, shortLabel: 'Gradient' },
   shape: { accent: '#5fe6cc', icon: Shapes, shortLabel: 'Shape' },

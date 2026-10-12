@@ -126,6 +126,15 @@ interface VideoModelTexture {
 
 type VideoSource = HTMLVideoElement | HTMLImageElement;
 
+/** Node kinds whose frame comes from an externally supplied image or video. */
+function usesModelSourceTexture(kind: NodeKind): boolean {
+  return (
+    kind === 'videoModel' ||
+    kind === 'networkVideo' ||
+    kind === 'comfyGenerate'
+  );
+}
+
 interface SmoothControlState {
   value: number;
   time: number;
@@ -1174,7 +1183,7 @@ export class WebGLRenderer {
     }
     const activeNodeIds = new Set(
       this.plan?.frameNodes
-        .filter(({ node }) => node.kind === 'videoModel' || node.kind === 'networkVideo')
+        .filter(({ node }) => usesModelSourceTexture(node.kind))
         .map(({ node }) => node.id) ?? [],
     );
 
@@ -1315,7 +1324,7 @@ export class WebGLRenderer {
     }
     const activeModelIds = new Set(
       graph.frameNodes
-        .filter(({ node }) => node.kind === 'videoModel' || node.kind === 'networkVideo')
+        .filter(({ node }) => usesModelSourceTexture(node.kind))
         .map(({ node }) => node.id),
     );
     let sourcePixels = graph.frameNodes.some(
@@ -2115,12 +2124,15 @@ export class WebGLRenderer {
           this.stringParam(compiledNode, 'mirror') === 'on' ? 1 : 0,
         );
         break;
+      case 'comfyGenerate':
       case 'networkVideo': {
         const texture = this.uploadVideoModelFrame(compiledNode.node.id);
         const source = this.videoModelSources.get(compiledNode.node.id);
         const size = source instanceof HTMLVideoElement
           ? readVideoFrameSize(source, this.maxTextureDimension, MAX_RENDER_PIXELS)
-          : null;
+          : source instanceof HTMLImageElement
+            ? readImageFrameSize(source, this.maxTextureDimension, MAX_RENDER_PIXELS)
+            : null;
         this.bindTexture(program, 'uSource', texture ?? this.transparentTexture ?? this.fallbackTexture(), 0);
         this.uniform2f(program, 'uSourceSize', size?.width ?? 1, size?.height ?? 1);
         this.uniform1f(program, 'uFit', videoFitIndex(this.stringParam(compiledNode, 'fit')));

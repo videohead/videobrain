@@ -586,6 +586,24 @@ Video Model has two deliberately separate behaviors:
 
 The browser does not host or launch the model and does not translate arbitrary vendor APIs. A provider-specific runtime normally needs a local adapter or trusted API gateway implementing `videobrain.frames.v1`. Endpoint URLs, prompt text, and model/workflow identifiers are project data. Credentials, sockets, requests, camera encoders, and decoded image handles remain session/runtime data. See [Model Connectors](MODEL_CONNECTORS.md) for the wire contract and trust boundary.
 
+Catalog 24 adds **ComfyUI Generate**, a third and deliberately different shape.
+Where Video Model streams latest frames, this node queues one durable job
+against a ComfyUI server's own documented HTTP routes and ingests the finished
+image or clip through the asset store, so the result outlives the session as
+content-addressed media with provenance rather than a replaceable texture.
+
+It is a bounded adapter, not a workflow runner. Reviewed built-in templates
+declare the node classes and model slots they require; those requirements are
+validated against a discovered server snapshot before submission, and an
+imported or user-supplied workflow is never executed. Job state follows the
+generation contract (`submitting`, `queued`, `running`, `fetching`, `ready`,
+`failed`, `cancel-requested`, `cancelled`, `unknown`). Polling is explicit and
+never driven from the render loop. A submission whose response is lost is
+reconciled by request marker rather than resubmitted, because a retry could
+duplicate real work. Cancellation removes our own queued prompt by id and
+reaches the server-wide interrupt only once the queue proves the running prompt
+is ours, which keeps a shared server safe.
+
 ## System boundaries
 
 | Boundary | Responsibility | Must not own |
@@ -613,7 +631,8 @@ The current implementation enforces these limits before replacing a valid plan:
 - up to 16 reachable frame processors, 17 GPU passes, and 20 offscreen targets;
 - output capped to 2,048 pixels per dimension, 2,073,600 pixels total (a 1080p-sized area), and 1.5× device pixel ratio;
 - generated model images capped to 20 MiB before decode and to the same dimension/pixel limits afterward;
-- outbound model-camera frames capped to a 768-pixel longest edge and 30 fps, with transmission paused above a 4 MiB socket backlog.
+- outbound model-camera frames capped to a 768-pixel longest edge and 30 fps, with transmission paused above a 4 MiB socket backlog;
+- ComfyUI discovery responses capped to 8 MiB, generated outputs to 20 MiB, and one queued job to a 20-minute budget.
 
 Parameter keys, types, numeric ranges, select options, and text lengths are validated against the registry. Missing registered parameters receive their defaults; unknown data is rejected transactionally.
 
@@ -630,6 +649,7 @@ or make safe flashes already present in an upstream frame.
 - Camera and microphone access starts only after an explicit user action and has a visible active state.
 - The built-in model preview is local visual processing, not inference, and opens no network connection.
 - Local/API model modes accept only a compatible HTTP/WebSocket adapter contract; they do not make arbitrary third-party APIs directly compatible.
+- ComfyUI Generate submits only reviewed built-in workflow templates, validated against the target server's installed node classes and model files. An imported or user-supplied workflow is never executed, and cancellation prefers removing our own queued prompt over the server-wide interrupt.
 - Model credentials remain in memory, are scoped to the configured endpoint, and are never serialized or exported.
 - Camera frames leave the tab only while the camera is live, directly connected to Video Model, and its compatible WebSocket is open.
 - API adapters and every credential-bearing connection require HTTPS/WSS. Plain HTTP/WS is limited to credential-free Local loopback use, and the hosted HTTPS page rejects both plaintext transports.

@@ -211,6 +211,11 @@ const recipes = [
     path: 'AI Chat → Video Model Prompt; visual source → Video Model → Display',
     note: 'Edit the AI Chat draft and press Apply to publish it. Preview is a built-in visual effect that does not interpret the prompt. Local/API adapters consume the applied text.',
   },
+  {
+    title: 'Generate on your own ComfyUI server',
+    path: 'AI Chat → ComfyUI Generate Prompt; ComfyUI Generate → Transform 2D → Display',
+    note: 'Open ComfyUI Generate, enter your server address, and press Connect server to read its installed nodes and models. Pick a workflow, choose a model for each slot, then press Generate. Only reviewed built-in workflows are submitted, the required nodes and files are checked first, and the finished image or clip is stored as a project asset rather than a passing frame.',
+  },
 ];
 
 export function HelpDialog({ onClose }: HelpDialogProps) {
@@ -447,7 +452,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           </section>
 
           <section id="help-recipes" className="help-section">
-            <h2>Seventeen patches to try</h2>
+            <h2>{recipes.length} patches to try</h2>
             <div className="help-recipe-list">
               {recipes.map((recipe) => (
                 <article key={recipe.title}>
@@ -471,7 +476,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           </section>
 
           <section id="help-models" className="help-section">
-            <h2>AI Chat and Video Model</h2>
+            <h2>AI Chat, Video Model, and ComfyUI</h2>
             <p>
               AI Chat emits a typed prompt. A Local/API Video Model adapter
               consumes that prompt and produces a frame. The default Preview
@@ -497,6 +502,28 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               plain transport is limited to a credential-free Local loopback
               adapter. The hosted HTTPS app rejects plaintext WebSocket and
               HTTP model endpoints.
+            </p>
+            <h3>Generating with ComfyUI</h3>
+            <p>
+              <strong>ComfyUI Generate</strong> works differently: instead of
+              streaming frames, it queues one job on a ComfyUI server you run and
+              keeps the finished image or clip as a stored asset. Enter the server
+              address, press <strong>Connect server</strong> to read its installed
+              nodes and models, choose a model for each slot, then press{' '}
+              <strong>Generate</strong>.
+            </p>
+            <p>
+              Only reviewed built-in workflows are submitted; an imported or
+              pasted ComfyUI workflow is never executed. The node checks that the
+              server actually has the required nodes and model files first, so a
+              missing checkpoint reports a plain message instead of a server
+              error. Cancel removes your own queued job, and a shared server is
+              never interrupted unless the running job is yours.
+            </p>
+            <p className="help-note">
+              A Comfy Cloud key stays in memory for this tab, requires HTTPS, and
+              is sent only to workflows whose nodes call Comfy&rsquo;s hosted API.
+              The bundled workflows run on your own hardware and bill nothing.
             </p>
             <p>
               <a href={MODEL_CONNECTORS_URL} target="_blank" rel="noreferrer">

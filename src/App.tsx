@@ -46,6 +46,7 @@ import {
 } from './hooks/useFileInput';
 import { useVideoModel } from './hooks/useVideoModel';
 import { useNetworkVideo } from './hooks/useNetworkVideo';
+import { useComfyGenerate } from './hooks/useComfyGenerate';
 import { useSceneAssets } from './hooks/useSceneAssets';
 import {
   projectStore,
@@ -197,11 +198,13 @@ function Studio() {
     videoInputState === 'live' ? videoElement : null,
   );
   const networkVideo = useNetworkVideo(graphDocument);
+  const comfyGenerate = useComfyGenerate(graphDocument);
   const sceneAssets = useSceneAssets(graphDocument);
   const externalFrameSources = useMemo(() => new Map<string, HTMLImageElement | HTMLVideoElement>([
     ...videoModel.frames,
     ...networkVideo.sources,
-  ]), [videoModel.frames, networkVideo.sources]);
+    ...comfyGenerate.sources,
+  ]), [videoModel.frames, networkVideo.sources, comfyGenerate.sources]);
   const resetVideoModels = videoModel.resetAll;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toastTimerRef = useRef<number | undefined>(undefined);
@@ -214,6 +217,7 @@ function Studio() {
   const graphInputRuntime = useMemo<OperatorInputRuntime>(
     () => ({
       networkVideo,
+      comfyGenerate,
       audioRouteConnected,
       audio: {
         inputState: audio.inputState,
@@ -275,6 +279,7 @@ function Studio() {
       getRuntimeFile,
       audioRouteConnected,
       networkVideo,
+      comfyGenerate,
     ],
   );
 

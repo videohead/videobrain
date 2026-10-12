@@ -23,7 +23,7 @@ necessarily present on the running site.
 | Projection | Projector Mapping: four-corner planar warp, movement, scale, rotation, and edge modes |
 | 3D foundation | Vector 2/3/4 and Split Vector nodes, Primitive 3D, Grid / Line 3D, Transform 3D, Camera 3D, Light 3D, PBR Material, and shared-context Three.js Render 3D; see [3D contracts](SCENE_3D.md) |
 | Audio | Audio Level, File audio, Audio Mixer, opt-in Audio Output, Audio Spectrum scalar bands, Audio Trigger, and Audio Beat Clock |
-| Models | AI Chat and Video Model built-in preview or optional compatible adapter; session-only credentials |
+| Models | AI Chat and Video Model built-in preview or optional compatible adapter; ComfyUI Generate queues allowlisted workflows on a user-run ComfyUI server and stores the result as a durable asset; session-only credentials |
 | Controllers | Web MIDI notes/7-bit CC Learn, browser-local parameter/source/transport mappings, and optional authenticated Bitfocus Companion bridge |
 | Data/text | Text Source, Text Format, Number to Text, Text to Number, JSON Parse, JSON Select, JSON to Text, CSV Parse, Table to CSV, Table Transform, Table Cell, and Table Join |
 | Browser data I/O | Explicit Fetch, WebSocket, Server Events, namespaced Storage, and Inspect as a data demand root |

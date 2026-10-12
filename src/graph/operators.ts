@@ -544,6 +544,38 @@ const definitions = [
     },
   },
   {
+    kind: 'comfyGenerate',
+    title: 'ComfyUI Generate',
+    summary:
+      'Queue an allowlisted ComfyUI workflow on a local or remote server and show the generated image or clip.',
+    domain: 'frame',
+    category: 'interaction-ai',
+    inputs: [port('prompt', 'Prompt', 'text.utf8', true)],
+    outputs: [port('frame', 'Frame', 'frame.rgba')],
+    params: {
+      endpoint: textParam('Server URL', 'http://127.0.0.1:8188/', 2_048, {
+        placeholder: 'https://host/comfy/',
+      }),
+      workflow: selectParam('Workflow', 'checkpoint-image', [
+        'checkpoint-image',
+        'wan-text-to-video',
+      ]),
+      prompt: textParam('Prompt', 'a luminous living landscape', 2_000, {
+        multiline: true,
+      }),
+      negativePrompt: textParam('Negative prompt', '', 2_000, { multiline: true }),
+      width: numberParam('Width', 1024, 64, 2048, 8),
+      height: numberParam('Height', 1024, 64, 2048, 8),
+      steps: numberParam('Steps', 20, 1, 60, 1),
+      cfg: numberParam('CFG', 7, 0, 20, 0.1),
+      seed: numberParam('Seed', 42, 0, 65_535, 1),
+      frames: numberParam('Frames', 49, 5, 121, 4),
+      fps: numberParam('Clip FPS', 16, 1, 60, 1),
+      fit: selectParam('Fit', 'contain', ['cover', 'contain', 'stretch']),
+      mirror: selectParam('Mirror', 'off', ['on', 'off']),
+    },
+  },
+  {
     kind: 'solid',
     title: 'Solid Color',
     summary: 'A uniform RGBA frame with individually controllable channels.',

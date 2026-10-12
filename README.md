@@ -46,6 +46,9 @@ The proof of concept opens into a working composition and runs locally without a
   with 3D Primitive Lab and Vector & Grid Lab; see [3D Scene Foundation](docs/SCENE_3D.md)
 - AI Chat prompt text and a Video Model node with a permission-free built-in
   visual preview plus compatible user-run local/API adapter modes
+- A ComfyUI Generate node that queues allowlisted image and clip workflows on
+  your own ComfyUI server and keeps the result as a stored asset; see
+  [Model Connectors](docs/MODEL_CONNECTORS.md#comfyui-generate-node)
 - Live WebGL2 output with play, pause, reset, fullscreen, and selectable
   display-synced/60/30 fps monitor pacing
 - Node creation, connection, deletion, movement, and parameter editing
@@ -251,6 +254,26 @@ Local loopback adapter. The hosted secure page rejects both `ws://` and
 loopback endpoint or give the adapter TLS.
 Other visual inputs affect Preview mode locally but are not uploaded by this
 release.
+
+### ComfyUI Generate
+
+**ComfyUI Generate** is a separate contract from Video Model. Instead of
+streaming frames, it queues one job against a ComfyUI server you run, then keeps
+the finished image or clip as a stored asset. Enter the server address, press
+**Connect server** to read its version, installed nodes, and models, pick a model
+for each slot, then press **Generate**.
+
+Only reviewed, built-in workflows are submitted. VideoBrain never executes an
+imported or pasted ComfyUI workflow, and it checks that the server actually has
+the required nodes and model files before queueing anything, so a missing
+checkpoint produces a plain message rather than a server error. Cancel removes a
+queued job by id, and the server-wide interrupt is used only when the queue
+confirms the running job is yours — a shared server is never interrupted on your
+behalf. Jobs stop at a twenty-minute budget and outputs are capped at 20 MB.
+
+A Comfy Cloud key, if you enter one, stays in memory for the tab, requires
+HTTPS, and is forwarded only to workflows whose nodes call Comfy's hosted API.
+The bundled workflows run entirely on your own hardware and bill nothing.
 
 The monitor's frame-pacing menu defaults to **Display sync**, which renders once
 per browser display callback. Choose **60 fps** or **30 fps** to cap GPU

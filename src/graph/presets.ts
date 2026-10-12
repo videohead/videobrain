@@ -144,6 +144,12 @@ export const GRAPH_PRESETS = [
     description: 'Connect an HLS, MPEG-DASH, or WebRTC WHEP endpoint through a frame transform.',
   },
   {
+    id: 'comfy-generate',
+    title: 'ComfyUI Generate',
+    description:
+      'Queue an allowlisted ComfyUI workflow on your own server and display the result.',
+  },
+  {
     id: 'projection-mapping-lab',
     title: 'Projection Mapping Lab',
     description:
@@ -1639,6 +1645,19 @@ const PRESET_FACTORIES: Readonly<
     [
       edge('network-transform', 'network-video', 'frame', 'network-transform', 'source'),
       edge('network-display', 'network-transform', 'frame', 'network-display', 'source'),
+    ],
+  ),
+  'comfy-generate': () => graph(
+    [
+      createGraphNode('aiPrompt', { x: -620, y: 0 }, {}, 'comfy-prompt'),
+      createGraphNode('comfyGenerate', { x: -300, y: 0 }, {}, 'comfy-generate'),
+      createGraphNode('transform2d', { x: 20, y: 0 }, {}, 'comfy-transform'),
+      createGraphNode('display', { x: 340, y: 0 }, {}, 'comfy-display'),
+    ],
+    [
+      edge('comfy-prompt-edge', 'comfy-prompt', 'prompt', 'comfy-generate', 'prompt'),
+      edge('comfy-generate-edge', 'comfy-generate', 'frame', 'comfy-transform', 'source'),
+      edge('comfy-display-edge', 'comfy-transform', 'frame', 'comfy-display', 'source'),
     ],
   ),
   'projection-mapping-lab': createProjectionMappingLabGraph,

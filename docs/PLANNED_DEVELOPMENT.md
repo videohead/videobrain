@@ -47,6 +47,12 @@ Import 3D files that are easily compatible with WebGL2 and WebGPU rendering and 
 Unified multimodal APIs — such as Atlas Cloud’s full‑modal API or CometAPI’s multimodal workflow layer, ComfyUI API support, and DayDreamScope (https://github.com/daydreamlive/scope)
 Send text, image, and video to these models and retrieve generated assets from their APIs
 
+**Partially delivered (G4, 2026-10-11):** the ComfyUI Generate node sends *text*
+to a user-run ComfyUI server and retrieves generated images and clips into the
+asset store. Still open on this track: image/mask/video *inputs* to those
+workflows, the hosted providers above, Comfy Cloud generation routes, and
+DayDreamScope live sessions. See [G4 in the task ledger](p0/TASKS.md#g4---implement-comfyui-workflow-adapter).
+
 ## P0: Enhanced Projector Mapping tools
 
 Mesh Warping for precise alignment on irregular surfaces, Bezier Masking for cutting, trimming, and shaping content, FreeDraw (canvas for drawing on for mapping), 3D Calibration to match virtual 3D models with real‑world objects, Video Wall Setup for multiplanar support and breaking a generation up among multiple canvasses, soft edge blending between overlapping canvasses.

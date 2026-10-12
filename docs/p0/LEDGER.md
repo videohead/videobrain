@@ -7,9 +7,14 @@
 
 | ID | Status | Owner | Started | Evidence |
 |----|--------|-------|---------|----------|
-| D5 | review | assistant | 2026-10-11 | GPU instance batches; catalog 23; unit + e2e pixel evidence |
+| G4 | review | assistant | 2026-10-11 | ComfyUI adapter PoC; catalog 24; 888 unit tests + live image/clip evidence |
 
 **Delivered work (2026-10-11) — real code, not documentation:**
+- ✅ G4: [src/generation/comfyClient.ts](../../src/generation/comfyClient.ts) — capability discovery (`/system_stats`, `/object_info`, `/features`, `/models/{folder}`), bounded JSON/output reads, redirect-refusing credential-free fetches, submit/history/view/cancel, request-marker reconciliation
+- ✅ G4: [src/generation/comfyWorkflows.ts](../../src/generation/comfyWorkflows.ts) — two allowlisted API-format templates (checkpoint image, Wan 2.2 paired-expert t2v) with declared node-class/model-slot requirements, readiness checks and auto model selection; no imported-workflow execution
+- ✅ G4: [src/generation/comfyJob.ts](../../src/generation/comfyJob.ts) — GenerationJobState lifecycle, explicit polling (never render-loop), 20-minute budget, 20 MB output cap, ingest into the A1 asset store
+- ✅ G4: [src/hooks/useComfyGenerate.ts](../../src/hooks/useComfyGenerate.ts) + node controls — per-node sessions, reachability-gated work, session-only cloud key, media decode/release
+- ✅ G4: `comfyGenerate` node kind (catalog 23→24), `comfy-generate` preset, OPERATOR_META entry, renderer model-texture path shared with Video Model / Network Video
 - ✅ D5: [src/graph/sceneInstancing.ts](../../src/graph/sceneInstancing.ts) + tests — GPU-free batch planner with grid/ring layouts, 64-instance bound, aggregate triangle/draw/texture budgets, and incompatibility diagnostics
 - ✅ D5: `instance3d` node kind (catalog 22→23), evaluator expansion of one Asset 3D placement into a bounded batch, `instance-glb-stage` preset, OPERATOR_META entry
 - ✅ D5: [src/engine/Scene3DRenderer.ts](../../src/engine/Scene3DRenderer.ts) — one `InstancedMesh` per static mesh (instance count does not multiply draw calls), cached per source scene + count, disposed on release; duplicated-placement fallback with surfaced diagnostics
@@ -19,10 +24,23 @@
 - ✅ C3: 7 real fixtures via [scripts/generate-fixtures.mjs](../../scripts/generate-fixtures.mjs); GLBs are valid glTF 2.0 geometry (24 verts, 36 indices), hash-recorded in fixture-manifest.json
 - ✅ A1: [src/store/assetStore.ts](../../src/store/assetStore.ts) + [src/store/assetStore.test.ts](../../src/store/assetStore.test.ts) (16 tests): ingest/resolve/reopen, dedup, quota, validation, failure isolation, retain/release, relink mismatch, remove
 - ✅ A2: [src/store/projectEnvelope.ts](../../src/store/projectEnvelope.ts) + [src/store/projectEnvelope.test.ts](../../src/store/projectEnvelope.test.ts) (12 tests): envelope wrap, legacy graph-only import, portable bundle round-trip, validation/quota/path-traversal, atomic rollback
-- Verify: lint + typecheck + **782 tests** + build all pass (was 734)
+- Verify: lint + typecheck + **888 tests** + build all pass (was 734 at C0)
+
+**G4 live evidence (2026-10-11), user-owned server, no billed tokens:**
+
+| Check | Result |
+|-------|--------|
+| Server | `https://videohead.duckdns.org/comfy/` — ComfyUI 0.39.1, NVIDIA GB10, PyTorch 2.14.1+cu130 |
+| Discovery | node classes + `checkpoints`/`diffusion_models`/`text_encoders`/`vae` folders read |
+| Image job | SDXL 512x512, 8 steps → `ready` in ~12 s, ingested as `image/*` asset |
+| Clip job | Wan 2.2 t2v 480x320, 13 frames, 4 steps → `ready` in ~25 s, ingested as `video` asset |
+| Harness | [comfyLive.test.ts](../../src/generation/comfyLive.test.ts), skipped unless `COMFY_LIVE_URL` is set |
 
 **Honesty checkpoint (2026-10-11, revised):**
 - ✅ C0/C1/C2/C3/A1/A2 all have real files and passing tests
+- ⚠️ G4 is a proof of concept against G4's full acceptance text. Delivered: capability validation, allowlisted workflows, progress/history/output retrieval, missing-model/node errors, cancellation isolation, reconciliation. **Not yet delivered:** bounded image/mask/clip *input* support, recorded workflow versions/licenses, and offline deterministic fixture jobs (live tests are opt-in, not a fixture transcript).
+- ⚠️ G4 landed ahead of its stated `depends_on: G2`. G1/G2 remain `waiting`, so there is no provider-neutral job contract or shared generation UI yet; the ComfyUI job runtime is currently adapter-specific and will need reconciling when G1 lands.
+- ⚠️ Comfy Cloud: the key in `.env` authenticates against `api.comfy.org/v2` (`/v2/models` returns a catalog). Generation routes were **not** exercised — that needs user spend approval, and remains G3/G5 scope.
 - ⚠️ A1 uses an injectable backend; the IndexedDB path is implemented but exercised only via the memory backend in jsdom (no fake-indexeddb dep). Browser integration test deferred to D2/D3.
 - ⚠️ A2 is an additive module; wiring the envelope into projectStore autosave/import needs a shared-file lease (D3/G2). Bundle is JSON+base64, no zip dep.
 - ⚠️ GLB fixtures validated structurally (container + JSON parse), not yet loaded through Three.js GLTFLoader (that is D1's job).
@@ -120,7 +138,7 @@ None.
 | G1 | Generation jobs | waiting | C2,C3 | Blocked on contracts |
 | G2 | Generation UI | waiting | G1,A2 | Blocked on G1, A2 |
 | G3 | Hosted adapter | waiting | G2 | Blocked on G2 |
-| G4 | ComfyUI adapter | waiting | G2 | **Priority elevated** — first real adapter |
+| G4 | ComfyUI adapter | **review** | G2 | PoC landed ahead of G1/G2; catalog 24; live image + clip evidence |
 | G5 | Provider extensions | waiting | G3,G4 | Blocked on G3, G4 |
 | M1 | Surface geometry | waiting | C2,C3 | Blocked on C2/C3 |
 | M2 | Mapping editor | waiting | M1 | Blocked on M1; painted-content child task pending |

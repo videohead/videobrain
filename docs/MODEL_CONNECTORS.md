@@ -188,6 +188,69 @@ A gateway is the right place to keep provider secrets, translate request schemas
 
 Direct provider URLs are compatible only if that provider independently implements `videobrain.frames.v1` and the required browser security policy. Most existing APIs need an adapter.
 
+## ComfyUI Generate node
+
+The **ComfyUI Generate** node is a separate contract from Video Model. Video Model
+streams latest frames through `videobrain.frames.v1`; ComfyUI Generate queues one
+durable job against a ComfyUI server's own HTTP routes and ingests the finished
+image or clip into the asset store.
+
+| Port or setting | Type | Meaning |
+| --- | --- | --- |
+| `prompt` | `text.utf8` | Optional text from AI Chat. The node's own Prompt parameter is used when nothing is connected. |
+| `frame` | `frame.rgba` | The most recent generated image or looping clip |
+| Server URL | text | ComfyUI base address; path-prefixed proxies are supported |
+| Workflow | select | One allowlisted template (see below) |
+| Width, Height, Steps, CFG, Seed, Frames, Clip FPS | numeric | Clamped to each template's declared limits |
+| Fit, Mirror | select | How the result is framed in the output texture |
+
+### Allowlisted workflows only
+
+VideoBrain never submits an imported or pasted workflow. Each template in
+[comfyWorkflows.ts](../src/generation/comfyWorkflows.ts) is reviewed code that
+declares the node classes and model slots it needs:
+
+| Template | Output | Requires |
+| --- | --- | --- |
+| Checkpoint image | image | `CheckpointLoaderSimple`, `CLIPTextEncode`, `EmptyLatentImage`, `KSampler`, `VAEDecode`, `SaveImage` plus one checkpoint |
+| Wan 2.2 text to video | clip | `UNETLoader`, `CLIPLoader`, `VAELoader`, `EmptyHunyuanLatentVideo`, `KSamplerAdvanced`, `SaveWEBM` plus both Wan experts, a text encoder, and a VAE |
+
+Connecting to a server reads `/system_stats`, `/object_info`, `/features`,
+`/prompt`, and the `/models/{folder}` lists it needs, then reports what the server
+can run. A missing custom node, an uninstalled checkpoint, or an unfilled model
+slot each produce a specific message before anything is queued.
+
+### Job lifecycle
+
+Submission posts to `/prompt` with a `client_id` and a `videobrain_request_id`
+marker in `extra_data`. The node then polls `/history/{prompt_id}`, downloads the
+selected output from `/view`, and ingests the bytes through the asset store, so a
+completed result is durable media with provenance rather than a transient texture.
+
+- Jobs move through the contract states: `submitting`, `queued`, `running`, `fetching`, `ready`, `failed`, `cancel-requested`, `cancelled`, `unknown`.
+- A transient history read failure reports `unknown` and keeps polling; it does not resubmit.
+- If a submission response is lost, the node looks the request marker up in `/queue` and `/history` before deciding anything. When the server has no record, nothing was queued and the job simply fails.
+- Cancel removes a queued prompt by id through `/queue`. The server-wide `/interrupt` route is used only after `/queue` confirms our prompt is the running one, so another user of a shared server is never interrupted.
+- Jobs stop at a 20-minute budget. Outputs are capped at 20 MB.
+- Reopening a project never resubmits a job; generation always starts from a click.
+
+### Comfy Cloud key handling
+
+A session key is held in memory, never serialized, and forwarded only as
+`extra_data.api_key_comfy_org` to a server reached over HTTPS, for workflows whose
+nodes call Comfy's hosted API. Entering a key against a cleartext endpoint is
+rejected. Local workflows such as the two above need no key and bill nothing.
+
+### Live verification
+
+`src/generation/comfyLive.test.ts` is skipped unless `COMFY_LIVE_URL` is set, so
+the default suite stays offline and account-free:
+
+```bash
+COMFY_LIVE_URL=https://host/comfy/ npx vitest run src/generation/comfyLive
+COMFY_LIVE_VIDEO=1 COMFY_LIVE_URL=https://host/comfy/ npx vitest run src/generation/comfyLive
+```
+
 ## Future protocol directions
 
 - Capability negotiation for image formats, maximum size, input modalities, and setting ranges.

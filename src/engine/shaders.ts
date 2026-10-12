@@ -898,6 +898,7 @@ void main() { outColor = vec4(0.0); }
 `,
   videoInput,
   networkVideo: videoInput,
+  comfyGenerate: videoInput,
   file: videoInput,
   videoModel,
   solid,

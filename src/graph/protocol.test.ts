@@ -22,7 +22,7 @@ describe('graph protocol inspection', () => {
     expect(first.protocolVersion).toBe(GRAPH_PROTOCOL_VERSION);
     expect(first.graphSchemaVersion).toBe(GRAPH_SCHEMA_VERSION);
     expect(first.catalogVersion).toBe(OPERATOR_CATALOG_VERSION);
-    expect(first.catalogVersion).toBe(23);
+    expect(first.catalogVersion).toBe(24);
     for (const kind of ['levels', 'hsv', 'lumaKey', 'chromaKey', 'crossfade', 'displace', 'edge', 'pixelate', 'kaleidoscope', 'channelShuffle']) {
       expect(first.operators.find((operator) => operator.kind === kind)).toMatchObject({
         domain: 'frame',
@@ -47,6 +47,12 @@ describe('graph protocol inspection', () => {
     });
     expect(first.operators.find(({ kind }) => kind === 'networkVideo')).toMatchObject({
       title: 'Network Video', category: 'inputs', domain: 'frame',
+      outputs: [{ id: 'frame', type: 'frame.rgba', index: 0 }],
+      execution: { visualPasses: 1, renderTargets: 1, stateful: false },
+    });
+    expect(first.operators.find(({ kind }) => kind === 'comfyGenerate')).toMatchObject({
+      title: 'ComfyUI Generate', category: 'interaction-ai', domain: 'frame',
+      inputs: [{ id: 'prompt', type: 'text.utf8', index: 0, optional: true }],
       outputs: [{ id: 'frame', type: 'frame.rgba', index: 0 }],
       execution: { visualPasses: 1, renderTargets: 1, stateful: false },
     });

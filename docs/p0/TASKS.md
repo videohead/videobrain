@@ -82,7 +82,7 @@ SurfaceLayout/Output and project-envelope contracts. Specify versioning, errors,
 coordinate conventions, cancellation, ownership and source routing. Resolve exact
 types with the production registry/compiler; do not build another graph model.
 
-**Contract draft-1 (2026-10-11):** [src/store/contracts.ts](../../../src/store/contracts.ts)
+**Contract draft-1 (2026-10-11):** [src/store/contracts.ts](../../src/store/contracts.ts)
 - `AssetRef` / `AssetManifest`: immutable content identity, versioned metadata, provenance
 - `AssetSceneValue` / `SceneAssetDescriptor` / `ScenePlacementTransform`: additive graph type
 - `GenerationRequest` / `GenerationJob` with `GenerationJobState`: multi-state lifecycle
@@ -162,8 +162,8 @@ metadata lookup, resolution, explicit relink/remove and runtime retain/release.
 Use an existing suitable utility if present. Preserve originals; stage successful
 storage before publishing refs. Memory storage is test-only, not silent fallback.
 
-**Delivered (2026-10-11):** [src/store/assetStore.ts](../../../src/store/assetStore.ts),
-[src/store/assetStore.test.ts](../../../src/store/assetStore.test.ts) — 16 tests.
+**Delivered (2026-10-11):** [src/store/assetStore.ts](../../src/store/assetStore.ts),
+[src/store/assetStore.test.ts](../../src/store/assetStore.test.ts) — 16 tests.
 - `createAssetStore(backend)` over pluggable `AssetStoreBackend`
 - `createIndexedDbBackend()` (browser) and `createMemoryBackend()` (test-only, explicit)
 - SHA-256 content identity via `hashBytes`; dedup only on matching hash + kind
@@ -197,8 +197,8 @@ GraphDocument; bundle import/export includes referenced assets. Preserve graph-o
 import, history and autosave semantics. Retain refs across saved projects/history;
 explicit cleanup accounts for those refs. Missing assets remain relinkable.
 
-**Delivered (2026-10-11):** [src/store/projectEnvelope.ts](../../../src/store/projectEnvelope.ts),
-[src/store/projectEnvelope.test.ts](../../../src/store/projectEnvelope.test.ts) — 12 tests.
+**Delivered (2026-10-11):** [src/store/projectEnvelope.ts](../../src/store/projectEnvelope.ts),
+[src/store/projectEnvelope.test.ts](../../src/store/projectEnvelope.test.ts) — 12 tests.
 - Additive module: no edits to persistence.ts or projectStore.ts (no shared lease consumed)
 - `createEnvelope` / `serializeEnvelope` / `parseEnvelope`: envelope wraps schema-1 GraphDocument
 - `parseEnvelope` accepts a bare GraphDocument (legacy graph-only import preserved) or a full envelope
@@ -234,8 +234,8 @@ Preflight container/accessor bounds, then decoded counts before GPU upload. Deny
 implicit external requests; reject unsupported required extensions/skins/animation
 according to the accepted subset. Preserve last good scene during replacement.
 
-**Delivered (2026-10-11):** [src/engine/SceneAssetCache.ts](../../../src/engine/SceneAssetCache.ts),
-[src/engine/SceneAssetCache.test.ts](../../../src/engine/SceneAssetCache.test.ts) — 20 tests.
+**Delivered (2026-10-11):** [src/engine/SceneAssetCache.ts](../../src/engine/SceneAssetCache.ts),
+[src/engine/SceneAssetCache.test.ts](../../src/engine/SceneAssetCache.test.ts) — 20 tests.
 - `preflightGlb`: GPU-free container/chunk/accessor/bufferView bounds, triangle budget,
   static-subset enforcement (reject skins/animation), required-extension allowlist, external-URI ban
 - `SceneAssetCache`: injectable resolver + decoder (default pinned GLTFLoader with empty resource path),
@@ -274,10 +274,10 @@ actual decoded costs and reject exceeding accepted budgets without simplificatio
 - Additive `assetScene` input appended to Render 3D at index 8 (existing indexes preserved)
 - `SceneAssetValue` added to `Scene3DValue`; `Scene3DEvaluator` produces it with bounded placement
 - `Scene3DRenderer` renders the decoded asset with placement; `WebGLRenderer.loadSceneAsset`/`releaseSceneAsset` decode via pinned GLTFLoader and dispose GPU resources
-- Data bridge: [sceneAssetResolver.ts](../../../src/engine/sceneAssetResolver.ts) (12 tests)
+- Data bridge: [sceneAssetResolver.ts](../../src/engine/sceneAssetResolver.ts) (12 tests)
 - `imported-model-stage` preset (reachable; satisfies per-kind preset rule)
 - Exact-count assertions updated: operators/protocol/scene3d tests; operatorMeta entry added
-- **Playwright pixel test** [e2e/scene-asset.spec.ts](../../../e2e/scene-asset.spec.ts): imported GLB → lights/camera → Render 3D → Display renders visible pixels (passed in pinned 1.62.1 container, SwiftShader)
+- **Playwright pixel test** [e2e/scene-asset.spec.ts](../../e2e/scene-asset.spec.ts): imported GLB → lights/camera → Render 3D → Display renders visible pixels (passed in pinned 1.62.1 container, SwiftShader)
 
 Verify: lint + typecheck + 820 unit tests + build pass; e2e scene-asset passes.
 
@@ -306,11 +306,11 @@ Reuse existing file-input/node/Inspector controls. Optional fitting is stored as
 an explicit transform. Imported cameras/lights do not silently override graph inputs.
 
 **Delivered (2026-10-11):**
-- [useSceneAssets.ts](../../../src/hooks/useSceneAssets.ts) (+4 tests): AssetStore-backed import (GLB preflight + ingest), bytes-by-hash resolution, ready/missing/none status; IndexedDB in browser, injectable memory in tests
-- [SceneAssetControl.tsx](../../../src/components/SceneAssetControl.tsx) (+5 tests): file import, relink affordance, remove, error surfacing
+- [useSceneAssets.ts](../../src/hooks/useSceneAssets.ts) (+4 tests): AssetStore-backed import (GLB preflight + ingest), bytes-by-hash resolution, ready/missing/none status; IndexedDB in browser, injectable memory in tests
+- [SceneAssetControl.tsx](../../src/components/SceneAssetControl.tsx) (+5 tests): file import, relink affordance, remove, error surfacing
 - Inspector renders the control for `asset3d` and hides raw id/hash params; placement params stay editable
-- [WebGLRenderer.setSceneAssets](../../../src/engine/WebGLRenderer.ts): reconciles resident scenes, fires `SCENE_ASSET_READY_EVENT`; App→PreviewPanel bridge preloads bytes and re-renders
-- `local-glb-stage` preset (renamed); [scene-asset-control story](../../../stories/scene-asset-control.stories.tsx); docs/SCENE_3D.md updated
+- [WebGLRenderer.setSceneAssets](../../src/engine/WebGLRenderer.ts): reconciles resident scenes, fires `SCENE_ASSET_READY_EVENT`; App→PreviewPanel bridge preloads bytes and re-renders
+- `local-glb-stage` preset (renamed); [scene-asset-control story](../../stories/scene-asset-control.stories.tsx); docs/SCENE_3D.md updated
 - Duplication yields independent placement sharing the cached scene by content hash; save/reopen re-resolves bytes from IndexedDB
 
 Verify: lint + typecheck + 829 unit tests + build pass; storybook catalog gate 159 entries; D2 e2e pixel test still passes.
@@ -362,9 +362,9 @@ Define animation/skinning/morph support or approved exclusions; independent
 character animation is not implied by static instancing.
 
 **Delivered (2026-10-11):**
-- [sceneInstancing.ts](../../../src/graph/sceneInstancing.ts) (+10 tests): grid/ring instance layout generation (64 max), aggregate batch budgets (65,536 triangles / 64 draws / 64 textures), incompatibility diagnostics without silent freezing
+- [sceneInstancing.ts](../../src/graph/sceneInstancing.ts) (+10 tests): grid/ring instance layout generation (64 max), aggregate batch budgets (65,536 triangles / 64 draws / 64 textures), incompatibility diagnostics without silent freezing
 - `instance3d` node (catalog 22→23): expands one Asset 3D placement into a bounded batch; duplication of Asset 3D nodes remains independent scene duplication
-- [Scene3DRenderer.ts](../../../src/engine/Scene3DRenderer.ts): one `InstancedMesh` per static mesh so instance count does not multiply draw calls; batches cached per source scene + count; disposed on release/context teardown; duplicated-placement fallback with surfaced diagnostics
+- [Scene3DRenderer.ts](../../src/engine/Scene3DRenderer.ts): one `InstancedMesh` per static mesh so instance count does not multiply draw calls; batches cached per source scene + count; disposed on release/context teardown; duplicated-placement fallback with surfaced diagnostics
 - `WebGLRenderer.getLastBatchReport()` for aggregate GPU draw/instance/triangle evidence; `instance-glb-stage` preset; docs/SCENE_3D.md instancing section
 - e2e pixel test `scene-instance.spec.ts`: 8 placements render as 1 instanced draw call with visible, independently placed pixels
 
@@ -448,9 +448,9 @@ Handoff: pending; provider selection, spend ceiling and live-test approval requi
 
 ```task
 id: G4
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: G2
 scope: ComfyUI adapter/templates/tests; docs/MODEL_CONNECTORS.md
 ```
@@ -464,11 +464,31 @@ Verify isolation/ownership before using global interrupt endpoints.
 adapter (G4 ahead of G3). Already running at `https://videohead.duckdns.org/comfy/`
 and `/opt/ComfyUI`. Local-first, no billed tokens for fixtures.
 
+**Delivered (2026-10-11, proof of concept):**
+[comfyClient.ts](../../src/generation/comfyClient.ts),
+[comfyWorkflows.ts](../../src/generation/comfyWorkflows.ts),
+[comfyJob.ts](../../src/generation/comfyJob.ts),
+[useComfyGenerate.ts](../../src/hooks/useComfyGenerate.ts) — 43 unit tests.
+- New `comfyGenerate` node kind (catalog 23→24), operator definition, `comfy-generate` preset, node controls
+- Capability discovery over `/system_stats`, `/object_info`, `/features`, `/models/{folder}`
+- Two allowlisted templates (checkpoint image, Wan 2.2 t2v); no imported-workflow execution
+- Readiness checks for missing node classes, unfilled slots, uninstalled models
+- Submit/poll/download/ingest into the A1 asset store; request-marker reconciliation
+- Cancellation prefers `/queue` delete; `/interrupt` only when `/queue` proves ownership
+- Session-only Comfy Cloud key, HTTPS-gated, never serialized
+
+Verify: lint + `tsc -b` + 888 unit tests + build all pass. Live on
+`https://videohead.duckdns.org/comfy/` (ComfyUI 0.39.1, NVIDIA GB10): SDXL image
+in ~12 s, Wan 2.2 480x320x13 clip in ~25 s, both ingested as durable assets.
+
 Acceptance: missing-model/node errors, deterministic fixture jobs, stale results,
 reconnect/reconciliation, secure hosted-page-to-local-service route and authorized
 live workflow tests. Do not install/launch model runtimes without approval.
 
-Handoff: pending; workflow versions/licenses and cancellation isolation evidence.
+Handoff: review — remaining for full acceptance: image/mask/clip *input* support,
+workflow version/license records, MiniMax and LTX-2.5 templates, and Comfy Cloud
+`api.comfy.org/v2` adapter (key verified against `/v2/models`; generation routes
+need user spend approval).
 
 ## G5 - Extend providers and Scope live sessions
 

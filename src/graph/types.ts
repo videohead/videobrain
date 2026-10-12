@@ -22,6 +22,7 @@ export const NODE_KINDS = [
   'audioOutput',
   'audioMixer',
   'videoModel',
+  'comfyGenerate',
   'solid',
   'gradient',
   'shape',

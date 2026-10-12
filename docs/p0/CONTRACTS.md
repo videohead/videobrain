@@ -93,6 +93,17 @@ dependencies. Its server-wide interrupt must not cancel unrelated users' work;
 isolation or verified job-scoped semantics is a release gate. Scope's live media
 session is a separate signaling/backpressure/recovery contract, not a polling job.
 
+**Implemented (G4, 2026-10-11):** the interrupt gate above is satisfied by
+checking `/queue` first — a pending prompt is removed by id, and the server-wide
+`/interrupt` is reached only once the queue shows our own prompt running.
+Uncertain submissions carry a `videobrain_request_id` marker in `extra_data` and
+are reconciled through `/queue` and `/history` before any retry, so no duplicate
+work is queued. Workflow templates declare required node classes and model slots,
+validated against a discovered server snapshot before submission. Outputs enter
+AssetStore with `comfyui:<model>` provenance. Still open against this contract:
+bounded image/mask/clip **inputs**, and provider-neutral job reconciliation once
+G1 defines the shared contract.
+
 ## Mapping surfaces and outputs
 
 Surface identity references a graph frame endpoint, source UV region, bounded
