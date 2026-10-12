@@ -124,16 +124,17 @@ export function computeInverseProjectionMap(
     }
   }
 
-  // The 9th column now holds h11..h32 (m33 = 1).
+  // The 9th column now holds the eight unknowns in row order:
+  // m00 m01 m02 m10 m11 m12 m20 m21, with m22 fixed at 1.
   const h = augmented.map((row) => row[8] ?? 0);
   const m00 = h[0] ?? 0;
   const m01 = h[1] ?? 0;
-  const m02 = h[6] ?? 0;
-  const m10 = h[2] ?? 0;
-  const m11 = h[3] ?? 0;
-  const m12 = h[7] ?? 0;
-  const m20 = h[4] ?? 0;
-  const m21 = h[5] ?? 0;
+  const m02 = h[2] ?? 0;
+  const m10 = h[3] ?? 0;
+  const m11 = h[4] ?? 0;
+  const m12 = h[5] ?? 0;
+  const m20 = h[6] ?? 0;
+  const m21 = h[7] ?? 0;
   const m22 = 1;
 
   const determinant =

@@ -425,12 +425,14 @@ vec2 mirrorUv(vec2 uv) {
 }
 
 void main() {
-  mat3 inverseMap = mat3(
-    vec3(uMapRow0.xyz),
-    vec3(uMapRow1.xyz),
-    vec3(uMapRow2.xyz)
+  // uMapRow0..2 are the rows of the inverse homography. A mat3 constructor
+  // would consume them as columns, so apply the rows explicitly.
+  vec3 destination = vec3(vUv, 1.0);
+  vec3 mapped = vec3(
+    dot(uMapRow0.xyz, destination),
+    dot(uMapRow1.xyz, destination),
+    dot(uMapRow2.xyz, destination)
   );
-  vec3 mapped = inverseMap * vec3(vUv, 1.0);
   float w = mapped.z;
   vec2 sourceUv = abs(w) > 0.00001 ? mapped.xy / w : vec2(2.0);
 

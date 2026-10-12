@@ -141,11 +141,27 @@ export interface SurfaceMaskPoint {
   y: number;
 }
 
+/**
+ * One authored cubic node. Handles are offsets from `point`, expressed in
+ * the same surface-local coordinates. Two zero handles make a corner.
+ */
+export interface SurfaceMaskNode {
+  point: SurfaceMaskPoint;
+  handleIn: SurfaceMaskPoint;
+  handleOut: SurfaceMaskPoint;
+}
+
 /** Bounded mask path in surface-local coordinates. */
 export interface SurfaceMaskPath {
   points: readonly SurfaceMaskPoint[];
   closed: boolean;
   feather: number;
+  /**
+   * Authored cubic nodes, when the path came from the mapping editor.
+   * `points` is always their bounded tessellation, so renderers and
+   * persistence can ignore this field entirely.
+   */
+  nodes?: readonly SurfaceMaskNode[];
 }
 
 /**
@@ -229,8 +245,11 @@ export const MAX_GENERATION_QUEUE_DEPTH = 4;
 /** Maximum completed output size per job. */
 export const MAX_GENERATION_OUTPUT_BYTES = 20 * 1024 * 1024;
 
-/** Per-mask path point limit. */
+/** Per-mask path point limit, counting tessellated points. */
 export const MAX_SURFACE_MASK_POINTS = 256;
+
+/** Authored cubic nodes per mask path, before tessellation. */
+export const MAX_SURFACE_MASK_NODES = 64;
 
 /** Warp mesh grid cell limit. */
 export const MAX_SURFACE_MESH_CELLS = 32 * 32;
