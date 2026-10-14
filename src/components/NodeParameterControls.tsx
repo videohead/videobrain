@@ -634,6 +634,9 @@ export function NodeParameterControls({
       {renderSourceSelector()}
       {renderBandCurves()}
       {parameters.map(([paramId, parameter]) => {
+        if (definition.kind === 'asset3d' && (paramId === 'assetId' || paramId === 'assetHash')) {
+          return null;
+        }
         if (layout?.type === 'text' && paramId === layout.fontParamId) {
           return <FontAssetControl key={paramId} value={String(params[paramId] ?? '')} onChange={(value) => {
             onGestureStart();

@@ -25,7 +25,7 @@ import { FontAssetControl } from './FontAssetControl';
 import { NodeMediaControls, type OperatorInputRuntime } from './NodeMediaControls';
 import { DataNodeControls } from './DataNodeControls';
 import { SignalTestControls } from './SignalTestControls';
-import { SceneAssetControl } from './SceneAssetControl';
+import { SceneAssetNodeControl } from './SceneAssetNodeControl';
 import type { SceneAssetRuntime } from '../hooks/useSceneAssets';
 import { isSignalTest } from '../graph/signalTestOperators';
 import { DATA_NODE_KINDS } from '../graph/dataOperators';
@@ -144,23 +144,13 @@ export function Inspector({
       {node.kind === 'asset3d' && sceneAssetRuntime ? (
         <section className="inspector-section">
           <div className="section-label">Model</div>
-          <SceneAssetControl
-            assetId={String(node.params.assetId ?? '')}
-            assetHash={String(node.params.assetHash ?? '')}
-            status={sceneAssetRuntime.getStatus(String(node.params.assetId ?? ''), String(node.params.assetHash ?? ''))}
-            onImport={sceneAssetRuntime.importFile}
-            onApply={(assetId, assetHash) => {
-              onGestureStart();
-              onParamChange(node.id, 'assetId', assetId);
-              onParamChange(node.id, 'assetHash', assetHash);
-              onGestureEnd();
-            }}
-            onClear={() => {
-              onGestureStart();
-              onParamChange(node.id, 'assetId', '');
-              onParamChange(node.id, 'assetHash', '');
-              onGestureEnd();
-            }}
+          <SceneAssetNodeControl
+            nodeId={node.id}
+            params={node.params}
+            runtime={sceneAssetRuntime}
+            onParamChange={onParamChange}
+            onGestureStart={onGestureStart}
+            onGestureEnd={onGestureEnd}
           />
         </section>
       ) : null}

@@ -61,6 +61,7 @@ interface GltfBuffer {
 interface GltfImage {
   uri?: string;
   bufferView?: number;
+  mimeType?: string;
 }
 interface GltfPrimitive {
   attributes: Record<string, number>;

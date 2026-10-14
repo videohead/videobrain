@@ -307,6 +307,12 @@ scripts/         Infrastructure bootstrap and manual deployment helpers
 
 The editor never owns GPU resources, and the renderer never mutates the project. See [Architecture](docs/ARCHITECTURE.md), [Graph Protocol Strategy](docs/GRAPH_PROTOCOL_STRATEGY.md), [the MVP decision](docs/MVP.md), [Model Connectors](docs/MODEL_CONNECTORS.md), [Current State](docs/CURRENT_STATE.md), and [Planned Development](docs/PLANNED_DEVELOPMENT.md) for runtime contracts, implementation boundaries, and delivery priorities.
 
+An MCP server exposes the graph to coding agents: it serves the operator schema
+and compiler-verified worked examples generated from the production registry,
+and validates authored graphs with the real compiler before they are applied to
+a live tab. See [MCP Authoring](docs/MCP_AUTHORING.md) and
+[Projection Mapping](docs/MAPPING.md).
+
 Use the question-mark button in the app for a quick start, signal concepts, current nodes, starter recipes, device guidance, and direct contribution links.
 
 ## Deployment

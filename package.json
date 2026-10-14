@@ -19,6 +19,7 @@
     "build:storybook": "storybook build",
     "build:deploy": "npm run build && npm run build:storybook -- --output-dir dist/storybook",
     "check:storybook-dist": "node scripts/check-storybook-artifact.mjs dist/storybook",
+    "build:mcp-knowledge": "node scripts/export-graph-knowledge.mjs",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "preview": "vite preview",
     "control-server": "node server/control-server.mjs"

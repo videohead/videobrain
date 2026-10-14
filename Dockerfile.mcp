@@ -25,8 +25,16 @@ COPY mcp/requirements.txt ./requirements.txt
 RUN pip3 install --break-system-packages -r requirements.txt
 
 COPY mcp/server.py ./server.py
+COPY mcp/test_server.py ./test_server.py
+
+# The authoring knowledge pack is generated from the production registry by
+# scripts/export-graph-knowledge.mjs (npm run build:mcp-knowledge). Baking it
+# in means the server still answers if the bind mount lacks a fresh copy;
+# VIDEOBRAIN_KNOWLEDGE can point at a regenerated one.
+COPY mcp/graph-knowledge.json ./graph-knowledge.json
 
 # Repository source is bind-mounted at /app, see docker-compose.mcp.yml.
+# validate_graph runs scripts/inspect-graph.mjs from that mount.
 EXPOSE 8932
 
 CMD ["python3", "/opt/videobrain-mcp/server.py"]

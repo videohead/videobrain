@@ -218,6 +218,7 @@ function Studio() {
     () => ({
       networkVideo,
       comfyGenerate,
+      sceneAssets,
       audioRouteConnected,
       audio: {
         inputState: audio.inputState,
@@ -280,6 +281,7 @@ function Studio() {
       audioRouteConnected,
       networkVideo,
       comfyGenerate,
+      sceneAssets,
     ],
   );
 

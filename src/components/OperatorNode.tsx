@@ -16,6 +16,7 @@ import { SignalTestControls } from './SignalTestControls';
 import { isSignalTest } from '../graph/signalTestOperators';
 import { DATA_NODE_KINDS } from '../graph/dataOperators';
 import { NodeMediaControls } from './NodeMediaControls';
+import { SceneAssetNodeControl } from './SceneAssetNodeControl';
 import { DOMAIN_LABELS, OPERATOR_META } from './operatorMeta';
 import { useContext } from 'react';
 import { OperatorInputRuntimeContext } from './operatorInputRuntime';
@@ -131,6 +132,17 @@ function OperatorNodeView({ id, data, selected, isConnectable }: NodeProps<Opera
             fileRuntime.handleChange?.(event.target.files?.[0]);
             event.target.value = '';
           }}
+        />
+      ) : null}
+
+      {data.kind === 'asset3d' && runtime?.sceneAssets ? (
+        <SceneAssetNodeControl
+          nodeId={id}
+          params={data.params}
+          runtime={runtime.sceneAssets}
+          onParamChange={data.onParamChange}
+          onGestureStart={data.onGestureStart}
+          onGestureEnd={data.onGestureEnd}
         />
       ) : null}
 

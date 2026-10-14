@@ -56,6 +56,66 @@ describe('useSceneAssets', () => {
     expect(outcome.ok).toBe(false);
   });
 
+  it('imports a .gltf with its .bin companion as GLB', async () => {
+    const store = createAssetStore(createMemoryBackend());
+    const { result } = renderHook(() => useSceneAssets(emptyDocument(), store));
+
+    const gltf = new File([JSON.stringify({ asset: { version: '2.0' } })], 'scene.gltf');
+    let imported!: SceneAssetImportResult;
+    await act(async () => {
+      imported = await result.current.importFile([gltf]);
+    });
+    expect(imported.ok).toBe(true);
+    if (!imported.ok) {
+      throw new Error('import failed');
+    }
+    const success: { assetId: string; assetHash: string } = imported;
+    await waitFor(() => expect(result.current.getStatus(success.assetId, success.assetHash)).toBe('ready'));
+    const record = await store.resolve(success.assetId);
+    expect(record?.manifest.ref.kind).toBe('glb');
+    expect(record?.manifest.mimeType).toBe('model/gltf-binary');
+  });
+
+  it('fails a .gltf import when its companion file is missing', async () => {
+    const store = createAssetStore(createMemoryBackend());
+    const { result } = renderHook(() => useSceneAssets(emptyDocument(), store));
+
+    const gltf = new File(
+      [JSON.stringify({ asset: { version: '2.0' }, buffers: [{ byteLength: 4, uri: 'scene.bin' }] })],
+      'scene.gltf',
+    );
+    let outcome!: SceneAssetImportResult;
+    await act(async () => {
+      outcome = await result.current.importFile([gltf]);
+    });
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.error).toContain('scene.bin');
+  });
+
+  it('imports an OBJ file and stores it as GLB', async () => {
+    const store = createAssetStore(createMemoryBackend());
+    const { result } = renderHook(() => useSceneAssets(emptyDocument(), store));
+
+    const obj = new File(
+      ['v -0.5 -0.5 0\nv 0.5 -0.5 0\nv 0.5 0.5 0\nf 1 2 3\n'],
+      'triangle.obj',
+    );
+    let imported!: SceneAssetImportResult;
+    await act(async () => {
+      imported = await result.current.importFile([obj]);
+    });
+    expect(imported.ok).toBe(true);
+    if (!imported.ok) {
+      throw new Error('import failed');
+    }
+    const success: { assetId: string; assetHash: string } = imported;
+    const record = await store.resolve(success.assetId);
+    expect(record?.manifest.ref.kind).toBe('glb');
+    expect(record?.manifest.originalFilename).toBe('triangle.obj');
+    await waitFor(() => expect(result.current.getStatus(success.assetId, success.assetHash)).toBe('ready'));
+  });
+
   it('reports missing when a referenced asset is not stored', async () => {
     const store = createAssetStore(createMemoryBackend());
     const hash = 'b'.repeat(64);

@@ -13,9 +13,9 @@ function StatefulSceneAsset({ initialStatus }: { initialStatus: 'none' | 'ready'
   const [status, setStatus] = useState(initialStatus);
   const [log, setLog] = useState('Ready');
 
-  const onImport = async (file: File): Promise<SceneAssetImportResult> => {
+  const onImport = async (files: readonly File[]): Promise<SceneAssetImportResult> => {
     await new Promise((resolve) => setTimeout(resolve, 150));
-    if (!file.name.endsWith('.glb') && !file.name.endsWith('.gltf')) {
+    if (!files.some((file) => /\.(glb|gltf)$/i.test(file.name))) {
       return { ok: false, error: 'Choose a .glb or .gltf model.' };
     }
     return { ok: true, assetId: 'asset-demo', assetHash: HASH };

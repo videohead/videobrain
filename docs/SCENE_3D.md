@@ -132,14 +132,26 @@ references a durable imported static GLB/glTF model by content identity
 appended Render 3D `assetScene` input (index 8); existing Render 3D indexes and
 primitive semantics are unchanged.
 
-Import flows through the Inspector's model control: a local `.glb`/`.gltf` file is
-validated with a GPU-free preflight (container/accessor bounds, triangle budget,
+Import flows through the node's model control: a local `.glb` file is validated
+with a GPU-free preflight (container/accessor bounds, triangle budget,
 external-URI ban, static-subset enforcement that rejects skins and animation),
 then ingested into the durable AssetStore (IndexedDB) under its content hash.
 Only the content identity and placement are stored on the node; the model bytes
 live in asset storage, so saved projects reopen and re-resolve the asset. A
 missing asset keeps the node and offers a relink; duplicating the node yields
 independent placement that shares the cached GPU scene by content hash.
+
+Other source formats are normalized to GLB at import time, so everything after
+the picker stays single-format. A `.gltf` file is packed together with the
+companion files selected with it (`.bin`, PNG/JPEG/WebP textures; data URIs are
+embedded). OBJ (+MTL), STL, FBX (≥ 6.4), 3MF, 3DS and USD/USDZ are decoded with
+the pinned Three.js loaders and re-exported as GLB via the pinned GLTFExporter.
+The decode is fully offline: any texture or buffer reference not provided as a
+selected companion file fails the import with a missing-dependency diagnostic,
+never a network fetch. Skinned meshes and morph targets are rejected by the
+static-subset check, and the converted GLB goes through the same preflight and
+budgets as a native `.glb`. Original filenames are kept in the asset manifest;
+the stored bytes are the normalized GLB.
 
 Decoding uses the pinned Three.js GLTFLoader with an empty resource path, so no
 implicit network fetch occurs. Imported cameras and lights are not activated;

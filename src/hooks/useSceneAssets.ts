@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { GraphDocument } from '../graph';
 import { preflightGlb } from '../engine/SceneAssetCache';
+import { companionKey } from '../engine/gltfPack';
+import { importSceneToGlb, SCENE_IMPORT_EXTENSIONS } from '../engine/sceneImport';
 import {
   createAssetStore,
   createIndexedDbBackend,
@@ -16,8 +18,8 @@ export type SceneAssetImportResult =
 export interface SceneAssetRuntime {
   /** Decoded-ready asset bytes keyed by content hash, for the renderer bridge. */
   bytesByHash: ReadonlyMap<string, Uint8Array>;
-  /** Import a local GLB/glTF file into durable storage. */
-  importFile: (file: File) => Promise<SceneAssetImportResult>;
+  /** Import a local GLB/glTF file (plus companions for .gltf) into durable storage. */
+  importFile: (files: File | readonly File[]) => Promise<SceneAssetImportResult>;
   /** Whether a node's referenced asset resolves to stored bytes. */
   getStatus: (assetId: string, assetHash: string) => 'ready' | 'missing' | 'none';
   store: AssetStore;
@@ -96,16 +98,37 @@ export function useSceneAssets(
   }, [assetKey, store]);
 
   const importFile = useCallback<SceneAssetRuntime['importFile']>(
-    async (file) => {
-      if (file.size > MAX_SCENE_ASSET_BYTES) {
+    async (files) => {
+      const selected: readonly File[] = Array.isArray(files) ? (files as readonly File[]) : [files as File];
+      if (selected.length === 0) {
+        return { ok: false, error: 'No file selected.' };
+      }
+      const total = selected.reduce((sum, entry) => sum + entry.size, 0);
+      if (total > MAX_SCENE_ASSET_BYTES) {
         return { ok: false, error: 'Model exceeds the 50 MB import limit.' };
       }
-      let bytes: Uint8Array;
-      try {
-        bytes = new Uint8Array(await file.arrayBuffer());
-      } catch {
-        return { ok: false, error: 'The file could not be read.' };
+      const read = new Map<string, Uint8Array>();
+      for (const entry of selected) {
+        try {
+          read.set(companionKey(entry.name), new Uint8Array(await entry.arrayBuffer()));
+        } catch {
+          return { ok: false, error: `The file "${entry.name}" could not be read.` };
+        }
       }
+      const modelPattern = new RegExp(`\\.(${SCENE_IMPORT_EXTENSIONS.join('|')})$`, 'i');
+      const primary = (selected.find((entry) => modelPattern.test(entry.name)) ?? selected[0])!;
+      const primaryBytes = read.get(companionKey(primary.name));
+      if (!primaryBytes) {
+        return { ok: false, error: 'The model file could not be read.' };
+      }
+      const companions = selected
+        .filter((entry) => entry !== primary)
+        .map((entry) => ({ name: entry.name, bytes: read.get(companionKey(entry.name))! }));
+      const converted = await importSceneToGlb({ name: primary.name, bytes: primaryBytes }, companions);
+      if (!converted.ok) {
+        return { ok: false, error: converted.error };
+      }
+      const bytes = converted.glb;
       const preflight = preflightGlb(bytes);
       if (!preflight.ok) {
         return { ok: false, error: preflight.error };
@@ -113,8 +136,8 @@ export function useSceneAssets(
       const ingest = await store.ingest({
         kind: 'glb',
         bytes,
-        mimeType: file.type || 'model/gltf-binary',
-        originalFilename: file.name,
+        mimeType: 'model/gltf-binary',
+        originalFilename: primary.name,
       });
       if (!ingest.ok) {
         return { ok: false, error: ingest.error };

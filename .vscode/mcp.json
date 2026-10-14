@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "agent-framework": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "--network", "host",
+        "-v", "/opt/agent-framework-service/mcp_bridge.py:/app/mcp_bridge.py:ro",
+        "agent-framework-service:latest",
+        "python", "/app/mcp_bridge.py"
+      ]
+    }
+  }
+}

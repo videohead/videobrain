@@ -241,19 +241,30 @@ export async function importBundle(
   value: unknown,
   assetStore: AssetStore,
 ): Promise<BundleImportResult> {
-  if (!isRecord(value) || value.bundleVersion !== BUNDLE_SCHEMA_VERSION) {
+  // `exportBundle` returns JSON text, so accept either that or an already
+  // parsed object rather than reporting valid text as a malformed bundle.
+  let candidate = value;
+  if (typeof candidate === 'string') {
+    try {
+      candidate = JSON.parse(candidate) as unknown;
+    } catch {
+      return { ok: false, error: 'Bundle payload is not valid JSON.' };
+    }
+  }
+  if (!isRecord(candidate) || candidate.bundleVersion !== BUNDLE_SCHEMA_VERSION) {
     return { ok: false, error: 'Unsupported or malformed bundle.' };
   }
-  if (!isRecord(value.assets)) {
+  const bundle = candidate;
+  if (!isRecord(bundle.assets)) {
     return { ok: false, error: 'Bundle assets must be an object.' };
   }
 
-  const assetEntries = Object.entries(value.assets);
+  const assetEntries = Object.entries(bundle.assets);
   if (assetEntries.length > MAX_PROJECT_ASSET_COUNT) {
     return { ok: false, error: `Bundle exceeds ${MAX_PROJECT_ASSET_COUNT} assets.` };
   }
 
-  const parsed = parseEnvelope(value.envelope);
+  const parsed = parseEnvelope(bundle.envelope);
   if (!parsed.ok) {
     return { ok: false, error: parsed.error };
   }
@@ -287,6 +298,10 @@ export async function importBundle(
   // Ingest atomically; track newly created assets for rollback.
   const ingestedIds: string[] = [];
   const newlyCreated: string[] = [];
+  // The target store allocates its own ids, so the envelope's manifest map
+  // has to be rekeyed. Without this the returned envelope would reference
+  // ids that do not exist in the store it was just imported into.
+  const remapped: Record<string, AssetManifest> = {};
   try {
     for (const entry of decoded) {
       const result = await assetStore.ingest({
@@ -307,6 +322,8 @@ export async function importBundle(
       if (!result.deduplicated) {
         newlyCreated.push(result.ref.id);
       }
+      // Content identity (the hash) is unchanged; only the id moves.
+      remapped[result.ref.id] = { ...entry.manifest, ref: result.ref };
     }
   } catch (error) {
     for (const id of newlyCreated) {
@@ -315,7 +332,11 @@ export async function importBundle(
     return { ok: false, error: error instanceof Error ? error.message : 'Bundle ingest failed.' };
   }
 
-  return { ok: true, envelope: parsed.envelope, ingestedIds };
+  return {
+    ok: true,
+    envelope: { ...parsed.envelope, assetManifests: remapped },
+    ingestedIds,
+  };
 }
 
 /** Serialize just the graph for legacy graph-only export. */

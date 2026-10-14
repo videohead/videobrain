@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react';
 import { Trash2, Upload } from 'lucide-react';
 
+import { SCENE_IMPORT_ACCEPT } from '../engine/sceneImport';
 import type { SceneAssetImportResult } from '../hooks/useSceneAssets';
 
 interface SceneAssetControlProps {
   assetId: string;
   assetHash: string;
   status: 'ready' | 'missing' | 'none';
-  onImport: (file: File) => Promise<SceneAssetImportResult>;
+  onImport: (files: readonly File[]) => Promise<SceneAssetImportResult>;
   onApply: (assetId: string, assetHash: string) => void;
   onClear: () => void;
 }
@@ -25,11 +26,11 @@ export function SceneAssetControl({ assetId, assetHash, status, onImport, onAppl
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function importModel(file: File) {
+  async function importModel(files: File[]) {
     const current = ++request.current;
     setLoading(true);
     setError(null);
-    const result = await onImport(file);
+    const result = await onImport(files);
     if (request.current !== current) {
       return;
     }
@@ -80,14 +81,16 @@ export function SceneAssetControl({ assetId, assetHash, status, onImport, onAppl
         ref={input}
         className="sr-only"
         type="file"
-        accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+        accept={SCENE_IMPORT_ACCEPT}
         aria-label="Import 3D model asset"
+        title="Select a model file (.glb, .gltf, .obj, .stl, .fbx, .3mf, .3ds, .usd/.usda/.usdc/.usdz), plus any companion files it needs"
         disabled={loading}
+        multiple
         onChange={(event) => {
-          const file = event.target.files?.[0];
+          const files = Array.from(event.target.files ?? []);
           event.target.value = '';
-          if (file) {
-            void importModel(file);
+          if (files.length > 0) {
+            void importModel(files);
           }
         }}
       />

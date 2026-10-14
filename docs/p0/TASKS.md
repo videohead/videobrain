@@ -327,9 +327,9 @@ desktop/mobile screenshots remain for independent baseline sign-off.
 
 ```task
 id: D4
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review
+owner: assistant
+reviewer: user
 depends_on: D3
 scope: isolated scene import adapters/tests/fixtures; docs/SCENE_3D.md
 ```
@@ -339,11 +339,59 @@ Outcome: split into separately assigned child cards for OBJ/MTL, STL, FBX, 3MF,
 Record scene/material/texture/unit/animation fidelity and incompatible features
 per format. Conversion services require separate deployment and trust approval.
 
+**Delivered (2026-10-12):**
+- [sceneImport.ts](../../src/engine/sceneImport.ts) (+15 tests): one offline
+  adapter pipeline for OBJ/MTL, STL, FBX, 3MF, 3DS and USD/USDZ. Each pinned
+  Three.js loader decodes to a scene, a static-subset check rejects skins and
+  morph targets, and the pinned GLTFExporter normalizes the result to a single
+  self-contained GLB — storage, preflight, budgets and rendering stay GLB-only.
+- [gltfPack.ts](../../src/engine/gltfPack.ts) (+9 tests): packs a `.gltf` JSON
+  and its companion files (`.bin`, PNG/JPEG/WebP textures, data URIs) into one
+  GLB. Fixes the user-reported "Not a GLB file" failure for `.gltf` imports.
+- `useSceneAssets.importFile` now accepts a file set: the model file plus any
+  companions selected in the same picker; the file control advertises all
+  supported extensions and allows multi-select.
+- Offline guarantee: an intercepting LoadingManager blocks any loader network
+  fetch; companion texture references must be provided as selected files.
+- Fixtures (CC0, hash-recorded in
+  [d4-fixture-manifest.json](../../public/test-data/fixtures-3d/d4-fixture-manifest.json),
+  generator [generate-d4-fixtures.mjs](../../scripts/generate-d4-fixtures.mjs)):
+  `d4-quad.obj`+`d4-quad.mtl`, `d4-quad.stl`, `d4-triangle.fbx`,
+  `d4-triangle.3mf`, `d4-quad.usdz`.
+- e2e [scene-import.spec.ts](../../e2e/scene-import.spec.ts): all five formats
+  convert to preflight-valid GLB in a real browser (pinned Playwright
+  container, 5 passed); existing scene-asset/scene-instance pixel tests still
+  pass.
+
+**Format fidelity matrix (pinned loaders, Three.js r180):**
+
+| Format | Loader path | Fidelity | Known limits |
+|--------|-------------|----------|--------------|
+| OBJ/MTL | OBJLoader + MTLLoader | Geometry, groups, basic materials | No smoothing-group preservation beyond loader defaults; MTL textures only from selected companion files |
+| STL | STLLoader | Binary and ASCII geometry; a default standard material is assigned | No color/material in the format itself |
+| FBX | FBXLoader | Binary/ASCII FBX ≥ 6.4 geometry and standard materials | Skins/animation rejected by the static subset; TGA and external textures blocked offline |
+| 3MF | 3MFLoader (fflate) | Core spec meshes and materials | Beam-lattice and slice extensions unsupported |
+| 3DS | TDSLoader | Mesh geometry and materials | Legacy texture references blocked offline |
+| USD/USDZ | USDLoader | USDA text and USDC crate geometry | Material networks beyond the loader subset; `.usd` binary assumed USDC |
+
+**Not implemented (explicit deferrals):** FBX < 6.4, Draco/meshopt-compressed
+GLB, server-side conversion (assimp or OpenUSD) for files outside the pinned
+loader subsets. Such files fail import with a surfaced parse error; no silent
+simplification. A server converter would need separate deployment and trust
+approval per this card.
+
+Verify: lint + typecheck + 1156 unit tests + build pass; e2e scene-import
+(5), scene-asset and scene-instance specs pass.
+
 Acceptance: every requested format has fixture-backed support or an explicitly
 approved deferral; feasibility notes alone do not complete format support. Preserve
 source bytes, missing-dependency diagnostics, resource limits and cancellation.
 
-Handoff: pending; child IDs, format matrix, licensing and fidelity evidence required.
+Handoff: review — stored assets are the normalized GLB (source bytes are not
+retained after conversion, by design of the single-format pipeline; original
+filenames are recorded in the manifest). Unit/UI click-through for each format
+remains manual; cancellation is not applicable (imports are synchronous local
+parsing, no job lifecycle).
 
 ## D5 - Add compatible GPU instance batches
 
@@ -762,9 +810,9 @@ persisted, so a controls pass belongs with the M3 shared-file lease.
 
 ```task
 id: I1
-status: waiting
-owner: unassigned
-reviewer: unassigned
+status: review (partial — generation leg not covered)
+owner: assistant
+reviewer: user
 depends_on: D3, G2, M3
 scope: cross-track integration tests/presets/stories; docs/CURRENT_STATE.md; shared fixes by lease
 ```
@@ -774,20 +822,50 @@ surfaces -> frame effects -> clean output -> save/reopen. Verify offline ordinar
 editing, missing assets/providers/outputs, reset and GPU recovery. Integrate one
 track at a time; review public contract differences before applying patches.
 
+**Delivered (2026-10-11):**
+[baselineIntegration.test.ts](../../src/store/baselineIntegration.test.ts) —
+7 tests walking one project end to end: a durable asset enters the shared store,
+two surfaces are mapped onto one named output and edited, the output composes
+cleanly while evaluating its source exactly once, and the project saves,
+reopens and round-trips as a portable bundle. Also covers a missing asset, a
+deleted source node, undo leaving durable bytes untouched, refusal of a corrupt
+saved mapping, and an older graph-only project.
+
+**Two cross-track defects found and fixed.** Neither was visible from inside a
+single track:
+1. `importBundle` rejected the JSON string that `exportBundle` returns,
+   reporting its own valid output as a malformed bundle. It now accepts either
+   the string or an already-parsed object.
+2. `importBundle` re-ingested assets under ids allocated by the target store
+   but returned an envelope still keyed by the **source** ids, so every
+   manifest referenced an id that could never resolve. The returned envelope is
+   now rekeyed to the ingested ids; content hashes are unchanged, so
+   hash-based resolution is unaffected.
+
+Verify: lint + typecheck + 1124 unit tests + build pass.
+
 Acceptance: all baseline criteria mapped to evidence, full repository/build/catalog
 gates pass, old projects survive, no duplicate generation and no silent fallback.
 Provider and physical tests remain separate; do not report full P0 completion.
 
-Handoff: pending; integrated snapshot and independent baseline acceptance required.
+Handoff: review, and **partial by construction**. (1) The baseline's asset is
+ingested directly because G1/G2 are still `waiting` — **nothing here is evidence
+that a generated result reaches the store through a job lifecycle**, so I1's
+generation leg is not covered and the card cannot be fully accepted while its
+G2 dependency is unmet. (2) The composer and presentation window are still
+standalone modules, so the path is covered by module-level and pixel tests
+rather than a live UI click-through. (3) GPU context-recovery across the
+combined path was not re-exercised in this pass. (4) The catalog gate was not
+re-run. See [RELEASE_AUDIT.md](RELEASE_AUDIT.md).
 
 ## R1 - Audit full P0 coverage and release readiness
 
 ```task
 id: R1
-status: waiting
-owner: unassigned
-reviewer: unassigned
-depends_on: I1, D4, D5, G3, G4, G5, M4, M5
+status: review (audit drafted) / BLOCKED (release decision)
+owner: assistant
+reviewer: user
+depends_on: I1, D4, D5, G3, G4, G5, M4
 scope: release evidence and docs; no deployment without explicit user approval
 ```
 
@@ -796,9 +874,44 @@ supported formats/providers, license/security findings, physical/provider eviden
 and known limits. Re-run required gates on the integrated snapshot. Product release
 does not depend on adopting a multiagent framework; O0 is not a release dependency.
 
+**Note:** M5 (3D calibration) was withdrawn by the user on 2026-10-11 for later
+revision and has been removed from this card's dependencies.
+
+**Delivered (2026-10-11):** [RELEASE_AUDIT.md](RELEASE_AUDIT.md).
+
+**Verdict: full original P0 coverage is NOT achieved.** All three tracks are
+partial:
+- **3D import:** GLB/glTF only. Six of seven requested format families
+  (OBJ, FBX, STL, 3MF, 3ds, USD/USDZ) are unimplemented — D4 is `waiting`.
+- **Generators:** ComfyUI text-to-image/clip against a user-run server. No
+  image/mask/video inputs, no provider-neutral job contract (G1), no generation
+  UI (G2), no Atlas/Comet (G3), no DayDreamScope (G5).
+- **Mapping:** mesh warp, Bezier masks, named outputs, persistence and
+  signal-domain blending. Physical blending BLOCKED, FreeDraw painted content
+  not delivered, video wall deferred, 3D calibration withdrawn.
+
+Gates re-run on the integrated snapshot: lint, typecheck, 1124 unit tests and
+build all pass (734 at C0). The full Playwright suite is 67 passed / 1 skipped
+with **2 pre-existing `studio.spec.ts` failures that remain untriaged** and must
+not be assumed benign. The catalog gate was not re-run in this pass.
+
+Security: the 3 high-severity npm advisories are all `undici` via `jsdom`, a
+**test-only** dependency — `npm audit --omit=dev` reports 0 vulnerabilities, so
+the shipped bundle is unaffected. No new runtime dependencies were added. A
+third-party licence review / SBOM has **not** been performed.
+
+A second, procedural blocker: apart from C1, **no card has been accepted** —
+every delivered card sits in `review`, and R1 cannot close over unaccepted
+dependencies.
+
 Acceptance: either full original P0 coverage, or an explicitly approved revised
 release scope with outstanding work retained in the roadmap. Deferrals must never
 be presented as implemented features. Record rollback/deployment plan for the single
 existing web service; do not deploy or create a second permanent server implicitly.
 
-Handoff: pending; release scope approval and independent acceptance required.
+Handoff: BLOCKED on a user decision. The audit proposes a revised release scope
+(GLB/glTF import with instancing, ComfyUI text generation, the mapping baseline,
+all with limits stated) — **a proposal, not an approved scope**, and materially
+narrower than the original P0 text. No deployment is authorized. Rollback
+currently has a gap: **no image digest is recorded for the known-good
+deployment**, so one must be captured before any deploy.

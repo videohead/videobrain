@@ -1,0 +1,42 @@
+[
+  {
+    "name": "d4-quad.obj",
+    "sha256": "1af048fc3b39e564a300a342f5e749c5d8cf22308f30381a0e0299479d5eb962",
+    "bytes": 132,
+    "description": "OBJ quad exported from pinned OBJExporter"
+  },
+  {
+    "name": "d4-quad.mtl",
+    "sha256": "f0a06161b4a0ee02370ee4202203f6446e182333f2ee201284264b8b1a254e1c",
+    "bytes": 28,
+    "description": "Companion MTL for d4-quad.obj"
+  },
+  {
+    "name": "d4-quad.stl",
+    "sha256": "eb12279d260325ca5a1f46b723c97635fcd19294527cab650673ac8825a4152b",
+    "bytes": 265,
+    "description": "ASCII STL quad from pinned STLExporter"
+  },
+  {
+    "name": "d4-quad.usdz",
+    "sha256": "a0298f610d4f536b9061d02e473229c61fd6f836805198964f356ec6541d692f",
+    "bytes": 2338,
+    "description": "USDZ quad from pinned USDZExporter"
+  },
+  {
+    "name": "d4-triangle.3mf",
+    "sha256": "bb43744197018785753338effa03d56be734ed7dbc6d0b17c05dcdf6078f58ec",
+    "bytes": 1192,
+    "description": "Hand-packed minimal 3MF (single triangle)"
+  },
+  {
+    "name": "d4-triangle.fbx",
+    "sha256": "751609525c248dd90b6aabe4d20e272073089e74f25679fdfe0cb2dc62c3c85c",
+    "bytes": 645,
+    "description": "Minimal binary FBX (one triangle)"
+  },
+  {
+    "name": "d4-triangle.3ds",
+    "deferred": "3DS fixture generated inside sceneImport.test.ts (chunk stream)"
+  }
+]
