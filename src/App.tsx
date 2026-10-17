@@ -32,7 +32,9 @@ import { ControllerDialog } from './components/ControllerDialog';
 import { controller } from './control/controller';
 import type { OperatorFlowNode } from './components/OperatorNode';
 import { Inspector } from './components/Inspector';
+import { MobileMenu } from './components/MobileMenu';
 import { NewPatchMenu } from './components/NewPatchMenu';
+import type { SearchableGraphNode } from './components/NodeSearch';
 import type { OperatorInputRuntime } from './components/operatorInputRuntime';
 import { OperatorLibrary } from './components/OperatorLibrary';
 import { PreviewPanel } from './components/PreviewPanel';
@@ -403,6 +405,26 @@ function Studio() {
     [addNode, graphDocument.nodes.length, notify, screenToFlowPosition, selectNode],
   );
 
+  const focusNode = useCallback(
+    (nodeId: string) => {
+      const target = graphDocument.nodes.find((node) => node.id === nodeId);
+      if (!target) {
+        return;
+      }
+      selectNode(nodeId);
+      window.requestAnimationFrame(() => {
+        void fitView({
+          nodes: [{ id: nodeId }],
+          padding: 0.35,
+          minZoom: 0.6,
+          maxZoom: 1.2,
+          duration: 280,
+        });
+      });
+    },
+    [fitView, graphDocument.nodes, selectNode],
+  );
+
   const resetRuntime = useCallback(() => {
     setResetToken((token) => token + 1);
     notify('Playback returned to frame zero.');
@@ -520,12 +542,34 @@ function Studio() {
 
   const selectedNode =
     graphDocument.nodes.find((node) => node.id === selectedNodeId) ?? null;
+  const searchableNodes = useMemo<SearchableGraphNode[]>(
+    () => graphDocument.nodes.map((node) => ({ id: node.id, kind: node.kind })),
+    [graphDocument.nodes],
+  );
   const compilation = tryCompileGraph(graphDocument);
   const graphError = compilation.ok ? null : compilation.issues[0]?.message ?? 'Graph error';
 
   return (
     <div className="studio-shell">
       <Topbar
+        mobileMenu={
+          <MobileMenu
+            playing={playing}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            nodes={searchableNodes}
+            onTogglePlaying={togglePlaying}
+            onUndo={undo}
+            onRedo={redo}
+            onNew={startPreset}
+            onImport={() => fileInputRef.current?.click()}
+            onExport={downloadProject}
+            onAdd={() => setCommandOpen(true)}
+            onControllers={() => setControllersOpen(true)}
+            onHelp={() => setHelpOpen(true)}
+            onNodeSelect={focusNode}
+          />
+        }
         playing={playing}
         canUndo={canUndo}
         canRedo={canRedo}
@@ -647,6 +691,7 @@ function Studio() {
 }
 
 interface TopbarProps {
+  mobileMenu: React.ReactNode;
   playing: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -664,6 +709,7 @@ interface TopbarProps {
 }
 
 function Topbar({
+  mobileMenu,
   playing,
   canUndo,
   canRedo,
@@ -681,6 +727,7 @@ function Topbar({
 }: TopbarProps) {
   return (
     <header className="topbar">
+      {mobileMenu}
       <div className="brand">
         <span className="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 36 36">
