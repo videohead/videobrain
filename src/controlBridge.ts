@@ -42,7 +42,13 @@ export function startControlBridge(url: string): void {
   let closedByUs = false;
 
   const connect = (): void => {
-    const socket = new WebSocket(url);
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(url);
+    } catch (error) {
+      console.warn('VideoBrain control bridge failed to start.', error);
+      return;
+    }
     socket.addEventListener('message', (event) => {
       handleMessage(socket, String(event.data));
     });
@@ -57,4 +63,15 @@ export function startControlBridge(url: string): void {
   window.addEventListener('beforeunload', () => {
     closedByUs = true;
   });
+}
+
+// Also export a marker to prevent tree-shaking
+export const controlBridgeInitialized = true;
+
+// Export initializeControlBridge for explicit initialization
+export function initializeControlBridge(): void {
+  const url = import.meta.env.VITE_CONTROL_BRIDGE_URL as string | undefined;
+  if (url) {
+    startControlBridge(url);
+  }
 }

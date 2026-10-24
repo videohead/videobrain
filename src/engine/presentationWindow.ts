@@ -60,12 +60,43 @@ export interface PresentationTarget {
   closed: boolean;
   close: () => void;
   focus?: () => void;
+  requestAnimationFrame?: (callback: FrameRequestCallback) => number;
+  cancelAnimationFrame?: (handle: number) => void;
   document?: {
     title?: string;
     body?: { innerHTML?: string } | null;
     write?: (markup: string) => void;
     close?: () => void;
+    querySelector?: (selector: string) => Element | null;
   };
+}
+
+export interface PresentationMirror {
+  stop: () => void;
+}
+
+function presentationDiagnosticsEnabled(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return (
+    window.localStorage.getItem('videobrain.debugRenderer') === '1' ||
+    new URLSearchParams(window.location.search).has('debugRenderer')
+  );
+}
+
+function logPresentationDiagnostic(
+  event: string,
+  details: Record<string, unknown> = {},
+): void {
+  if (!presentationDiagnosticsEnabled()) {
+    return;
+  }
+  console.info('[VideoBrain presentation]', {
+    event,
+    timeMs: Math.round(performance.now()),
+    ...details,
+  });
 }
 
 const numberOr = (value: unknown, fallback: number): number =>
@@ -183,6 +214,7 @@ export function openPresentation(
   }
   if (target.document) {
     target.document.title = `VideoBrain — ${output.name}`;
+    writePresentationShell(target.document, output);
   }
   const session: PresentationSession = {
     outputId: output.id,
@@ -193,6 +225,130 @@ export function openPresentation(
     },
   };
   return { ok: true, session };
+}
+
+function presentationShell(output: OutputLayout): string {
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VideoBrain — ${escapeHtml(output.name)}</title>
+    <style>
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+      body { display: grid; place-items: stretch; }
+      canvas { width: 100vw; height: 100vh; display: block; object-fit: contain; background: #000; }
+      .status { position: fixed; inset: 0; display: grid; place-items: center; color: #9299a7; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: #000; }
+      .status[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="videobrain-presentation-canvas" aria-label="VideoBrain output"></canvas>
+    <div id="videobrain-presentation-status" class="status">Waiting for Display…</div>
+  </body>
+</html>`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+  }[character] ?? character));
+}
+
+function writePresentationShell(
+  document: NonNullable<PresentationTarget['document']>,
+  output: OutputLayout,
+): void {
+  const markup = presentationShell(output);
+  if (document.write) {
+    document.write(markup);
+    document.close?.();
+    return;
+  }
+  if (document.body) {
+    document.body.innerHTML = markup;
+  }
+}
+
+export function mirrorPresentationCanvas(
+  session: PresentationSession,
+  source: HTMLCanvasElement | null,
+  output: OutputLayout,
+): PresentationMirror {
+  const document = session.target.document;
+  if (!document || !source) {
+    logPresentationDiagnostic('mirror-unavailable', {
+      outputId: session.outputId,
+      hasDocument: Boolean(document),
+      hasSource: Boolean(source),
+    });
+    return { stop: () => undefined };
+  }
+
+  const canvas = document.querySelector?.('#videobrain-presentation-canvas');
+  const status = document.querySelector?.('#videobrain-presentation-status');
+  if (canvas?.tagName.toLowerCase() !== 'canvas') {
+    logPresentationDiagnostic('mirror-missing-canvas', { outputId: session.outputId });
+    return { stop: () => undefined };
+  }
+  const targetCanvas = canvas as HTMLCanvasElement;
+  const statusElement = status as HTMLElement | null;
+  const context = targetCanvas.getContext('2d');
+  if (!context) {
+    logPresentationDiagnostic('mirror-context-error', { outputId: session.outputId });
+    return { stop: () => undefined };
+  }
+
+  targetCanvas.width = Math.max(1, Math.round(Math.min(output.width, MAX_OUTPUT_DIMENSION)));
+  targetCanvas.height = Math.max(1, Math.round(Math.min(output.height, MAX_OUTPUT_DIMENSION)));
+  logPresentationDiagnostic('mirror-start', {
+    outputId: session.outputId,
+    width: targetCanvas.width,
+    height: targetCanvas.height,
+    sourceWidth: source.width,
+    sourceHeight: source.height,
+  });
+  let stopped = false;
+  let frame = 0;
+  let drawCount = 0;
+  const schedule = session.target.requestAnimationFrame?.bind(session.target) ?? globalThis.requestAnimationFrame.bind(globalThis);
+  const cancel = session.target.cancelAnimationFrame?.bind(session.target) ?? globalThis.cancelAnimationFrame.bind(globalThis);
+
+  const draw = () => {
+    if (stopped || session.lost) {
+      return;
+    }
+    try {
+      context.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+      context.drawImage(source, 0, 0, targetCanvas.width, targetCanvas.height);
+      if (statusElement) {
+        statusElement.hidden = true;
+      }
+      drawCount += 1;
+    } catch {
+      if (statusElement) {
+        statusElement.hidden = false;
+        statusElement.textContent = 'Display unavailable';
+      }
+      logPresentationDiagnostic('mirror-draw-error', { outputId: session.outputId });
+    }
+    frame = schedule(draw);
+  };
+  draw();
+
+  return {
+    stop: () => {
+      stopped = true;
+      cancel(frame);
+      logPresentationDiagnostic('mirror-stop', {
+        outputId: session.outputId,
+        drawCount,
+      });
+    },
+  };
 }
 
 /** Closes a session. Safe to call when the user already closed the window. */

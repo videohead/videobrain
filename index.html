@@ -14,6 +14,37 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        const root = document.getElementById('root');
+        const state = { errors: [] };
+        window.__videobrainBoot = state;
+        const describe = (error) => {
+          if (!error) return 'Unknown boot error';
+          if (error.stack) return error.stack;
+          if (error.message) return error.message;
+          return String(error);
+        };
+        const render = () => {
+          if (!root || root.childElementCount > 0) return;
+          const details = state.errors.length > 0
+            ? state.errors.map(describe).join('\n\n')
+            : 'React did not mount before the boot watchdog timed out.';
+          root.innerHTML = '<main style="box-sizing:border-box;min-height:100vh;padding:24px;background:#090b10;color:#f4f7fb;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"><h1 style="margin:0 0 12px;font:600 20px system-ui,sans-serif;">VideoBrain failed to start</h1><p style="max-width:760px;color:#aeb8c5;font:14px system-ui,sans-serif;">The app boot diagnostics caught a startup failure before the studio UI could render.</p><pre style="overflow:auto;white-space:pre-wrap;border:1px solid #2f3a48;border-radius:8px;padding:16px;background:#111722;color:#f4f7fb;">' + details.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]) + '</pre></main>';
+        };
+        window.addEventListener('error', (event) => {
+          state.errors.push(event.error || event.message);
+          window.setTimeout(render, 0);
+        });
+        window.addEventListener('unhandledrejection', (event) => {
+          state.errors.push(event.reason);
+          window.setTimeout(render, 0);
+        });
+        window.setTimeout(() => {
+          if (root?.dataset.videobrainBoot !== 'mounted') render();
+        }, 4000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

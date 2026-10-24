@@ -123,6 +123,7 @@ export interface GraphDocument {
   schemaVersion: typeof GRAPH_SCHEMA_VERSION;
   nodes: GraphNode[];
   edges: GraphEdge[];
+  outputLayouts?: import('../store/contracts').OutputLayout[];
 }
 
 export interface PortDefinition {

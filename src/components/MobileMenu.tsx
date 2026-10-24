@@ -3,6 +3,7 @@ import {
   CircleHelp,
   Download,
   FilePlus2,
+  LayoutDashboard,
   Menu,
   Pause,
   Play,
@@ -33,6 +34,7 @@ interface MobileMenuProps {
   onExport: () => void;
   onAdd: () => void;
   onControllers: () => void;
+  onOutputLayouts: () => void;
   onHelp: () => void;
   onNodeSelect: (nodeId: string) => void;
 }
@@ -50,6 +52,7 @@ export function MobileMenu({
   onExport,
   onAdd,
   onControllers,
+  onOutputLayouts,
   onHelp,
   onNodeSelect,
 }: MobileMenuProps) {
@@ -236,6 +239,13 @@ export function MobileMenu({
                   onClick={() => run(onControllers)}
                 >
                   <SlidersHorizontal size={14} /> Controllers
+                </button>
+                <button
+                  type="button"
+                  className="mobile-menu-action"
+                  onClick={() => run(onOutputLayouts)}
+                >
+                  <LayoutDashboard size={14} /> Output Layouts
                 </button>
                 <button
                   type="button"

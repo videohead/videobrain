@@ -1,9 +1,17 @@
-import { StrictMode } from 'react';
+import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@xyflow/react/dist/style.css';
 import './styles.css';
 import { App } from './App';
-import { startControlBridge } from './controlBridge';
+
+function BootReporter() {
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) root.dataset.videobrainBoot = 'mounted';
+  }, []);
+
+  return <App />;
+}
 
 const root = document.getElementById('root');
 
@@ -11,11 +19,10 @@ if (!root) {
   throw new Error('Application root is missing.');
 }
 
-const controlBridgeUrl = import.meta.env.VITE_CONTROL_BRIDGE_URL;
-if (controlBridgeUrl) startControlBridge(controlBridgeUrl);
+root.dataset.videobrainBoot = 'rendering';
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <BootReporter />
   </StrictMode>,
 );

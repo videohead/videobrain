@@ -32,11 +32,40 @@ interface PreviewPanelProps {
   ) => AudioAnalysisFrame | AudioAnalysisSnapshot;
   onRuntimeUpdate: (result: RenderResult | null) => void;
   onNotify: (message: string, tone?: 'success' | 'error') => void;
+  onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 interface MeasuredCanvasSize {
   width: number;
   height: number;
+}
+
+let nextPreviewRendererId = 1;
+
+function rendererDiagnosticsEnabled(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return (
+    window.localStorage.getItem('videobrain.debugRenderer') === '1' ||
+    new URLSearchParams(window.location.search).has('debugRenderer')
+  );
+}
+
+function logRendererDiagnostic(
+  rendererId: number,
+  event: string,
+  details: Record<string, unknown> = {},
+): void {
+  if (!rendererDiagnosticsEnabled()) {
+    return;
+  }
+  console.info('[VideoBrain renderer]', {
+    rendererId,
+    event,
+    timeMs: Math.round(performance.now()),
+    ...details,
+  });
 }
 
 export function PreviewPanel({
@@ -52,9 +81,11 @@ export function PreviewPanel({
   sampleAudio,
   onRuntimeUpdate,
   onNotify,
+  onCanvasReady,
 }: PreviewPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<WebGLRenderer | null>(null);
+  const rendererIdRef = useRef(0);
   const animationRef = useRef(0);
   const framePacerRef = useRef(new FramePacer('display'));
   const elapsedRef = useRef(0);
@@ -89,6 +120,13 @@ export function PreviewPanel({
         return;
       }
       publishTimestampRef.current = now;
+      if (result.error) {
+        logRendererDiagnostic(rendererIdRef.current, 'publish-error', {
+          frame: result.frame,
+          error: result.error,
+          force,
+        });
+      }
       setRuntime(result);
       onRuntimeUpdate(result);
       setRenderError(result.error);
@@ -100,15 +138,31 @@ export function PreviewPanel({
     (forcePublish = false, presentationTimestamp?: number) => {
       const renderer = rendererRef.current;
       if (!renderer) {
+        logRendererDiagnostic(rendererIdRef.current, 'render-skipped-no-renderer', {
+          forcePublish,
+        });
         return;
       }
       const audio = sampleAudio(elapsedRef.current);
+      const startedAt = performance.now();
       const result = renderer.render(
         elapsedRef.current,
         audio,
         pointerRef.current,
         presentationTimestamp,
       );
+      const durationMs = performance.now() - startedAt;
+      if (durationMs > 12 || result.error) {
+        logRendererDiagnostic(rendererIdRef.current, 'render', {
+          durationMs: Number(durationMs.toFixed(2)),
+          frame: result.frame,
+          passCount: result.passCount,
+          rendered: result.rendered,
+          forcePublish,
+          error: result.error,
+          presentationTimestamp,
+        });
+      }
       pointerRef.current = {
         ...pointerRef.current,
         press: 0,
@@ -196,10 +250,27 @@ export function PreviewPanel({
       return;
     }
     try {
-      const renderer = new WebGLRenderer(canvas, { maxPixelRatio: 1.5 });
+      const rendererId = nextPreviewRendererId;
+      nextPreviewRendererId += 1;
+      rendererIdRef.current = rendererId;
+      logRendererDiagnostic(rendererId, 'create-start', {
+        canvasClientWidth: canvas.clientWidth,
+        canvasClientHeight: canvas.clientHeight,
+        preserveDrawingBuffer: true,
+      });
+      const renderer = new WebGLRenderer(canvas, {
+        maxPixelRatio: 1.5,
+        preserveDrawingBuffer: true,
+      });
       rendererRef.current = renderer;
+      onCanvasReady?.(canvas);
+      logRendererDiagnostic(rendererId, 'create-complete', {
+        renderWidth: renderer.width,
+        renderHeight: renderer.height,
+      });
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Unable to start the renderer.';
+      logRendererDiagnostic(rendererIdRef.current, 'create-error', { error: message });
       queueMicrotask(() => {
         setRenderError(message);
         onRuntimeUpdate(null);
@@ -207,11 +278,16 @@ export function PreviewPanel({
     }
 
     return () => {
+      logRendererDiagnostic(rendererIdRef.current, 'dispose-start', {
+        reason: 'PreviewPanel layout effect cleanup',
+      });
       cancelAnimationFrame(animationRef.current);
       rendererRef.current?.dispose();
       rendererRef.current = null;
+      onCanvasReady?.(null);
+      logRendererDiagnostic(rendererIdRef.current, 'dispose-complete');
     };
-  }, [onRuntimeUpdate]);
+  }, [onCanvasReady, onRuntimeUpdate]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -243,6 +319,10 @@ export function PreviewPanel({
       return;
     }
     try {
+      logRendererDiagnostic(rendererIdRef.current, 'set-graph-start', {
+        nodes: document.nodes.length,
+        edges: document.edges.length,
+      });
       renderer.setGraph(document);
       if (resizeNeedsRetryRef.current) {
         applyMeasuredCanvasSize(renderer);
@@ -252,9 +332,11 @@ export function PreviewPanel({
       }
       applySceneAssets(renderer);
       renderIfHeld();
+      logRendererDiagnostic(rendererIdRef.current, 'set-graph-complete');
       queueMicrotask(() => setGraphSyncError(null));
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'The graph could not be compiled.';
+      logRendererDiagnostic(rendererIdRef.current, 'set-graph-error', { error: message });
       queueMicrotask(() => setGraphSyncError(message));
       onNotify(message, 'error');
     }
@@ -318,6 +400,10 @@ export function PreviewPanel({
       }
       const { width, height } = entry.contentRect;
       measuredCanvasSizeRef.current = { width, height };
+      logRendererDiagnostic(rendererIdRef.current, 'resize-observed', {
+        width: Number(width.toFixed(2)),
+        height: Number(height.toFixed(2)),
+      });
       if (applyMeasuredCanvasSize(renderer)) {
         renderIfHeld();
       }
@@ -352,9 +438,12 @@ export function PreviewPanel({
     rendererRef.current?.resetFrameRate();
 
     if (!playing || !rendererRef.current) {
+      logRendererDiagnostic(rendererIdRef.current, 'animation-held', { playing });
       renderOnce(true);
       return;
     }
+
+    logRendererDiagnostic(rendererIdRef.current, 'animation-start');
 
     const tick = (timestamp: number) => {
       const previous = previousTimestampRef.current;
@@ -368,7 +457,10 @@ export function PreviewPanel({
       animationRef.current = requestAnimationFrame(tick);
     };
     animationRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animationRef.current);
+    return () => {
+      logRendererDiagnostic(rendererIdRef.current, 'animation-stop');
+      cancelAnimationFrame(animationRef.current);
+    };
   }, [playing, renderOnce]);
 
   const updatePointerPosition = (

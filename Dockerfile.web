@@ -6,6 +6,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 # Served behind Traefik's /videobrain path prefix, so assets must resolve there.
+ARG VITE_CONTROL_BRIDGE_URL=
+ENV VITE_CONTROL_BRIDGE_URL=${VITE_CONTROL_BRIDGE_URL}
 RUN npx tsc -b && npx vite build --base=/videobrain/ \
 	&& npm run build:storybook -- --output-dir dist/storybook \
 	&& npm run check:storybook-dist

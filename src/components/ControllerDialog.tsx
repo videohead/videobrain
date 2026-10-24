@@ -59,10 +59,10 @@ export function ControllerDialog({ onClose }: { onClose: () => void }) {
   };
 
   return <dialog ref={dialog} className="controller-dialog" aria-labelledby="controllers-title" onCancel={onClose}>
-    <header className="help-header"><h2 id="controllers-title">Controllers</h2><button className="icon-button" title="Close controllers" aria-label="Close controllers" onClick={onClose}><X size={16} /></button></header>
+    <header className="controller-header"><h2 id="controllers-title">Controllers</h2><button type="button" className="icon-button" title="Close controllers" aria-label="Close controllers" onClick={onClose}><X size={16} /></button></header>
     <div className="controller-content">
       <div className="controller-status"><label><input type="checkbox" checked={state.armed} onChange={(event) => controller.arm(event.target.checked)} /> Armed</label><span role="status">MIDI: {state.midiState} · Companion: {state.bridgeState}</span></div>
-      {state.error ? <p role="alert">{state.error}</p> : null}
+      {state.error ? <p className="controller-error" role="alert">{state.error}</p> : null}
       <section aria-labelledby="midi-title"><h3 id="midi-title">MIDI</h3>
         <button className="secondary-button" onClick={() => { if (state.midiState === 'Enabled' || state.midiState === 'Requesting') controller.disableMidi(); else void controller.enableMidi(); }}><Radio size={14} />{state.midiState === 'Enabled' || state.midiState === 'Requesting' ? 'Disable MIDI' : 'Enable MIDI'}</button>
         <ul>{state.devices.map((device) => <li key={device.id}>{device.name}</li>)}</ul>

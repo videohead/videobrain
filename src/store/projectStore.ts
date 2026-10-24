@@ -25,6 +25,10 @@ import {
   saveStoredProject,
   type ProjectStorage,
 } from './persistence';
+import {
+  parseOutputLayouts,
+} from '../engine/surfaceLayout';
+import type { OutputLayout } from './contracts';
 
 const DEFAULT_HISTORY_LIMIT = 100;
 const DEFAULT_AUTOSAVE_DELAY_MS = 250;
@@ -44,6 +48,8 @@ export interface ProjectStoreState {
   canUndo: boolean;
   canRedo: boolean;
   persistenceState: PersistenceState;
+  outputLayouts: readonly OutputLayout[];
+  setOutputLayouts: (layouts: readonly OutputLayout[]) => void;
   addNode: (
     kind: NodeKind,
     position: GraphPosition,
@@ -180,6 +186,7 @@ export function createProjectStore(
       canUndo: false,
       canRedo: false,
       persistenceState: storage ? 'saved' : 'failed',
+      outputLayouts: [],
 
       addNode: (kind, position, params = {}) => {
         if (!isFinitePosition(position)) {
@@ -382,19 +389,38 @@ export function createProjectStore(
 
       resetProject: () => {
         commitDocument(cloneGraphDocument(DEFAULT_GRAPH), false, null);
+        set({ outputLayouts: [] });
       },
 
       importProject: (value) => {
         try {
-          const document = compileGraph(parseGraphDocument(value)).document;
+          const parsed = parseGraphDocument(value);
+          const document = compileGraph(parsed).document;
+          const layouts = parsed.outputLayouts
+            ? parseOutputLayouts(JSON.stringify(parsed.outputLayouts))
+            : [];
           commitDocument(document, false, null);
+          set({ outputLayouts: layouts });
           return { ok: true };
         } catch (error) {
           return { ok: false, error: errorMessage(error) };
         }
       },
 
-      exportProject: () => serializeGraphDocument(get().document),
+      exportProject: () => {
+        const state = get();
+        const graphJson = serializeGraphDocument(state.document);
+        const graphObj = JSON.parse(graphJson);
+        const withLayouts = {
+          ...graphObj,
+          outputLayouts: state.outputLayouts,
+        };
+        return JSON.stringify(withLayouts);
+      },
+
+      setOutputLayouts: (layouts: readonly OutputLayout[]) => {
+        set({ outputLayouts: layouts });
+      },
     };
   });
 

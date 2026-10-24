@@ -24,13 +24,21 @@ const output = (overrides: Partial<OutputLayout> = {}): OutputLayout => ({
 });
 
 function fakeTarget(): PresentationTarget {
+  const document = {
+    title: '',
+    markup: '',
+    write: vi.fn((markup: string) => {
+      document.markup = markup;
+    }),
+    close: vi.fn(),
+  };
   const target = {
     closed: false,
     close: () => {
       target.closed = true;
     },
     focus: vi.fn(),
-    document: { title: '' },
+    document,
   };
   return target;
 }
@@ -150,6 +158,10 @@ describe('openPresentation', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.session.target.document?.title).toBe('VideoBrain — Stage Left');
+    expect(result.session.target.document?.write).toHaveBeenCalledWith(
+      expect.stringContaining('videobrain-presentation-canvas'),
+    );
+    expect(result.session.target.document?.close).toHaveBeenCalledOnce();
     expect(result.session.lost).toBe(false);
   });
 

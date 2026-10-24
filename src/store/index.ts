@@ -51,3 +51,11 @@ export function useSelectedNodeId() {
 export function usePlaying() {
   return useProjectStore((state) => state.playing);
 }
+
+export function useOutputLayouts() {
+  return useProjectStore((state) => state.outputLayouts);
+}
+
+export function useSetOutputLayouts() {
+  return useProjectStore((state) => state.setOutputLayouts);
+}

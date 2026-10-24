@@ -1,0 +1,25 @@
+services:
+  videobrain-polling:
+    build:
+      context: .
+      dockerfile: Dockerfile.polling
+    image: videobrain-polling
+    container_name: videobrain-polling
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8934:8934"
+    environment:
+      - POLLING_API_KEY=${POLLING_API_KEY:-${VIDEOBRAIN_CONTROL_API_KEY}}
+      - POLLING_GRAPH_FILE=/app/data/polled-graph.json
+    volumes:
+      - ./data:/app/data
+    labels:
+      # Traefik labels for routing via videohead.duckdns.org
+      - "traefik.enable=true"
+      - "traefik.http.routers.videobrain-polling.rule=Host(`videohead.duckdns.org`) && PathPrefix(`/videobrain-polling`)"
+      - "traefik.http.routers.videobrain-polling.entrypoints=websecure"
+      - "traefik.http.routers.videobrain-polling.priority=110"
+      - "traefik.http.routers.videobrain-polling.tls.certresolver=le"
+      - "traefik.http.routers.videobrain-polling.middlewares=strip-videobrain-polling"
+      - "traefik.http.services.videobrain-polling.loadbalancer.server.port=8934"
+      - "traefik.http.middlewares.strip-videobrain-polling.stripprefix.prefixes=/videobrain-polling"

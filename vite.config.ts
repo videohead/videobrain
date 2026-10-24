@@ -6,6 +6,10 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    minify: 'esbuild',
+    rollupOptions: {
+      external: [],
+    },
   },
   test: {
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.ts'],

@@ -87,6 +87,7 @@ export interface RendererOptions {
   height?: number;
   pixelRatio?: number;
   maxPixelRatio?: number;
+  preserveDrawingBuffer?: boolean;
 }
 
 export interface RenderResult {
@@ -513,7 +514,7 @@ export class WebGLRenderer {
       depth: false,
       stencil: false,
       premultipliedAlpha: false,
-      preserveDrawingBuffer: false,
+      preserveDrawingBuffer: options.preserveDrawingBuffer === true,
       powerPreference: 'high-performance',
     });
     if (!context) {

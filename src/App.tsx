@@ -12,6 +12,7 @@ import {
   SkipBack,
   Upload,
   SlidersHorizontal,
+  LayoutDashboard,
 } from 'lucide-react';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import {
@@ -38,6 +39,7 @@ import type { SearchableGraphNode } from './components/NodeSearch';
 import type { OperatorInputRuntime } from './components/operatorInputRuntime';
 import { OperatorLibrary } from './components/OperatorLibrary';
 import { PreviewPanel } from './components/PreviewPanel';
+import { OutputLayoutsPanel } from './components/OutputLayoutsPanel';
 import { useAudioLevel } from './hooks/useAudioLevel';
 import { useVideoInput } from './hooks/useVideoInput';
 import {
@@ -56,8 +58,17 @@ import {
   usePlaying,
   useProjectStore,
   useSelectedNodeId,
+  useOutputLayouts,
+  useSetOutputLayouts,
   type PersistenceState,
 } from './store';
+import {
+  mirrorPresentationCanvas,
+  openPresentation,
+  requestScreens,
+  type PresentationHost,
+  type ScreenBinding,
+} from './engine/presentationWindow';
 
 interface ToastState {
   id: number;
@@ -216,6 +227,70 @@ function Studio() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [outputLayoutsOpen, setOutputLayoutsOpen] = useState(false);
+  const [availableScreens, setAvailableScreens] = useState<ScreenBinding[]>([]);
+  const liveOutputCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const presentationMirrorsRef = useRef(new Map<string, () => void>());
+
+  const outputLayouts = useOutputLayouts();
+  const setOutputLayouts = useSetOutputLayouts();
+
+  const handlePreviewCanvasReady = useCallback((canvas: HTMLCanvasElement | null) => {
+    liveOutputCanvasRef.current = canvas;
+  }, []);
+
+  const notify = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
+    window.clearTimeout(toastTimerRef.current);
+    setToast({ id: Date.now(), message, tone });
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3200);
+  }, []);
+
+  // Initialize screen access on mount
+  useEffect(() => {
+    const host: PresentationHost = {
+      open: (url, target, features) => window.open(url, target, features),
+      getScreenDetails: (window as any).getScreenDetails,
+    };
+    requestScreens(host).then((access) => {
+      if (access.state === 'granted') {
+        setAvailableScreens([...access.screens]);
+      }
+    });
+  }, []);
+
+  const openPresentationWindow = useCallback(
+    async (outputId: string) => {
+      const layout = outputLayouts.find((l) => l.id === outputId);
+      if (!layout) return;
+
+      const host: PresentationHost = {
+        open: (url, target, features) => window.open(url, target, features),
+        getScreenDetails: (window as any).getScreenDetails,
+      };
+
+      // Find a screen if user has granted permission
+      let targetScreen: ScreenBinding | null = null;
+      if (availableScreens.length > 0) {
+        // For now, just use the first non-primary screen, or the primary if only one
+        targetScreen = availableScreens.find((s) => !s.isPrimary) ?? availableScreens[0] ?? null;
+      }
+
+      const result = openPresentation(host, layout, targetScreen);
+      if (result.ok) {
+        presentationMirrorsRef.current.get(outputId)?.();
+        const mirror = mirrorPresentationCanvas(
+          result.session,
+          liveOutputCanvasRef.current,
+          layout,
+        );
+        presentationMirrorsRef.current.set(outputId, mirror.stop);
+      } else {
+        notify(result.error, 'error');
+      }
+    },
+    [outputLayouts, availableScreens, notify]
+  );
+
   const graphInputRuntime = useMemo<OperatorInputRuntime>(
     () => ({
       networkVideo,
@@ -287,15 +362,13 @@ function Studio() {
     ],
   );
 
-  const notify = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
-    window.clearTimeout(toastTimerRef.current);
-    setToast({ id: Date.now(), message, tone });
-    toastTimerRef.current = window.setTimeout(() => setToast(null), 3200);
-  }, []);
-
   useEffect(
     () => () => {
       window.clearTimeout(toastTimerRef.current);
+      for (const stop of presentationMirrorsRef.current.values()) {
+        stop();
+      }
+      presentationMirrorsRef.current.clear();
     },
     [],
   );
@@ -566,6 +639,7 @@ function Studio() {
             onExport={downloadProject}
             onAdd={() => setCommandOpen(true)}
             onControllers={() => setControllersOpen(true)}
+            onOutputLayouts={() => { setCommandOpen(false); setHelpOpen(false); setOutputLayoutsOpen(true); }}
             onHelp={() => setHelpOpen(true)}
             onNodeSelect={focusNode}
           />
@@ -583,6 +657,7 @@ function Studio() {
         onImport={() => fileInputRef.current?.click()}
         onExport={downloadProject}
         onControllers={() => { setCommandOpen(false); setHelpOpen(false); setControllersOpen(true); }}
+        onOutputLayouts={() => { setCommandOpen(false); setHelpOpen(false); setOutputLayoutsOpen(true); }}
         onHelp={() => {
           setCommandOpen(false);
           setHelpOpen(true);
@@ -644,27 +719,37 @@ function Studio() {
             sampleAudio={sampleAudio}
             onRuntimeUpdate={setRuntime}
             onNotify={notify}
+            onCanvasReady={handlePreviewCanvasReady}
           />
-          <Inspector
-            node={selectedNode}
-            audioInputState={audio.inputState}
-            videoInputState={videoInputState}
-            videoInputError={videoInputError}
-            videoFacingMode={videoFacingMode}
-            graphDocument={graphDocument}
-            videoModelRuntime={videoModel}
-            sceneAssetRuntime={sceneAssets}
-            inputRuntime={graphInputRuntime}
-            onParamChange={handleNodeParamChange}
-            onGestureStart={beginGesture}
-            onGestureEnd={endGesture}
-            onDelete={deleteNode}
-            onDuplicate={(node) => placeNode(node.kind, node)}
-            onEnableMicrophone={audio.enableMicrophone}
-            onDisableMicrophone={audio.disableMicrophone}
-            onEnableCamera={enableCamera}
-            onDisableCamera={disableCamera}
-          />
+          {outputLayoutsOpen ? (
+            <OutputLayoutsPanel
+              outputLayouts={outputLayouts}
+              onChange={setOutputLayouts}
+              graphDocument={graphDocument}
+              onOpenPresentation={openPresentationWindow}
+            />
+          ) : (
+            <Inspector
+              node={selectedNode}
+              audioInputState={audio.inputState}
+              videoInputState={videoInputState}
+              videoInputError={videoInputError}
+              videoFacingMode={videoFacingMode}
+              graphDocument={graphDocument}
+              videoModelRuntime={videoModel}
+              sceneAssetRuntime={sceneAssets}
+              inputRuntime={graphInputRuntime}
+              onParamChange={handleNodeParamChange}
+              onGestureStart={beginGesture}
+              onGestureEnd={endGesture}
+              onDelete={deleteNode}
+              onDuplicate={(node) => placeNode(node.kind, node)}
+              onEnableMicrophone={audio.enableMicrophone}
+              onDisableMicrophone={audio.disableMicrophone}
+              onEnableCamera={enableCamera}
+              onDisableCamera={disableCamera}
+            />
+          )}
         </aside>
       </main>
 
@@ -706,6 +791,7 @@ interface TopbarProps {
   onExport: () => void;
   onHelp: () => void;
   onControllers: () => void;
+  onOutputLayouts: () => void;
 }
 
 function Topbar({
@@ -724,6 +810,7 @@ function Topbar({
   onExport,
   onHelp,
   onControllers,
+  onOutputLayouts,
 }: TopbarProps) {
   return (
     <header className="topbar">
@@ -793,6 +880,16 @@ function Topbar({
           <Plus size={14} /> Add node
         </button>
         <button type="button" className="icon-button controllers-action" onClick={onControllers} title="Controllers" aria-haspopup="dialog"><SlidersHorizontal size={15} /><span className="sr-only">Controllers</span></button>
+        <button
+          type="button"
+          className="icon-button optional-action"
+          onClick={onOutputLayouts}
+          title="Output Layouts"
+          aria-haspopup="dialog"
+        >
+          <LayoutDashboard size={15} />
+          <span className="sr-only">Output Layouts</span>
+        </button>
         <button
           type="button"
           className="icon-button help-action"

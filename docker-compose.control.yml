@@ -13,3 +13,19 @@ services:
       # back as the X-Api-Key header.
       - CONTROL_API_KEY=${VIDEOBRAIN_CONTROL_API_KEY:?set VIDEOBRAIN_CONTROL_API_KEY}
       - CONTROL_ALLOWED_ORIGINS=${VIDEOBRAIN_CONTROL_ALLOWED_ORIGINS:-https://videohead.duckdns.org}
+    labels:
+      # Traefik labels for routing via videohead.duckdns.org
+      - "traefik.enable=true"
+      # REST API router
+      - "traefik.http.routers.videobrain-control.rule=Host(`videohead.duckdns.org`) && PathPrefix(`/videobrain-control`)"
+      - "traefik.http.routers.videobrain-control.entrypoints=websecure"
+      - "traefik.http.routers.videobrain-control.priority=110"
+      - "traefik.http.routers.videobrain-control.tls.certresolver=le"
+      - "traefik.http.routers.videobrain-control.middlewares=strip-videobrain-control"
+      # WebSocket router for control bridge
+      - "traefik.http.routers.videobrain-control-ws.rule=Host(`videohead.duckdns.org`) && PathPrefix(`/videobrain-control/ws`)"
+      - "traefik.http.routers.videobrain-control-ws.entrypoints=websecure"
+      - "traefik.http.routers.videobrain-control-ws.priority=110"
+      - "traefik.http.routers.videobrain-control-ws.tls.certresolver=le"
+      - "traefik.http.services.videobrain-control.loadbalancer.server.port=8933"
+      - "traefik.http.middlewares.strip-videobrain-control.stripprefix.prefixes=/videobrain-control"

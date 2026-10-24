@@ -1,0 +1,102 @@
+services:
+  # Main web UI
+  videobrain-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: videobrain-web
+    container_name: videobrain-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8936:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.videobrain-web.rule=Host(`videohead.duckdns.org`) && (Path(`/videobrain`) || PathPrefix(`/videobrain/`))"
+      - "traefik.http.routers.videobrain-web.entrypoints=websecure"
+      - "traefik.http.routers.videobrain-web.priority=100"
+      - "traefik.http.routers.videobrain-web.tls.certresolver=le"
+      - "traefik.http.routers.videobrain-web.middlewares=strip-videobrain-web"
+      - "traefik.http.services.videobrain-web.loadbalancer.server.port=80"
+
+  # Control API (requires WebSocket bridge in browser)
+  videobrain-control:
+    build:
+      context: .
+      dockerfile: Dockerfile.control
+    image: videobrain-control
+    container_name: videobrain-control
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8933:8933"
+    environment:
+      - CONTROL_API_KEY=${VIDEOBRAIN_CONTROL_API_KEY}
+      - CONTROL_ALLOWED_ORIGINS=${VIDEOBRAIN_CONTROL_ALLOWED_ORIGINS:-https://videohead.duckdns.org}
+    labels:
+      # Traefik labels for routing via videohead.duckdns.org
+      - "traefik.enable=true"
+      # REST API router
+      - "traefik.http.routers.videobrain-control.rule=Host(`videohead.duckdns.org`) && PathPrefix(`/videobrain-control`)"
+      - "traefik.http.routers.videobrain-control.entrypoints=websecure"
+      - "traefik.http.routers.videobrain-control.priority=110"
+      - "traefik.http.routers.videobrain-control.tls.certresolver=le"
+      - "traefik.http.routers.videobrain-control.middlewares=strip-videobrain-control"
+      # WebSocket router for control bridge
+      - "traefik.http.routers.videobrain-control-ws.rule=Host(`videohead.duckdns.org`) && PathPrefix(`/videobrain-control/ws`)"
+      - "traefik.http.routers.videobrain-control-ws.entrypoints=websecure"
+      - "traefik.http.routers.videobrain-control-ws.priority=110"
+      - "traefik.http.routers.videobrain-control-ws.tls.certresolver=le"
+      - "traefik.http.services.videobrain-control.loadbalancer.server.port=8933"
+      - "traefik.http.middlewares.strip-videobrain-control.stripprefix.prefixes=/videobrain-control"
+
+  # Polling API (no WebSocket bridge needed)
+  videobrain-polling:
+    build:
+      context: .
+      dockerfile: Dockerfile.polling
+    image: videobrain-polling
+    container_name: videobrain-polling
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8934:8934"
+    environment:
+      - POLLING_API_KEY=${POLLING_API_KEY:-${VIDEOBRAIN_CONTROL_API_KEY}}
+      - POLLING_GRAPH_FILE=/app/data/polled-graph.json
+    volumes:
+      - ./data:/app/data
+    labels:
+      # Traefik labels for routing via videohead.duckdns.org
+      - "traefik.enable=true"
+      - "traefik.http.routers.videobrain-polling.rule=Host(`videohead.duckdns.org`) && PathPrefix(`/videobrain-polling`)"
+      - "traefik.http.routers.videobrain-polling.entrypoints=websecure"
+      - "traefik.http.routers.videobrain-polling.priority=110"
+      - "traefik.http.routers.videobrain-polling.tls.certresolver=le"
+      - "traefik.http.routers.videobrain-polling.middlewares=strip-videobrain-polling"
+      - "traefik.http.services.videobrain-polling.loadbalancer.server.port=8934"
+      - "traefik.http.middlewares.strip-videobrain-polling.stripprefix.prefixes=/videobrain-polling"
+
+  # MCP Server (for AI tooling)
+  videobrain-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    image: videobrain-mcp
+    container_name: videobrain-mcp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8932:8932"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    environment:
+      - VIDEOBRAIN_CONTROL_URL=http://videobrain-control:8933
+      - VIDEOBRAIN_CONTROL_API_KEY=${VIDEOBRAIN_CONTROL_API_KEY}
+      - VIDEOBRAIN_ROOT=/app
+    command: ["python3", "/opt/videobrain-mcp/server.py"]
+    networks:
+      - default
+      - metis-network
+
+networks:
+  metis-network:
+    external: true
